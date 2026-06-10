@@ -1,23 +1,11 @@
-import math
 from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends
 from sqlmodel import Session, select
 from database import get_session
 from models import Flashcard, FlashcardCreate, FlashcardRead, Nota
+from services import sm2_calculo
 
 router = APIRouter()
-
-def sm2_calculo(qualidade: int, intervalo: float, facilidade: float, revisoes: int):
-    if qualidade < 3:
-        return 0.0, facilidade, 0
-    facilidade = max(1.3, facilidade + (0.1 - (5 - qualidade) * (0.08 + (5 - qualidade) * 0.02)))
-    if revisoes == 0:
-        intervalo = 1.0
-    elif revisoes == 1:
-        intervalo = 6.0
-    else:
-        intervalo = round(intervalo * facilidade, 1)
-    return intervalo, round(facilidade, 2), revisoes + 1
 
 @router.get("", response_model=list[FlashcardRead])
 def list_flashcards(nota_id: int | None = None, session: Session = Depends(get_session)):

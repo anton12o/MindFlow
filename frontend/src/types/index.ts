@@ -99,6 +99,7 @@ export interface QuerieSalva {
   nome: string
   tipo_objeto_id: number
   visualizacao: string
+  campo_agrupamento: string | null
   filtros: Record<string, any>
   ordem: string
   criado_em: string

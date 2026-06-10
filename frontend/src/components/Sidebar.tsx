@@ -1,21 +1,25 @@
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../store/theme'
 import InboxModal from './InboxModal'
 
 const navItems = [
-  { icon: '◉', label: 'Dashboard', page: 'dashboard' },
-  { icon: '○', label: 'Rotina', page: 'rotina' },
-  { icon: '☰', label: 'Hábitos', page: 'habitos' },
-  { icon: '◷', label: 'Pomodoro', page: 'pomodoro' },
-  { icon: '◇', label: 'Ideias', page: 'ideias' },
-  { icon: '⚡', label: 'Flashcards', page: 'flashcards' },
-  { icon: '⚙', label: 'Tipos', page: 'tipos' },
-  { icon: '⊞', label: 'Consultas', page: 'consultas' },
+  { icon: '◉', label: 'Dashboard', page: '/' },
+  { icon: '○', label: 'Rotina', page: '/rotina' },
+  { icon: '☰', label: 'Hábitos', page: '/habitos' },
+  { icon: '◷', label: 'Pomodoro', page: '/pomodoro' },
+  { icon: '◇', label: 'Ideias', page: '/ideias' },
+  { icon: '◈', label: 'Flashcards', page: '/flashcards' },
+  { icon: '⚙', label: 'Tipos', page: '/tipos' },
+  { icon: '⊞', label: 'Consultas', page: '/consultas' },
 ]
 
-export default function Sidebar({ page, onNavigate, inboxOpen, onToggleInbox }: {
-  page: string; onNavigate: (p: string) => void; inboxOpen: boolean; onToggleInbox: () => void
+export default function Sidebar({ inboxOpen, onToggleInbox }: {
+  inboxOpen: boolean; onToggleInbox: () => void
 }) {
+  const navigate = useNavigate()
+  const location = useLocation()
   const { theme, toggleTheme } = useTheme()
+  const currentPath = location.pathname
 
   return (
     <>
@@ -24,9 +28,9 @@ export default function Sidebar({ page, onNavigate, inboxOpen, onToggleInbox }: 
         {navItems.map(item => (
           <button
             key={item.page}
-            onClick={() => onNavigate(item.page)}
+            onClick={() => navigate(item.page)}
             className={`w-10 h-10 flex items-center justify-center rounded-lg text-lg transition-colors
-              ${page === item.page ? 'bg-accent/20 text-accent' : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'}`}
+              ${currentPath === item.page ? 'bg-accent/20 text-accent' : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'}`}
             title={item.label}
           >
             {item.icon}

@@ -9,33 +9,10 @@ from models import (
     ConexaoNota, ConexaoNotaRead,
     TemplateNota, TemplateRead, TemplateBase,
 )
+from services import processar_wikilinks
 from datetime import datetime
 
 router = APIRouter()
-
-def parse_wikilinks(nota_id: int, conteudo: str, session: Session):
-    existing = session.exec(
-        select(ConexaoNota).where(ConexaoNota.nota_origem_id == nota_id)
-    ).all()
-    for conn in existing:
-        session.delete(conn)
-    titles = re.findall(r'\[\[([^\]]+?)(?:\|([^\]]+))?\]\]', conteudo)
-    seen = set()
-    for raw_title, _ in titles:
-        title = raw_title.strip()
-        if title in seen:
-            continue
-        seen.add(title)
-        target = session.exec(
-            select(Nota).where(Nota.titulo == title)
-        ).first()
-        if target and target.id != nota_id:
-            conn = ConexaoNota(
-                nota_origem_id=nota_id,
-                nota_destino_id=target.id,
-                tipo="wikilink",
-            )
-            session.add(conn)
 
 # ─── Pastas ───
 @router.get("/pastas", response_model=list[PastaRead])
@@ -77,7 +54,7 @@ def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
     session.add(db)
     session.commit()
     session.refresh(db)
-    parse_wikilinks(db.id, db.conteudo, session)
+    processar_wikilinks(db.id, db.conteudo, session)
     session.commit()
     return db
 
@@ -97,7 +74,7 @@ def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_sess
         session.commit()
         session.refresh(db)
         if "conteudo" in data:
-            parse_wikilinks(db.id, db.conteudo, session)
+            processar_wikilinks(db.id, db.conteudo, session)
             session.commit()
     return db
 
@@ -178,7 +155,6 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     t = session.get(TemplateNota, template_id)
     if not t:
         return {"ok": False}
-    import re
     from datetime import date
     conteudo = re.sub(r'\{\{data\}\}', date.today().isoformat(), t.conteudo)
     conteudo = re.sub(r'\{\{titulo\}\}', t.nome, conteudo)

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
 import Sidebar from './components/Sidebar'
@@ -16,20 +17,23 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 })
 
-function AppContent() {
-  const [page, setPage] = useState('dashboard')
+function Layout() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const [showPalette, setShowPalette] = useState(false)
   const [inboxOpen, setInboxOpen] = useState(false)
 
+  const page = location.pathname.slice(1) || 'dashboard'
+
   const commands = [
-    { id: 'dashboard', label: 'Ir para Dashboard', action: () => setPage('dashboard') },
-    { id: 'rotina', label: 'Ir para Rotina', action: () => setPage('rotina') },
-    { id: 'habitos', label: 'Ir para Hábitos', action: () => setPage('habitos') },
-    { id: 'pomodoro', label: 'Ir para Pomodoro', action: () => setPage('pomodoro') },
-    { id: 'ideias', label: 'Ir para Ideias', action: () => setPage('ideias') },
-    { id: 'flashcards', label: 'Ir para Flashcards', action: () => setPage('flashcards') },
-    { id: 'tipos', label: 'Ir para Tipos', action: () => setPage('tipos') },
-    { id: 'consultas', label: 'Ir para Consultas', action: () => setPage('consultas') },
+    { id: 'dashboard', label: 'Ir para Dashboard', action: () => navigate('/') },
+    { id: 'rotina', label: 'Ir para Rotina', action: () => navigate('/rotina') },
+    { id: 'habitos', label: 'Ir para Hábitos', action: () => navigate('/habitos') },
+    { id: 'pomodoro', label: 'Ir para Pomodoro', action: () => navigate('/pomodoro') },
+    { id: 'ideias', label: 'Ir para Ideias', action: () => navigate('/ideias') },
+    { id: 'flashcards', label: 'Ir para Flashcards', action: () => navigate('/flashcards') },
+    { id: 'tipos', label: 'Ir para Tipos', action: () => navigate('/tipos') },
+    { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
   ]
 
@@ -54,16 +58,18 @@ function AppContent() {
 
   return (
     <div className="h-screen flex overflow-hidden">
-      <Sidebar page={page} onNavigate={setPage} inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} />
+      <Sidebar inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} />
       <main className="flex-1 overflow-y-auto">
-        {page === 'dashboard' && <Dashboard />}
-        {page === 'rotina' && <Rotina />}
-        {page === 'habitos' && <Habitos />}
-        {page === 'pomodoro' && <PomodoroPage />}
-        {page === 'ideias' && <Ideias />}
-        {page === 'flashcards' && <Flashcards />}
-        {page === 'tipos' && <Tipos />}
-        {page === 'consultas' && <Consultas />}
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/rotina" element={<Rotina />} />
+          <Route path="/habitos" element={<Habitos />} />
+          <Route path="/pomodoro" element={<PomodoroPage />} />
+          <Route path="/ideias" element={<Ideias />} />
+          <Route path="/flashcards" element={<Flashcards />} />
+          <Route path="/tipos" element={<Tipos />} />
+          <Route path="/consultas" element={<Consultas />} />
+        </Routes>
       </main>
       {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
     </div>
@@ -74,7 +80,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <AppContent />
+        <BrowserRouter>
+          <Layout />
+        </BrowserRouter>
       </ThemeProvider>
     </QueryClientProvider>
   )

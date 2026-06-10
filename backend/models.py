@@ -273,7 +273,8 @@ class QuerySalva(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nome: str
     tipo_objeto_id: int = Field(foreign_key="tipos_objeto.id")
-    visualizacao: str = "grid"  # grid | tabela | kanban
+    visualizacao: str = "grid"  # grid | kanban
+    campo_agrupamento: str | None = None  # usado no kanban: ex: "status", "prioridade"
     filtros: dict = Field(default_factory=dict, sa_column=Column(JSON))
     ordem: str = "criado_em DESC"
     criado_em: str = Field(default_factory=now)
@@ -282,6 +283,7 @@ class QuerySalvaCreate(SQLModel):
     nome: str
     tipo_objeto_id: int
     visualizacao: str = "grid"
+    campo_agrupamento: str | None = None
     filtros: dict = {}
     ordem: str = "criado_em DESC"
 
@@ -290,6 +292,7 @@ class QuerySalvaRead(SQLModel):
     nome: str
     tipo_objeto_id: int
     visualizacao: str
+    campo_agrupamento: str | None
     filtros: dict
     ordem: str
     criado_em: str

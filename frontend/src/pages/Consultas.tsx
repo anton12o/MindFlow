@@ -9,6 +9,8 @@ export default function Consultas() {
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [newName, setNewName] = useState('')
   const [newTipoId, setNewTipoId] = useState(1)
+  const [newView, setNewView] = useState('grid')
+  const [newGroup, setNewGroup] = useState('')
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
 
@@ -22,7 +24,7 @@ export default function Consultas() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => createQuery({ nome: newName, tipo_objeto_id: newTipoId }),
+    mutationFn: () => createQuery({ nome: newName, tipo_objeto_id: newTipoId, visualizacao: newView, campo_agrupamento: newGroup || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['queries'] })
       setNewName('')
@@ -57,6 +59,27 @@ export default function Consultas() {
     })
   }
 
+  function renderCard(item: any) {
+    return (
+      <div key={item.id} onClick={() => toggleSelect(item.id)}
+        className={`bg-bg-secondary rounded-xl border p-3 cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'}`}>
+        <div className="flex items-center gap-2">
+          <input type="checkbox" checked={selectedIds.has(item.id)}
+            onChange={() => toggleSelect(item.id)} className="accent-accent" />
+          <span className="text-sm font-medium truncate">{item.titulo}</span>
+        </div>
+        {item.status && (
+          <span className={`text-xs px-1.5 py-0.5 rounded mt-1 inline-block ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
+            {item.status}
+          </span>
+        )}
+        {item.prioridade && (
+          <span className="text-xs text-text-muted ml-1">{item.prioridade}</span>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
@@ -69,7 +92,22 @@ export default function Consultas() {
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
           </select>
-          <button type="submit" disabled={!newName.trim()}
+          <select value={newView} onChange={e => setNewView(e.target.value)}
+            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
+            <option value="grid">Grid (cards)</option>
+            <option value="kanban">Kanban (colunas)</option>
+          </select>
+          {newView === 'kanban' && (
+            <select value={newGroup} onChange={e => setNewGroup(e.target.value)}
+              className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
+              <option value="">Campo para agrupar...</option>
+              <option value="status">Status</option>
+              <option value="prioridade">Prioridade</option>
+              <option value="tipo_id">Tipo</option>
+              <option value="data">Data</option>
+            </select>
+          )}
+          <button type="submit" disabled={!newName.trim() || (newView === 'kanban' && !newGroup)}
             className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar</button>
         </form>
 
@@ -79,7 +117,7 @@ export default function Consultas() {
               <button onClick={() => setSelectedQuery(q.id)}
                 className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedQuery === q.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
                 {q.nome}
-                <div className="text-xs text-text-muted">{q.visualizacao}</div>
+                <div className="text-xs text-text-muted">{q.visualizacao}{q.visualizacao === 'kanban' ? ` por ${q.campo_agrupamento}` : ''}</div>
               </button>
               <button onClick={() => deleteMut.mutate(q.id)}
                 className="text-xs text-text-muted hover:text-danger">✕</button>
@@ -112,30 +150,40 @@ export default function Consultas() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {(result?.dados || []).map((item: any) => (
-                <div key={item.id}
-                  onClick={() => toggleSelect(item.id)}
-                  className={`bg-bg-secondary rounded-xl border p-3 cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'}`}>
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" checked={selectedIds.has(item.id)}
-                      onChange={() => toggleSelect(item.id)} className="accent-accent" />
-                    <span className="text-sm font-medium truncate">{item.titulo}</span>
-                  </div>
-                  {item.status && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded mt-1 inline-block ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
-                      {item.status}
-                    </span>
-                  )}
-                  {item.prioridade && (
-                    <span className="text-xs text-text-muted ml-1">{item.prioridade}</span>
-                  )}
-                </div>
-              ))}
-              {(!result?.dados || result.dados.length === 0) && (
-                <p className="text-text-muted text-sm col-span-full text-center py-8">Nenhum resultado</p>
-              )}
-            </div>
+            {queryAtual.visualizacao === 'kanban' && result?.dados ? (
+              <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
+                {(() => {
+                  const grupos: Record<string, any[]> = {}
+                  const campo = queryAtual.campo_agrupamento || 'status'
+                  for (const item of result.dados) {
+                    const chave = String(item[campo] ?? 'Sem valor')
+                    if (!grupos[chave]) grupos[chave] = []
+                    grupos[chave].push(item)
+                  }
+                  const colunas = ['pendente', 'feito', 'alta', 'normal', 'baixa', 'Sem valor']
+                  const ordem = colunas.filter(c => c in grupos)
+                  const extra = Object.keys(grupos).filter(c => !colunas.includes(c))
+                  return [...ordem, ...extra].map(col => (
+                    <div key={col} className="bg-bg-secondary rounded-xl border border-border min-w-[220px] flex-shrink-0 flex flex-col">
+                      <div className="px-3 py-2 border-b border-border font-medium text-sm sticky top-0 bg-bg-secondary rounded-t-xl">
+                        {col}
+                        <span className="text-text-muted text-xs ml-2">({grupos[col].length})</span>
+                      </div>
+                      <div className="p-2 space-y-2 flex-1 overflow-y-auto">
+                        {grupos[col].map(renderCard)}
+                      </div>
+                    </div>
+                  ))
+                })()}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {(result?.dados || []).map(renderCard)}
+                {(!result?.dados || result.dados.length === 0) && (
+                  <p className="text-text-muted text-sm col-span-full text-center py-8">Nenhum resultado</p>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-text-muted text-sm">
