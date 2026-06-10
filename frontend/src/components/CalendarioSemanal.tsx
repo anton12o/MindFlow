@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { getBlocos, getTarefas } from '../api/rotina'
+import { formatDateLocal, hojeLocal } from '../utils/date'
 
 function getWeekDays(): { date: string; label: string }[] {
   const hoje = new Date()
@@ -7,19 +8,19 @@ function getWeekDays(): { date: string; label: string }[] {
   const diff = dia === 0 ? -6 : 1 - dia
   const segunda = new Date(hoje)
   segunda.setDate(hoje.getDate() + diff)
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
   return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(segunda)
     d.setDate(segunda.getDate() + i)
-    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-    return { date: d.toISOString().split('T')[0], label: days[d.getDay()] }
+    return { date: formatDateLocal(d), label: days[d.getDay()] }
   })
 }
 
-const HORAS = Array.from({ length: 13 }, (_, i) => String(i + 7).padStart(2, '0')) // 07h-19h
+const HORAS = Array.from({ length: 13 }, (_, i) => String(i + 7).padStart(2, '0'))
 
 export default function CalendarioSemanal() {
   const weekDays = getWeekDays()
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const queries = weekDays.map(d =>
     useQuery({

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getHabitos, createHabito, deleteHabito, getRegistros, createRegistro } from '../api/habitos'
+import { hojeLocal } from '../utils/date'
 import type { Habito, RegistroHabito } from '../types'
 
 export default function Habitos() {
@@ -30,7 +31,7 @@ export default function Habitos() {
   }
 
   async function handleCheck(habitoId: number, feito: boolean) {
-    const hoje = new Date().toISOString().split('T')[0]
+    const hoje = hojeLocal()
     await createRegistro(habitoId, {
       habito_id: habitoId,
       data: hoje,

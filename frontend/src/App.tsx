@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
 import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import Rotina from './pages/Rotina'
 import Habitos from './pages/Habitos'
@@ -12,9 +13,13 @@ import Ideias from './pages/Ideias'
 import Flashcards from './pages/Flashcards'
 import Tipos from './pages/Tipos'
 import Consultas from './pages/Consultas'
+import Insights from './pages/Insights'
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
+  defaultOptions: {
+    queries: { staleTime: 30_000, retry: 1 },
+    mutations: { onError: (err) => console.error('[Mutation Error]', err) },
+  },
 })
 
 function Layout() {
@@ -34,6 +39,7 @@ function Layout() {
     { id: 'flashcards', label: 'Ir para Flashcards', action: () => navigate('/flashcards') },
     { id: 'tipos', label: 'Ir para Tipos', action: () => navigate('/tipos') },
     { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
+    { id: 'insights', label: 'Ir para Insights', action: () => navigate('/insights') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
   ]
 
@@ -69,9 +75,26 @@ function Layout() {
           <Route path="/flashcards" element={<Flashcards />} />
           <Route path="/tipos" element={<Tipos />} />
           <Route path="/consultas" element={<Consultas />} />
+          <Route path="/insights" element={<Insights />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
       {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
+    </div>
+  )
+}
+
+function NotFound() {
+  const navigate = useNavigate()
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-center">
+        <h1 className="text-4xl font-bold text-text-muted mb-2">404</h1>
+        <p className="text-text-muted mb-4">Página não encontrada</p>
+        <button onClick={() => navigate('/')} className="px-4 py-2 bg-accent text-white rounded-lg text-sm">
+          Voltar ao Dashboard
+        </button>
+      </div>
     </div>
   )
 }
@@ -80,9 +103,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <Layout />
-        </BrowserRouter>
+        <ErrorBoundary>
+          <BrowserRouter>
+            <Layout />
+          </BrowserRouter>
+        </ErrorBoundary>
       </ThemeProvider>
     </QueryClientProvider>
   )

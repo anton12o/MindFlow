@@ -3,13 +3,14 @@ import { getTarefas } from '../api/rotina'
 import { getHabitos } from '../api/habitos'
 import { getBlocos } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
+import { hojeLocal } from '../utils/date'
 import type { Tarefa, Habito, BlocoRotina } from '../types'
 
 export default function Dashboard() {
   const [tarefas, setTarefas] = useState<Tarefa[]>([])
   const [habitos, setHabitos] = useState<Habito[]>([])
   const [blocos, setBlocos] = useState<BlocoRotina[]>([])
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   useEffect(() => {
     getTarefas(hoje).then(setTarefas)

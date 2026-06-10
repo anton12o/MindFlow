@@ -1,9 +1,20 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createInbox } from '../api/inbox'
 
 export default function InboxModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('')
   const [saved, setSaved] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  useEffect(() => {
+    return () => { if (savedTimer.current) clearTimeout(savedTimer.current) }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -11,7 +22,7 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
     await createInbox(text.trim())
     setText('')
     setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    savedTimer.current = setTimeout(() => setSaved(false), 2000)
   }
 
   return (

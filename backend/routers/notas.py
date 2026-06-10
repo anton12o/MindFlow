@@ -42,10 +42,12 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 
 # ─── Notas ───
 @router.get("", response_model=list[NotaRead])
-def list_notas(q: str | None = None, session: Session = Depends(get_session)):
+def list_notas(q: str | None = None, data: str | None = None, session: Session = Depends(get_session)):
     stmt = select(Nota)
     if q:
         stmt = stmt.where(Nota.titulo.contains(q) | Nota.conteudo.contains(q))
+    if data:
+        stmt = stmt.where(Nota.criado_em.startswith(data))
     return session.exec(stmt.order_by(Nota.atualizado_em.desc())).all()
 
 @router.post("", response_model=NotaRead)
@@ -163,3 +165,42 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(nota)
     return nota
+
+
+@router.get("/estatisticas")
+def estatisticas_notas(mes: int, ano: int, session: Session = Depends(get_session)):
+    from datetime import date, timedelta
+    import calendar
+
+    stmt = select(Nota).where(
+        Nota.criado_em.like(f"{ano:04d}-{mes:02d}%")
+    )
+    notas = session.exec(stmt).all()
+    por_dia: dict[str, int] = {}
+    for n in notas:
+        dia = n.criado_em[8:10]
+        por_dia[dia] = por_dia.get(dia, 0) + 1
+
+    todas = session.exec(select(Nota.criado_em)).all()
+    dias_com_nota: set[str] = set()
+    for n in todas:
+        dias_com_nota.add(n[:10])
+
+    streak = 0
+    d = date.today()
+    while True:
+        chave = d.isoformat()
+        if chave in dias_com_nota:
+            streak += 1
+            d -= timedelta(days=1)
+        else:
+            break
+
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+
+    return {
+        "por_dia": por_dia,
+        "total_mes": len(notas),
+        "streak": streak,
+        "ultimo_dia": ultimo_dia,
+    }

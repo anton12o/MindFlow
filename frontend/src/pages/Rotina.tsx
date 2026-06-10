@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, createBloco, deleteBloco, getTarefas, createTarefa, updateTarefaStatus, deleteTarefa } from '../api/rotina'
 import CalendarioSemanal from '../components/CalendarioSemanal'
+import { hojeLocal } from '../utils/date'
 import type { BlocoRotina, Tarefa } from '../types'
 
 export default function Rotina() {
@@ -10,7 +11,7 @@ export default function Rotina() {
   const [novaTarefa, setNovaTarefa] = useState('')
   const [showBlocoForm, setShowBlocoForm] = useState(false)
   const [blocoForm, setBlocoForm] = useState({ titulo: '', hora_inicio: '', hora_fim: '' })
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const { data: blocos } = useQuery({
     queryKey: ['rotina', 'blocos', hoje],

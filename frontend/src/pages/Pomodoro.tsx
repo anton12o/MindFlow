@@ -4,11 +4,12 @@ import { getSessoes } from '../api/pomodoro'
 import { getHabitos } from '../api/habitos'
 import { getTarefas } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
+import { hojeLocal } from '../utils/date'
 
 export default function PomodoroPage() {
   const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | undefined>()
 
-  const hoje = new Date().toISOString().split('T')[0]
+  const hoje = hojeLocal()
 
   const { data: sessoes } = useQuery({
     queryKey: ['pomodoro', 'sessoes'],

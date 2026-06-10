@@ -1,9 +1,0 @@
-﻿gh : 
-No linha:1 caractere:57
-+ ... ram Files\GitHub CLI'; gh auth login --web -h github.com 2>&1 | Out-F ...
-+                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
- 
-! First copy your one-time code: 656D-08FB
-Open this URL to continue in your web browser: https://github.com/login/device

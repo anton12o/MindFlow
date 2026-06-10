@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
 from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead, Nota
@@ -28,7 +28,7 @@ def create_sessao(s: SessaoPomodoroCreate, session: Session = Depends(get_sessio
 def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session = Depends(get_session)):
     s = session.get(SessaoPomodoro, sessao_id)
     if not s:
-        return {"ok": False}
+        raise HTTPException(status_code=404, detail="Sessão não encontrada")
     s.finalizado_em = datetime.now().isoformat()
     if body.conteudo_resumo:
         nota = Nota(
@@ -38,7 +38,6 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
         session.add(nota)
         session.flush()
         s.resumo_nota_id = nota.id
-    session.add(s)
     session.commit()
     session.refresh(s)
     return s
