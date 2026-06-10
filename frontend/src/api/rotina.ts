@@ -1,0 +1,23 @@
+import request from './client'
+import type { BlocoRotina, Tarefa } from '../types'
+
+export const getBlocos = (data?: string) =>
+  request<BlocoRotina[]>(`/rotina/blocos${data ? `?data=${data}` : ''}`)
+
+export const createBloco = (data: Partial<BlocoRotina>) =>
+  request<BlocoRotina>('/rotina/blocos', { method: 'POST', body: JSON.stringify(data) })
+
+export const deleteBloco = (id: number) =>
+  request<{ ok: boolean }>(`/rotina/blocos/${id}`, { method: 'DELETE' })
+
+export const getTarefas = (data?: string) =>
+  request<Tarefa[]>(`/rotina/tarefas${data ? `?data=${data}` : ''}`)
+
+export const createTarefa = (data: Partial<Tarefa>) =>
+  request<Tarefa>('/rotina/tarefas', { method: 'POST', body: JSON.stringify(data) })
+
+export const updateTarefaStatus = (id: number, status: string) =>
+  request<Tarefa>(`/rotina/tarefas/${id}?status=${status}`, { method: 'PATCH' })
+
+export const deleteTarefa = (id: number) =>
+  request<{ ok: boolean }>(`/rotina/tarefas/${id}`, { method: 'DELETE' })

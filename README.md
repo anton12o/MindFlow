@@ -1,0 +1,152 @@
+# MindFlow 🧠
+
+**Seu segundo cérebro local-first, open-source e keyboard-driven.**
+
+MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, hábitos, pomodoro e flashcards em um só lugar — com tudo armazenado localmente no seu computador.
+
+> Inspirado por Anytype, Obsidian e TickTick.
+
+---
+
+## ✨ Funcionalidades
+
+| Módulo | Descrição |
+|--------|-----------|
+| 📥 **Inbox** | Captura rápida com Ctrl+I — solte ideias sem interromper o fluxo |
+| ○ **Rotina** | Blocos de tempo + tarefas diárias + calendário semanal |
+| ☰ **Hábitos** | Rastreamento binário ou quantitativo com streaks |
+| ◷ **Pomodoro** | Timer foco/descanso com nota de resumo automática |
+| ◇ **Ideias** | Editor Markdown, [[wikilinks]], backlinks, propriedades dinâmicas |
+| ⚡ **Flashcards** | Repetição espaçada (SM-2) para revisão ativa |
+| ⚙ **Tipos** | Sistema de tipos customizável (inspirado no Anytype) |
+| ⊞ **Consultas** | Visualizações dinâmicas com filtros e edição em massa |
+
+### Diferenciais
+
+- **Local-first**: tudo em SQLite local. Sem nuvem, sem depender de terceiros.
+- **Keyboard-driven**: Ctrl+K (paleta), Ctrl+I (captura), `/` (comandos no editor)
+- **Backlinks**: `[[wikilinks]]` conectam suas notas automaticamente
+- **Grafo de conhecimento**: visualização interativa das conexões entre notas
+- **Tema claro/escuro**: toggle na sidebar
+- **Templates**: crie notas a partir de modelos pré-definidos
+- **Propriedades JSON**: dados estruturados dentro de notas e tarefas
+
+---
+
+## 🚀 Stack
+
+| Camada | Tecnologia |
+|--------|-----------|
+| **Frontend** | Vite + React 19 + TypeScript + Tailwind CSS |
+| **Backend** | Python + FastAPI + SQLModel |
+| **Banco** | SQLite |
+| **Editor** | CodeMirror 6 (Markdown + Python + JS + SQL) |
+| **Grafo** | d3-force |
+| **Cache** | TanStack React Query |
+
+---
+
+## 📦 Pré-requisitos
+
+- **Node.js** 18+ e npm
+- **Python** 3.11+
+- **Git**
+
+## 🛠️ Instalação
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/SEU_USUARIO/mindflow.git
+cd mindflow
+```
+
+### 2. Backend
+
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --reload --port 8000
+```
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Acesse **http://localhost:5173**.
+
+---
+
+## ⌨️ Atalhos
+
+| Atalho | Ação |
+|--------|------|
+| `Ctrl+K` | Abrir paleta de comandos |
+| `Ctrl+I` | Captura rápida (Inbox) |
+| `/` | Menu de comandos no editor |
+| `[[título]]` | Criar wikilink para outra nota |
+
+---
+
+## 🗂️ Estrutura
+
+```
+mindflow/
+├── backend/
+│   ├── main.py              # Servidor FastAPI + startup
+│   ├── models.py            # Modelos SQLModel (tabelas)
+│   ├── database.py          # Conexão SQLite e migração
+│   ├── routers/
+│   │   ├── inbox.py         # Endpoints do Inbox
+│   │   ├── habitos.py       # Endpoints de Hábitos
+│   │   ├── rotina.py        # Endpoints de Rotina
+│   │   ├── pomodoro.py      # Endpoints de Pomodoro
+│   │   ├── notas.py         # Endpoints de Notas + wikilinks + grafo
+│   │   ├── flashcards.py    # Endpoints de Flashcards (SM-2)
+│   │   ├── tipos.py         # Endpoints de Tipos de Objeto
+│   │   └── queries.py       # Endpoints de Consultas Dinâmicas
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx          # Roteamento + tema + atalhos globais
+│   │   ├── api/             # Cliente HTTP (fetch) para cada módulo
+│   │   ├── pages/           # Páginas (Dashboard, Rotina, Ideias, etc.)
+│   │   ├── components/      # Componentes (Sidebar, Grafo, Editor, etc.)
+│   │   ├── store/           # Contextos (ThemeContext)
+│   │   └── types/           # Interfaces TypeScript
+│   ├── index.html
+│   └── package.json
+└── README.md
+```
+
+---
+
+## 🧪 APIs (exemplos)
+
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/api/health` | Status do servidor |
+| `GET` | `/api/notas?q=busca` | Lista notas (com busca full-text) |
+| `POST` | `/api/notas` | Cria nota |
+| `GET` | `/api/notas/{id}/conexoes` | Backlinks de uma nota |
+| `GET` | `/api/notas/grafo` | Dados do grafo de conhecimento |
+| `POST` | `/api/flashcards/{id}/review?qualidade=3` | Revisar flashcard (SM-2) |
+| `GET` | `/api/tipos` | Lista tipos de objeto |
+| `POST` | `/api/queries/{id}/executar` | Executa uma consulta salva |
+| `PATCH` | `/api/queries/{id}/batch` | Edição em massa |
+
+---
+
+## 📄 Licença
+
+MIT
+
+---
+
+## 🤝 Contribuindo
+
+Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests.
