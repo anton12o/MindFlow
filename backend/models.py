@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
-from typing import Optional
+from typing import Optional, Any
 from datetime import datetime, date
 
 def now():
@@ -43,6 +43,13 @@ class Habito(HabitoBase, table=True):
 class HabitoCreate(HabitoBase):
     pass
 
+class HabitoUpdate(SQLModel):
+    nome: Optional[str] = None
+    tipo: Optional[str] = None
+    meta: Optional[float] = None
+    categoria: Optional[str] = None
+    cor: Optional[str] = None
+
 class HabitoRead(HabitoBase):
     id: int
     criado_em: str
@@ -82,6 +89,12 @@ class BlocoRotina(BlocoRotinaBase, table=True):
 class BlocoRotinaCreate(BlocoRotinaBase):
     pass
 
+class BlocoRotinaUpdate(SQLModel):
+    titulo: Optional[str] = None
+    hora_inicio: Optional[str] = None
+    hora_fim: Optional[str] = None
+    cor: Optional[str] = None
+
 class BlocoRotinaRead(BlocoRotinaBase):
     id: int
 
@@ -94,7 +107,7 @@ class TarefaBase(SQLModel):
     data: str
     tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
     criado_em: str = Field(default_factory=now)
-    propriedades: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 class Tarefa(TarefaBase, table=True):
     __tablename__ = "tarefas"
@@ -107,7 +120,13 @@ class TarefaCreate(SQLModel):
     bloco_id: Optional[int] = None
     data: str
     tipo_id: Optional[int] = None
-    propriedades: dict = {}
+    propriedades: dict[str, Any] = {}
+
+class TarefaUpdate(SQLModel):
+    titulo: Optional[str] = None
+    prioridade: Optional[str] = None
+    status: Optional[str] = None
+    tempo_estimado: Optional[int] = None
 
 class TarefaRead(TarefaBase):
     id: int
@@ -166,7 +185,7 @@ class NotaBase(SQLModel):
     conteudo: str = ""
     pasta_id: Optional[int] = Field(default=None, foreign_key="pastas.id")
     tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
-    propriedades: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 class Nota(NotaBase, table=True):
     __tablename__ = "notas"
@@ -187,6 +206,7 @@ class NotaUpdate(SQLModel):
     conteudo: Optional[str] = None
     pasta_id: Optional[int] = None
     tipo_id: Optional[int] = None
+    propriedades: Optional[dict[str, object]] = None
 
 class NotaTag(SQLModel, table=True):
     __tablename__ = "notas_tags"
@@ -209,7 +229,7 @@ class ConexaoNotaRead(SQLModel):
 
 # ─── Flashcards ───
 class FlashcardBase(SQLModel):
-    nota_id: int = Field(foreign_key="notas.id")
+    nota_id: Optional[int] = Field(default=None, foreign_key="notas.id")
     pergunta: str
     resposta: str
     intervalo: float = 0.0
@@ -224,9 +244,14 @@ class Flashcard(FlashcardBase, table=True):
     criado_em: datetime = Field(default_factory=datetime.now)
 
 class FlashcardCreate(SQLModel):
-    nota_id: int
+    nota_id: Optional[int] = None
     pergunta: str
     resposta: str
+
+class FlashcardUpdate(SQLModel):
+    pergunta: Optional[str] = None
+    resposta: Optional[str] = None
+    nota_id: Optional[int] = None
 
 class FlashcardRead(FlashcardBase):
     id: int
@@ -237,7 +262,7 @@ class TemplateBase(SQLModel):
     nome: str
     descricao: str | None = None
     conteudo: str
-    propriedades: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 class TemplateNota(TemplateBase, table=True):
     __tablename__ = "templates"
@@ -252,8 +277,8 @@ class TemplateRead(TemplateBase):
 class TipoObjetoBase(SQLModel):
     nome: str
     icone: str = "📄"
-    schema_campos: dict = Field(default_factory=dict, sa_column=Column(JSON))
-    schema_relacoes: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    schema_campos: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    schema_relacoes: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 class TipoObjeto(TipoObjetoBase, table=True):
     __tablename__ = "tipos_objeto"
@@ -275,7 +300,7 @@ class QuerySalva(SQLModel, table=True):
     tipo_objeto_id: int = Field(foreign_key="tipos_objeto.id")
     visualizacao: str = "grid"  # grid | kanban
     campo_agrupamento: str | None = None  # usado no kanban: ex: "status", "prioridade"
-    filtros: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    filtros: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     ordem: str = "criado_em DESC"
     criado_em: str = Field(default_factory=now)
 
@@ -284,7 +309,7 @@ class QuerySalvaCreate(SQLModel):
     tipo_objeto_id: int
     visualizacao: str = "grid"
     campo_agrupamento: str | None = None
-    filtros: dict = {}
+    filtros: dict[str, Any] = {}
     ordem: str = "criado_em DESC"
 
 class QuerySalvaRead(SQLModel):

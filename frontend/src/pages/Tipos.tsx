@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos, createTipo, updateTipo, deleteTipo } from '../api/tipos'
 
+const ICONES = ['📄', '✅', '📋', '👤', '🔗', '📝', '🎯', '📌', '💡', '📊']
+
 export default function Tipos() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<number | null>(null)
@@ -29,8 +31,6 @@ export default function Tipos() {
     mutationFn: (id: number) => deleteTipo(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tipos'] }),
   })
-
-  const ICONES = ['📄', '✅', '📋', '👤', '🔗', '📝', '🎯', '📌', '💡', '📊']
 
   return (
     <div className="p-6 max-w-3xl">

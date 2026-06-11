@@ -7,6 +7,9 @@ export const getBlocos = (data?: string) =>
 export const createBloco = (data: Partial<BlocoRotina>) =>
   request<BlocoRotina>('/rotina/blocos', { method: 'POST', body: JSON.stringify(data) })
 
+export const updateBloco = (id: number, data: Partial<BlocoRotina>) =>
+  request<BlocoRotina>(`/rotina/blocos/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+
 export const deleteBloco = (id: number) =>
   request<{ ok: boolean }>(`/rotina/blocos/${id}`, { method: 'DELETE' })
 
@@ -18,6 +21,9 @@ export const createTarefa = (data: Partial<Tarefa>) =>
 
 export const updateTarefaStatus = (id: number, status: string) =>
   request<Tarefa>(`/rotina/tarefas/${id}?status=${status}`, { method: 'PATCH' })
+
+export const updateTarefa = (id: number, data: Partial<Tarefa>) =>
+  request<Tarefa>(`/rotina/tarefas/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
 
 export const deleteTarefa = (id: number) =>
   request<{ ok: boolean }>(`/rotina/tarefas/${id}`, { method: 'DELETE' })

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead, Nota
+from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead
+from services.notes import criar_nota_resumo
 from datetime import datetime
 from pydantic import BaseModel
 from typing import Optional
@@ -31,12 +32,7 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
     s.finalizado_em = datetime.now().isoformat()
     if body.conteudo_resumo:
-        nota = Nota(
-            titulo=f"Resumo Pomodoro — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-            conteudo=body.conteudo_resumo,
-        )
-        session.add(nota)
-        session.flush()
+        nota = criar_nota_resumo(body.conteudo_resumo, session)
         s.resumo_nota_id = nota.id
     session.commit()
     session.refresh(s)

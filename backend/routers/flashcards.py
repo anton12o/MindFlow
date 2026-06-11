@@ -1,8 +1,8 @@
 from datetime import date, datetime, timedelta
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import Flashcard, FlashcardCreate, FlashcardRead, Nota
+from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead, Nota
 from services import sm2_calculo
 
 router = APIRouter()
@@ -33,7 +33,7 @@ def review_flashcard(flashcard_id: int, qualidade: int, session: Session = Depen
     qualidade = max(0, min(5, qualidade))
     fc = session.get(Flashcard, flashcard_id)
     if not fc:
-        return {"ok": False}
+        raise HTTPException(status_code=404, detail="Flashcard não encontrado")
     intervalo, facilidade, revisoes = sm2_calculo(
         qualidade, fc.intervalo, fc.facilidade, fc.revisoes
     )
@@ -47,10 +47,23 @@ def review_flashcard(flashcard_id: int, qualidade: int, session: Session = Depen
     session.refresh(fc)
     return fc
 
+@router.patch("/{flashcard_id}", response_model=FlashcardRead)
+def update_flashcard(flashcard_id: int, f: FlashcardUpdate, session: Session = Depends(get_session)):
+    db = session.get(Flashcard, flashcard_id)
+    if not db:
+        raise HTTPException(status_code=404, detail="Flashcard não encontrado")
+    for field, value in f.model_dump(exclude_unset=True).items():
+        setattr(db, field, value)
+    session.add(db)
+    session.commit()
+    session.refresh(db)
+    return db
+
 @router.delete("/{flashcard_id}")
 def delete_flashcard(flashcard_id: int, session: Session = Depends(get_session)):
     fc = session.get(Flashcard, flashcard_id)
-    if fc:
-        session.delete(fc)
-        session.commit()
+    if not fc:
+        raise HTTPException(status_code=404, detail="Flashcard não encontrado")
+    session.delete(fc)
+    session.commit()
     return {"ok": True}

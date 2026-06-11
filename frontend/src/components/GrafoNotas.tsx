@@ -72,7 +72,15 @@ export default function GrafoNotas({ onSelectNota }: Props) {
     return () => { simulation.stop() }
   }, [data])
 
-  if (!data || data.nodes.length === 0) {
+  if (!data) {
+    return (
+      <div className="flex items-center justify-center h-64 text-text-muted text-sm">
+        Carregando grafo...
+      </div>
+    )
+  }
+
+  if (data.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-text-muted text-sm">
         Crie notas com [[links]] para ver o grafo

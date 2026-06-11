@@ -7,6 +7,9 @@ export const getHabitos = (ativos = true) =>
 export const createHabito = (data: Partial<Habito>) =>
   request<Habito>('/habitos', { method: 'POST', body: JSON.stringify(data) })
 
+export const updateHabito = (id: number, data: Partial<Habito>) =>
+  request<Habito>(`/habitos/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+
 export const deleteHabito = (id: number) =>
   request<{ ok: boolean }>(`/habitos/${id}`, { method: 'DELETE' })
 

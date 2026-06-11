@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from sqlmodel import Session, select
 from models import Nota, ConexaoNota
 
@@ -33,3 +34,13 @@ def processar_wikilinks(nota_id: int, conteudo: str, session: Session):
                 tipo="wikilink",
             )
             session.add(conn)
+
+
+def criar_nota_resumo(conteudo_resumo: str, session: Session) -> Nota:
+    nota = Nota(
+        titulo=f"Resumo Pomodoro — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        conteudo=conteudo_resumo,
+    )
+    session.add(nota)
+    session.flush()
+    return nota

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
 from models import InboxItem, InboxItemCreate, InboxItemRead
@@ -21,7 +21,8 @@ def create_inbox(item: InboxItemCreate, session: Session = Depends(get_session))
 @router.delete("/{item_id}")
 def delete_inbox(item_id: int, session: Session = Depends(get_session)):
     item = session.get(InboxItem, item_id)
-    if item:
-        session.delete(item)
-        session.commit()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    session.delete(item)
+    session.commit()
     return {"ok": True}

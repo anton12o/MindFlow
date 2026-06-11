@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getTarefas } from '../api/rotina'
+import { getTarefas, getBlocos } from '../api/rotina'
 import { getHabitos } from '../api/habitos'
-import { getBlocos } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
 import { hojeLocal } from '../utils/date'
 import type { Tarefa, Habito, BlocoRotina } from '../types'
@@ -13,9 +12,9 @@ export default function Dashboard() {
   const hoje = hojeLocal()
 
   useEffect(() => {
-    getTarefas(hoje).then(setTarefas)
-    getHabitos(true).then(setHabitos)
-    getBlocos(hoje).then(setBlocos)
+    getTarefas(hoje).then(setTarefas).catch(e => console.error('[Dashboard] getTarefas', e))
+    getHabitos(true).then(setHabitos).catch(e => console.error('[Dashboard] getHabitos', e))
+    getBlocos(hoje).then(setBlocos).catch(e => console.error('[Dashboard] getBlocos', e))
   }, [])
 
   return (

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQueries } from '@tanstack/react-query'
 import { getBlocos, getTarefas } from '../api/rotina'
 import { formatDateLocal, hojeLocal } from '../utils/date'
 
@@ -22,25 +22,35 @@ export default function CalendarioSemanal() {
   const weekDays = getWeekDays()
   const hoje = hojeLocal()
 
-  const queries = weekDays.map(d =>
-    useQuery({
+  const blocosResults = useQueries({
+    queries: weekDays.map(d => ({
       queryKey: ['rotina', 'blocos', d.date],
       queryFn: () => getBlocos(d.date),
-    })
-  )
+    })),
+  })
 
-  const tarefasQueries = weekDays.map(d =>
-    useQuery({
+  const tarefasResults = useQueries({
+    queries: weekDays.map(d => ({
       queryKey: ['rotina', 'tarefas', d.date],
       queryFn: () => getTarefas(d.date),
-    })
-  )
+    })),
+  })
 
-  const blocosPorDia = weekDays.map((_, i) => queries[i].data || [])
-  const tarefasPorDia = weekDays.map((_, i) => tarefasQueries[i].data || [])
+  const blocosPorDia = weekDays.map((_, i) => blocosResults[i].data || [])
+  const tarefasPorDia = weekDays.map((_, i) => tarefasResults[i].data || [])
+
+  function formatShort(d: string) {
+    const [, m, day] = d.split('-')
+    return `${day}/${m}`
+  }
+
+  const primeiro = weekDays[0].date
+  const ultimo = weekDays[6].date
+  const semanaLabel = `Semana de ${formatShort(primeiro)} a ${formatShort(ultimo)}`
 
   return (
     <div className="overflow-x-auto">
+      <div className="text-sm text-text-muted mb-2">{semanaLabel}</div>
       <div className="min-w-[700px]">
         {/* Header */}
         <div className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border">
@@ -49,7 +59,7 @@ export default function CalendarioSemanal() {
             <div key={day.date} className={`bg-bg-secondary p-2 text-center ${day.date === hoje ? 'bg-accent/10' : ''}`}>
               <div className="text-xs text-text-muted">{day.label}</div>
               <div className={`text-sm font-semibold ${day.date === hoje ? 'text-accent' : 'text-text-primary'}`}>
-                {new Date(day.date).getDate()}
+                {formatShort(day.date)}
               </div>
             </div>
           ))}
@@ -65,7 +75,7 @@ export default function CalendarioSemanal() {
               const blocoNaHora = blocos.filter(b => b.hora_inicio.slice(0, 2) <= hora && b.hora_fim.slice(0, 2) > hora)
               const tarefasDoDia = tarefasPorDia[diaIdx].filter(t => t.status !== 'feito')
               return (
-                <div key={diaIdx} className="bg-bg-primary min-h-[48px] p-0.5 relative">
+                <div key={weekDays[diaIdx].date} className="bg-bg-primary min-h-[48px] p-0.5 relative">
                   {blocoNaHora.map(b => (
                     <div
                       key={b.id}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 interface Command {
   id: string
@@ -9,19 +9,25 @@ interface Command {
 export default function CommandPalette({ commands, onClose }: { commands: Command[]; onClose: () => void }) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
 
   const filtered = commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
+  const filteredRef = useRef(filtered)
+  filteredRef.current = filtered
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
+      const f = filteredRef.current
+      const s = selectedRef.current
       if (e.key === 'Escape') onClose()
-      if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(i => Math.min(i + 1, filtered.length - 1)) }
+      if (e.key === 'ArrowDown') { e.preventDefault(); setSelected(i => Math.min(i + 1, f.length - 1)) }
       if (e.key === 'ArrowUp') { e.preventDefault(); setSelected(i => Math.max(i - 1, 0)) }
-      if (e.key === 'Enter' && filtered[selected]) { filtered[selected].action(); onClose() }
+      if (e.key === 'Enter' && f[s]) { f[s].action(); onClose() }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [query, selected, filtered, onClose])
+  }, [onClose])
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-start justify-center pt-[15vh] z-50" onClick={onClose}>

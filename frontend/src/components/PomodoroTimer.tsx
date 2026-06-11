@@ -15,6 +15,8 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const [resumo, setResumo] = useState('')
   const [mostrarResumo, setMostrarResumo] = useState(false)
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
+  const resumoRef = useRef(resumo)
+  resumoRef.current = resumo
   const queryClient = useQueryClient()
 
   const finalizarMut = useMutation({
@@ -27,13 +29,17 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     },
   })
 
+  function finalizar() {
+    if (sessaoId) {
+      finalizarMut.mutate({ id: sessaoId, resumo: resumoRef.current || undefined })
+    }
+  }
+
   function toggle() {
     if (ativo) {
       clearInterval(interval.current)
       setAtivo(false)
-      if (sessaoId) {
-        finalizarMut.mutate({ id: sessaoId, resumo: resumo || undefined })
-      }
+      finalizar()
     } else {
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
@@ -42,7 +48,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       }).then(s => {
         setSessaoId(s.id)
         setAtivo(true)
-      })
+      }).catch(e => console.error('[Pomodoro] criar sessão', e))
     }
   }
 
@@ -56,9 +62,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
                 clearInterval(interval.current)
                 setAtivo(false)
                 setMostrarResumo(true)
-                if (sessaoId) {
-                  finalizarMut.mutate({ id: sessaoId, resumo: resumo || undefined })
-                }
+                finalizar()
                 return 0
               }
               return m - 1
@@ -99,9 +103,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
           />
           <button
             onClick={() => {
-              if (sessaoId) {
-                finalizarMut.mutate({ id: sessaoId, resumo: resumo || undefined })
-              }
+              finalizar()
               setMostrarResumo(false)
             }}
             className="mt-2 px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"

@@ -1,6 +1,9 @@
+import logging
 from database import engine
 from models import TemplateNota, TipoObjeto
 from sqlmodel import Session, select
+
+logger = logging.getLogger(__name__)
 
 TEMPLATES_PADRAO = [
     {"nome": "Resumo de Aula", "descricao": "Estrutura para resumir aulas e palestras",
@@ -46,4 +49,5 @@ def seed_db():
             seed_templates(session)
             seed_tipos(session)
     except Exception as e:
-        print(f"[Seed] Aviso: dados padrão já existem ou erro ignorado: {e}")
+        logger.error("Erro ao semear dados: %s", e)
+        raise

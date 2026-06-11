@@ -10,11 +10,26 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
       headers: { 'Content-Type': 'application/json', ...options?.headers },
       signal: controller.signal,
     })
-    if (!res.ok) {
-      const body = await res.text().catch(() => '')
-      throw new Error(`API error ${res.status}: ${body.slice(0, 200)}`)
+    let text: string
+    try {
+      text = await res.text()
+    } catch {
+      throw new Error(`Falha ao ler resposta de ${options?.method || 'GET'} ${path} (status ${res.status})`)
     }
-    return res.json()
+    if (!res.ok) {
+      throw new Error(`API ${res.status} em ${options?.method || 'GET'} ${path}: ${text.slice(0, 200)}`)
+    }
+    if (!text) return undefined as T
+    try {
+      return JSON.parse(text)
+    } catch {
+      throw new Error(`Resposta inválida (JSON) de ${path}: ${text.slice(0, 100)}`)
+    }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error(`Timeout em ${options?.method || 'GET'} ${path} (10s)`)
+    }
+    throw err
   } finally {
     clearTimeout(timeout)
   }

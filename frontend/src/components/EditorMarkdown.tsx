@@ -16,6 +16,8 @@ interface Props {
 export default function EditorMarkdown({ value, onChange }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
+  const onChangeRef = useRef(onChange)
+  onChangeRef.current = onChange
 
   useEffect(() => {
     if (!ref.current || viewRef.current) return
@@ -30,7 +32,7 @@ export default function EditorMarkdown({ value, onChange }: Props) {
         oneDark,
         keymap.of([...defaultKeymap, indentWithTab]),
         EditorView.updateListener.of(update => {
-          if (update.docChanged) onChange(update.state.doc.toString())
+          if (update.docChanged) onChangeRef.current(update.state.doc.toString())
         }),
         EditorView.theme({
           '&': { backgroundColor: 'transparent', fontSize: '14px' },

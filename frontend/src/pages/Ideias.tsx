@@ -1,21 +1,13 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getNotas, createNota, updateNota, deleteNota, extrairBloco } from '../api/notas'
+import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas } from '../api/notas'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
 import EditorMarkdown from '../components/EditorMarkdown'
 import TemplateModal from '../components/TemplateModal'
 import GrafoNotas from '../components/GrafoNotas'
 import type { Nota } from '../types'
-
-function useDebounce<T>(value: T, delay: number): T {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const timer = setTimeout(() => setDebounced(value), delay)
-    return () => clearTimeout(timer)
-  }, [value, delay])
-  return debounced
-}
+import { useDebounce } from '../hooks/useDebounce'
 
 export default function Ideias() {
   const queryClient = useQueryClient()
@@ -43,6 +35,7 @@ export default function Ideias() {
   })
 
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
+  const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas })
 
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
@@ -155,9 +148,9 @@ export default function Ideias() {
             placeholder="Buscar notas..."
             className="flex-1 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
           />
-          <button onClick={handleCreate} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover">+</button>
-          <button onClick={() => setShowTemplateModal(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Criar a partir de template">📋</button>
-          <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`}>🔗</button>
+          <button onClick={handleCreate} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover" title="Nova nota em branco">+</button>
+          <button onClick={() => setShowTemplateModal(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Criar nota a partir de um modelo pré-definido (template)">📋</button>
+          <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`} title="Grafo de conexões entre notas">🔗</button>
         </div>
         {showGrafo ? (
           <GrafoNotas onSelectNota={(id) => {
@@ -198,14 +191,29 @@ export default function Ideias() {
                       <option value="">Sem tipo</option>
                       {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
                     </select>
+                    <select value={String(notaAtual.pasta_id || '')} onChange={e => {
+                      const v = e.target.value
+                      updateMut.mutate({ id: selectedId!, data: { pasta_id: v ? Number(v) : null } })
+                    }}
+                      className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
+                      <option value="">Sem pasta</option>
+                      {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                    </select>
                     <input value={titulo} onChange={e => setTitulo(e.target.value)}
                       className="flex-1 text-xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
                   </>
                 ) : (
-                  <h1 className="text-xl font-bold">
-                    {notaAtual.tipo_id && tipos?.find(t => t.id === notaAtual.tipo_id)?.icone}{' '}
-                    {notaAtual.titulo}
-                  </h1>
+                  <div>
+                    <h1 className="text-xl font-bold">
+                      {notaAtual.tipo_id && tipos?.find(t => t.id === notaAtual.tipo_id)?.icone}{' '}
+                      {notaAtual.titulo}
+                    </h1>
+                    {notaAtual.pasta_id && pastas?.find(p => p.id === notaAtual.pasta_id) && (
+                      <span className="text-xs text-text-muted">
+                        📁 {pastas.find(p => p.id === notaAtual.pasta_id)!.nome}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               <div className="flex gap-2">
@@ -262,7 +270,7 @@ export default function Ideias() {
                         selectNota(nova)
                         setShowExtract(false)
                         setExtractText('')
-                      })
+                      }).catch(e => console.error('[Ideias] extrair', e))
                     }} disabled={!extractText.trim()}
                       className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">Extrair</button>
                     <button onClick={() => { setShowExtract(false); setExtractText('') }}

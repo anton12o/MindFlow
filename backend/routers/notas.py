@@ -1,5 +1,5 @@
 import re
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, SQLModel
 from database import get_session
 from models import (
@@ -10,7 +10,9 @@ from models import (
     TemplateNota, TemplateRead, TemplateBase,
 )
 from services import processar_wikilinks
-from datetime import datetime
+from services.estatisticas import calcular_estatisticas
+from datetime import datetime, date
+from models import TipoObjeto
 
 router = APIRouter()
 
@@ -54,86 +56,17 @@ def list_notas(q: str | None = None, data: str | None = None, session: Session =
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
     db = Nota(**n.model_dump())
     session.add(db)
-    session.commit()
-    session.refresh(db)
+    session.flush()
     processar_wikilinks(db.id, db.conteudo, session)
     session.commit()
+    session.refresh(db)
     return db
 
-@router.get("/{nota_id}", response_model=NotaRead)
-def get_nota(nota_id: int, session: Session = Depends(get_session)):
-    return session.get(Nota, nota_id)
-
-@router.patch("/{nota_id}", response_model=NotaRead)
-def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_session)):
-    db = session.get(Nota, nota_id)
-    if db:
-        data = n.model_dump(exclude_unset=True)
-        data["atualizado_em"] = datetime.now().isoformat()
-        for k, v in data.items():
-            setattr(db, k, v)
-        session.add(db)
-        session.commit()
-        session.refresh(db)
-        if "conteudo" in data:
-            processar_wikilinks(db.id, db.conteudo, session)
-            session.commit()
-    return db
-
-@router.delete("/{nota_id}")
-def delete_nota(nota_id: int, session: Session = Depends(get_session)):
-    n = session.get(Nota, nota_id)
-    if n:
-        conns = session.exec(
-            select(ConexaoNota).where(
-                or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
-            )
-        ).all()
-        for c in conns:
-            session.delete(c)
-        session.delete(n)
-        session.commit()
-    return {"ok": True}
-
-class ExtrairInput(SQLModel):
-    trecho: str
-    tipo_id: int | None = None
-
-@router.post("/{nota_id}/extrair", response_model=NotaRead)
-def extrair_bloco(nota_id: int, input: ExtrairInput, session: Session = Depends(get_session)):
-    original = session.get(Nota, nota_id)
-    if not original:
-        return {"ok": False}
-    titulo = input.trecho.split('\n')[0][:60] or "Trecho extraído"
-    nova = Nota(titulo=titulo.strip(), conteudo=input.trecho, tipo_id=input.tipo_id)
-    session.add(nova)
-    session.commit()
-    session.refresh(nova)
-    original.conteudo += f"\n\n[[{nova.titulo}]]"
-    session.add(original)
-    session.commit()
-    session.refresh(nova)
-    return nova
-
-@router.post("/{nota_id}/tags/{tag_id}")
-def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):
-    nt = NotaTag(nota_id=nota_id, tag_id=tag_id)
-    session.add(nt)
-    session.commit()
-    return {"ok": True}
-
-@router.get("/{nota_id}/conexoes", response_model=list[ConexaoNotaRead])
-def list_conexoes(nota_id: int, session: Session = Depends(get_session)):
-    stmt = select(ConexaoNota).where(
-        or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
-    )
-    return session.exec(stmt).all()
-
+# Rotas com caminho fixo — devem vir ANTES de /{nota_id} para evitar conflito
 @router.get("/grafo")
 def get_grafo(session: Session = Depends(get_session)):
     notas = session.exec(select(Nota)).all()
     conexoes = session.exec(select(ConexaoNota)).all()
-    from models import TipoObjeto
     tipos = {t.id: t for t in session.exec(select(TipoObjeto)).all()}
     return {
         "nodes": [{"id": n.id, "label": n.titulo, "tipo_id": n.tipo_id, "tipo_nome": tipos[n.tipo_id].nome if n.tipo_id and n.tipo_id in tipos else None} for n in notas],
@@ -156,8 +89,7 @@ def create_template(t: TemplateBase, session: Session = Depends(get_session)):
 def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     t = session.get(TemplateNota, template_id)
     if not t:
-        return {"ok": False}
-    from datetime import date
+        raise HTTPException(status_code=404, detail="Template não encontrado")
     conteudo = re.sub(r'\{\{data\}\}', date.today().isoformat(), t.conteudo)
     conteudo = re.sub(r'\{\{titulo\}\}', t.nome, conteudo)
     nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=t.propriedades.copy())
@@ -166,41 +98,82 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     session.refresh(nota)
     return nota
 
-
 @router.get("/estatisticas")
 def estatisticas_notas(mes: int, ano: int, session: Session = Depends(get_session)):
-    from datetime import date, timedelta
-    import calendar
+    return calcular_estatisticas(mes, ano, session)
 
-    stmt = select(Nota).where(
-        Nota.criado_em.like(f"{ano:04d}-{mes:02d}%")
+@router.get("/{nota_id}", response_model=NotaRead)
+def get_nota(nota_id: int, session: Session = Depends(get_session)):
+    nota = session.get(Nota, nota_id)
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    return nota
+
+@router.patch("/{nota_id}", response_model=NotaRead)
+def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_session)):
+    db = session.get(Nota, nota_id)
+    if not db:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    data = n.model_dump(exclude_unset=True)
+    data["atualizado_em"] = datetime.now().isoformat()
+    for k, v in data.items():
+        setattr(db, k, v)
+    session.add(db)
+    session.flush()
+    if "conteudo" in data:
+        processar_wikilinks(db.id, db.conteudo, session)
+    session.commit()
+    session.refresh(db)
+    return db
+
+@router.delete("/{nota_id}")
+def delete_nota(nota_id: int, session: Session = Depends(get_session)):
+    n = session.get(Nota, nota_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    conns = session.exec(
+        select(ConexaoNota).where(
+            or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
+        )
+    ).all()
+    for c in conns:
+        session.delete(c)
+    session.delete(n)
+    session.commit()
+    return {"ok": True}
+
+class ExtrairInput(SQLModel):
+    trecho: str
+    tipo_id: int | None = None
+
+@router.post("/{nota_id}/extrair", response_model=NotaRead)
+def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(get_session)):
+    original = session.get(Nota, nota_id)
+    if not original:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    titulo = body.trecho.split('\n')[0][:60] or "Trecho extraído"
+    nova = Nota(titulo=titulo.strip(), conteudo=body.trecho, tipo_id=body.tipo_id)
+    session.add(nova)
+    session.flush()
+    original.conteudo += f"\n\n[[{nova.titulo}]]"
+    session.add(original)
+    processar_wikilinks(original.id, original.conteudo, session)
+    session.commit()
+    session.refresh(nova)
+    return nova
+
+@router.post("/{nota_id}/tags/{tag_id}")
+def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):
+    nt = NotaTag(nota_id=nota_id, tag_id=tag_id)
+    session.add(nt)
+    session.commit()
+    return {"ok": True}
+
+@router.get("/{nota_id}/conexoes", response_model=list[ConexaoNotaRead])
+def list_conexoes(nota_id: int, session: Session = Depends(get_session)):
+    stmt = select(ConexaoNota).where(
+        or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
     )
-    notas = session.exec(stmt).all()
-    por_dia: dict[str, int] = {}
-    for n in notas:
-        dia = n.criado_em[8:10]
-        por_dia[dia] = por_dia.get(dia, 0) + 1
+    return session.exec(stmt).all()
 
-    todas = session.exec(select(Nota.criado_em)).all()
-    dias_com_nota: set[str] = set()
-    for n in todas:
-        dias_com_nota.add(n[:10])
 
-    streak = 0
-    d = date.today()
-    while True:
-        chave = d.isoformat()
-        if chave in dias_com_nota:
-            streak += 1
-            d -= timedelta(days=1)
-        else:
-            break
-
-    ultimo_dia = calendar.monthrange(ano, mes)[1]
-
-    return {
-        "por_dia": por_dia,
-        "total_mes": len(notas),
-        "streak": streak,
-        "ultimo_dia": ultimo_dia,
-    }
