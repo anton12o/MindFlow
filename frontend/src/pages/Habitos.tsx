@@ -22,7 +22,7 @@ export default function Habitos() {
   useEffect(() => {
     setLoading(true)
     setError(false)
-    getHabitos().then(data => { setHabitos(data); setLoading(false) }).catch(e => { console.error('[Habitos] listar', e); setError(true); setLoading(false) })
+    getHabitos().then(data => { setHabitos(data); setError(false); setLoading(false) }).catch(e => { console.error('[Habitos] listar', e); setError(true); setLoading(false) })
   }, [])
 
   async function handleCreate(e: React.FormEvent) {

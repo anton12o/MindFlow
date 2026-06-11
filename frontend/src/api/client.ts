@@ -1,14 +1,7 @@
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
-const inflight = new Map<string, AbortController>()
-
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
-  const key = `${options?.method || 'GET'}:${path}`
-  const existing = inflight.get(key)
-  if (existing) existing.abort()
-
   const controller = new AbortController()
-  inflight.set(key, controller)
   const timeout = setTimeout(() => controller.abort(), 10000)
 
   try {
@@ -39,7 +32,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw err
   } finally {
     clearTimeout(timeout)
-    if (inflight.get(key) === controller) inflight.delete(key)
   }
 }
 
