@@ -297,6 +297,12 @@ class TipoObjetoRead(TipoObjetoBase):
     id: int
     criado_em: str
 
+class TipoObjetoUpdate(SQLModel):
+    nome: str | None = None
+    icone: str | None = None
+    schema_campos: dict[str, Any] | None = None
+    schema_relacoes: dict[str, Any] | None = None
+
 # ─── Queries Salvas (Visualizações Dinâmicas) ───
 class QuerySalva(SQLModel, table=True):
     __tablename__ = "queries_salvas"

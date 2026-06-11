@@ -12,9 +12,10 @@ def list_blocos(data: str | None = None, session: Session = Depends(get_session)
     stmt = select(BlocoRotina)
     if data:
         try:
-            dia_semana = str(datetime.strptime(data, "%Y-%m-%d").weekday())
+            datetime.strptime(data, "%Y-%m-%d")
         except ValueError:
-            dia_semana = None
+            return []
+        dia_semana = str(datetime.strptime(data, "%Y-%m-%d").weekday())
         condicao_data = BlocoRotina.data_especifica == data
         condicao_recorrente = BlocoRotina.recorrente == True
         if dia_semana is not None:

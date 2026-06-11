@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import TipoObjeto, TipoObjetoCreate, TipoObjetoRead
+from models import TipoObjeto, TipoObjetoCreate, TipoObjetoRead, TipoObjetoUpdate
 
 router = APIRouter()
 
@@ -25,7 +25,7 @@ def get_tipo(tipo_id: int, session: Session = Depends(get_session)):
     return t
 
 @router.patch("/{tipo_id}", response_model=TipoObjetoRead)
-def update_tipo(tipo_id: int, t: TipoObjetoCreate, session: Session = Depends(get_session)):
+def update_tipo(tipo_id: int, t: TipoObjetoUpdate, session: Session = Depends(get_session)):
     db = session.get(TipoObjeto, tipo_id)
     if not db:
         raise HTTPException(status_code=404, detail="Tipo não encontrado")

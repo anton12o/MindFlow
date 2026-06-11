@@ -1,6 +1,6 @@
 import logging
 from sqlmodel import SQLModel, create_engine, Session
-from sqlalchemy import text, inspect
+from sqlalchemy import text, inspect, event
 from sqlalchemy.exc import OperationalError
 from pathlib import Path
 from alembic.config import Config
@@ -14,6 +14,13 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     pool_pre_ping=True,
 )
+
+
+@event.listens_for(engine, "connect")
+def set_sqlite_pragma(dbapi_conn, connection_record):
+    cursor = dbapi_conn.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 ALEMBIC_CFG = Config(Path(__file__).parent / "alembic.ini")
 ALEMBIC_CFG.set_main_option("sqlalchemy.url", str(engine.url))

@@ -5,6 +5,7 @@ import type { InboxItem } from '../types'
 
 export default function InboxModal({ onClose }: { onClose: () => void }) {
   const [text, setText] = useState('')
+  const [destino, setDestino] = useState('')
   const [saved, setSaved] = useState(false)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [items, setItems] = useState<InboxItem[]>([])
@@ -30,8 +31,9 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
     e.preventDefault()
     if (!text.trim()) return
     try {
-      await createInbox(text.trim())
+      await createInbox(text.trim(), destino || null)
       setText('')
+      setDestino('')
       setSaved(true)
       savedTimer.current = setTimeout(() => setSaved(false), 2000)
       loadItems()
@@ -64,7 +66,16 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             className="w-full bg-transparent text-text-primary text-lg placeholder-text-muted outline-none"
           />
           <div className="flex items-center justify-between mt-4">
-            <span className="text-xs text-text-muted">Enter para salvar · Esc para fechar</span>
+            <div className="flex items-center gap-2">
+              <select value={destino} onChange={e => setDestino(e.target.value)}
+                className="bg-bg-primary rounded px-2 py-1 text-xs outline-none text-text-muted">
+                <option value="">Sem destino</option>
+                <option value="nota">Nota</option>
+                <option value="tarefa">Tarefa</option>
+                <option value="habito">Hábito</option>
+              </select>
+              <span className="text-xs text-text-muted">Enter para salvar · Esc para fechar</span>
+            </div>
             <div className="flex gap-2">
               {saved && <span className="text-xs text-success">Salvo!</span>}
               <button type="submit" className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">
@@ -78,7 +89,12 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs text-text-muted uppercase tracking-wider">Pendentes ({items.length})</p>
             {items.map(item => (
               <div key={item.id} className="flex items-center justify-between gap-2 bg-bg-tertiary rounded-lg px-3 py-2">
-                <span className="text-sm flex-1">{item.conteudo}</span>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm block truncate">{item.conteudo}</span>
+                  {item.tipo_destino && (
+                    <span className="text-[10px] text-accent/70 mt-0.5 block">→ {item.tipo_destino}</span>
+                  )}
+                </div>
                 <button onClick={() => setConfirmDelete(item)}
                   className="text-xs text-text-muted hover:text-danger shrink-0">✕</button>
               </div>

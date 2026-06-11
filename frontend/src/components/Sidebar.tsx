@@ -12,7 +12,7 @@ const navItems = [
   { icon: '◈', label: 'Flashcards', page: '/flashcards' },
   { icon: '⚙', label: 'Tipos', page: '/tipos' },
   { icon: '⊞', label: 'Consultas', page: '/consultas' },
-  { icon: '◎', label: 'Insights', page: '/insights' },
+  { icon: '◎', label: 'Análise', page: '/analise' },
 ]
 
 export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {

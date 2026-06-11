@@ -116,6 +116,7 @@ export default function Rotina() {
 
   function handleCreateBloco(e: React.FormEvent) {
     e.preventDefault()
+    if (!blocoForm.titulo.trim() || !blocoForm.hora_inicio.trim() || !blocoForm.hora_fim.trim()) return
     createBlocoMut.mutate(blocoForm)
   }
 

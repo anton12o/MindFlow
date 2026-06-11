@@ -12,7 +12,7 @@ function heatColor(contagem: number): string {
   return 'bg-accent'
 }
 
-export default function Insights() {
+export default function Analise() {
   const navigate = useNavigate()
   const hoje = new Date()
   const [mes, setMes] = useState(hoje.getMonth() + 1)
@@ -57,7 +57,7 @@ export default function Insights() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Insights</h1>
+        <h1 className="text-2xl font-bold">Análise</h1>
         {stats && (
           <div className="flex items-center gap-4 text-sm">
             <span className="text-text-muted">{stats.total_mes} notas no mês</span>

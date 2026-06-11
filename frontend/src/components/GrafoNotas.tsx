@@ -67,9 +67,9 @@ export default function GrafoNotas({ onSelectNota }: Props) {
       setSimNodes([...nodes])
     })
 
-    setTimeout(() => { simulation.stop(); setSimNodes([...nodes]) }, 2000)
+    const timeoutId = setTimeout(() => { simulation.stop(); setSimNodes([...nodes]) }, 2000)
 
-    return () => { simulation.stop() }
+    return () => { simulation.stop(); clearTimeout(timeoutId) }
   }, [data])
 
   if (!data) {

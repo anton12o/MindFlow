@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos, createTipo, updateTipo, deleteTipo } from '../api/tipos'
+import ConfirmModal from '../components/ConfirmModal'
 
 const ICONES = ['📄', '✅', '📋', '👤', '🔗', '📝', '🎯', '📌', '💡', '📊']
 
@@ -8,6 +9,7 @@ export default function Tipos() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<number | null>(null)
   const [form, setForm] = useState({ nome: '', icone: '📄' })
+  const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
 
@@ -83,7 +85,7 @@ export default function Tipos() {
                 <div className="flex gap-2">
                   <button onClick={() => { setEditing(t.id); setForm({ nome: t.nome, icone: t.icone }) }}
                     className="text-xs text-accent hover:underline">Editar</button>
-                  <button onClick={() => deleteMut.mutate(t.id)}
+                  <button onClick={() => setConfirmDelete(t.id)}
                     className="text-xs text-danger hover:underline">Excluir</button>
                 </div>
               </div>
@@ -91,6 +93,16 @@ export default function Tipos() {
           </div>
         ))}
       </div>
+
+      {confirmDelete !== null && (
+        <ConfirmModal
+          titulo="Excluir tipo"
+          mensagem="Tem certeza que deseja excluir este tipo? Esta ação não pode ser desfeita."
+          destructive
+          onConfirm={() => { deleteMut.mutate(confirmDelete); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
     </div>
   )
 }

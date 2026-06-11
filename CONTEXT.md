@@ -62,6 +62,7 @@ alembic current
 - `database.py:run_migrations()` executa `alembic upgrade head` automaticamente
 - Se o banco não existe, ele é criado do zero via migration
 - Se o banco existe mas não tem `alembic_version` (transição), estampa como head
+- `database.py` configura `PRAGMA foreign_keys = ON` via event listener no engine (também replicado em `migrations/env.py`)
 - `setup_fts()` roda depois para configurar FTS5 (fora do Alembic)
 
 ---
@@ -104,8 +105,9 @@ mindflow/
 │       ├── index.css         # Variáveis CSS tema claro/escuro + @keyframes fade-in
 │       ├── types/index.ts
 │       ├── store/theme.ts    # Context de tema com persistência localStorage
+│       ├── store/pomodoro.tsx # Context global do timer Pomodoro (minutos, segundos, ativo, sessaoId, resumo, mostrarResumo)
 │       ├── api/
-│       │   ├── client.ts     # fetch com AbortController, timeout 10s, JSON.parse
+│       │   ├── client.ts     # fetch com AbortController, timeout 10s, inflight abort (cancela requests anteriores para mesma rota)
 │       │   ├── inbox.ts, habitos.ts, rotina.ts, pomodoro.ts
 │       │   ├── notas.ts, flashcards.ts, tipos.ts, queries.ts
 │   │   ├── conexoes.ts, grafo.ts, templates.ts
@@ -116,16 +118,16 @@ mindflow/
 │       ├── utils/date.ts     # formatDateLocal, hojeLocal
 │       ├── components/
 │       │   ├── Sidebar.tsx         # Nav + toggle tema + export + inbox
-│       │   ├── InboxModal.tsx      # Captura rápida + lista pendentes + delete
 │       │   ├── ConfirmModal.tsx    # Modal reutilizável (destructive, fade-in, Escape)
 │       │   ├── CommandPalette.tsx  # Ctrl+K
 │       │   ├── EditorMarkdown.tsx  # CodeMirror 6
-│   │   ├── ErrorBoundary.tsx
-│   │   ├── ImportModal.tsx     # 3-step: seleção, confirmação, resultado
-│   │   ├── CalendarioSemanal.tsx
+│       │   ├── ErrorBoundary.tsx
+│       │   ├── ImportModal.tsx     # 3-step: seleção, confirmação, resultado
+│       │   ├── CalendarioSemanal.tsx
 │       │   ├── GrafoNotas.tsx      # d3-force
 │       │   ├── TemplateModal.tsx   # Aplicar templates
-│       │   └── PomodoroTimer.tsx   # Timer + resumo opcional
+│       │   ├── PomodoroTimer.tsx   # Timer + resumo opcional + notificação sonora
+│       │   └── InboxModal.tsx      # Captura rápida + destino + lista pendentes + delete
 │       └── pages/
 │           ├── Dashboard.tsx   # React Query, 5 cards (inbox/blocos/tarefas/habitos/pomodoro)
 │           ├── Rotina.tsx      # Blocos + tarefas + calendário semanal
@@ -135,7 +137,7 @@ mindflow/
 │           ├── Pomodoro.tsx    # Timer + contexto (hábito/tarefa/livre) + histórico
 │           ├── Tipos.tsx       # CRUD tipos de objeto
 │           ├── Consultas.tsx   # Queries salvas + kanban/grid + batch edit
-│           └── Insights.tsx    # Heatmap calendário + streak + notas clicáveis
+│           ├── Insights.tsx    # Heatmap calendário + streak + notas clicáveis (/analise, redirect de /insights)
 ```
 
 ---
@@ -157,7 +159,7 @@ mindflow/
 | `conexoes_notas` | Wikilinks/backlinks | id, nota_origem_id(FK), nota_destino_id(FK), tipo; UNIQUE(origem,destino,tipo) |
 | `flashcards` | Flashcards SM-2 | id, nota_id(FK), pergunta, resposta, intervalo, facilidade, revisoes, proxima_revisao |
 | `templates` | Templates de nota | id, nome, descricao, conteudo, propriedades(JSON) |
-| `tipos_objeto` | Tipos (Anytype-like) | id, nome, icone, schema_campos(JSON), schema_relacoes(JSON) |
+| `tipos_objeto` | Tipos (Anytype-like) | id, nome, icone, schema_campos(JSON), schema_relacoes(JSON). `TipoObjetoUpdate` (PATCH com campos opcionais) evita sobrescrever schema_campos com `{}` |
 | `queries_salvas` | Consultas salvas | id, nome, tipo_objeto_id(FK), visualizacao, campo_agrupamento, filtros(JSON), ordem |
 
 ---
@@ -287,6 +289,16 @@ mindflow/
 ### Módulo 9: Import de Dados
 - **Antes:** Zero formas de importar dados de volta pro app.
 - **Depois:** `POST /api/import` recebe JSON via UploadFile (multipart), valida antes de escrever (JSON válido, pelo menos uma tabela conhecida, ≤50 MB). Transação única com upsert por ID — se falha, rollback completo. Ordem das tabelas respeita FK (tipos → pastas → tags → … → conexoes). Pastas ordenadas topologicamente (pais antes de filhos). `ConexaoNota` usa `ON CONFLICT` na unique `(origem, destino, tipo)`. `NotaTag` usa `ON CONFLICT DO NOTHING`. `SessaoPomodoro.resumo_nota_id` inválido silenciosamente setado como null. FTS5 rebuild no final. Retorna `{ sucesso, importado_em, tabelas }`. Hook `useImport` no frontend com `mutate`, `isLoading`, `resultado`, `erro`, `reset`. Componente `ImportModal` com 3 passos (seleção → confirmação → resultado), drag and drop, fade-in 150ms, fecha com Escape. Sidebar ganha botão "↑ Importar" ao lado do "↓ Exportar". Comando "Importar dados (JSON)" na paleta Ctrl+K. Após sucesso, invalida todo cache React Query e navega para Dashboard.
+
+### Módulo 10: Sessão de Correção de Bugs (26 bugs)
+- **Antes:** 29 bugs reportados — crashes, stale closures, timeouts, UX inconsistencies
+- **Depois:** 26 bugs corrigidos, 3 adiados (UI/UX média prioridade):
+  - **Backend:** PRAGMA foreign_keys=ON (database.py+env.py), FTS5 sanitiza aspas (notas.py/queries.py), tag duplicada vira no-op (notas.py), processar_wikilinks aceita None (services/notes.py), .copy() safe p/ None (notas.py), mes inválido retorna vazio (notas.py), data inválida retorna [] (rotina.py), batch_edit 404 em IDs ausentes (queries.py), NotaTag contagem correta (import_data.py), TipoObjetoUpdate evita sobrescrever schema_campos (tipos.py)
+  - **Frontend:** setTimeout cleanup (GrafoNotas.tsx), stale closure queryFn usa queryKey[1] (Ideias.tsx), Card suprime children qdo vazio (Dashboard.tsx), toggleTarefa invalida multiplos prefixes (Dashboard.tsx), timer inicia imediatamente (PomodoroTimer.tsx), Tipos usa ConfirmModal, notificacao sonora ao fim (PomodoroTimer.tsx), Ctrl+ atalhos ignoram inputs (App.tsx), inflight abort evita timeout acumulado (client.ts), form validacao blocos/habitos (Rotina.tsx/Habitos.tsx), dead code removido (rotina.ts), estado Pomodoro global via context (store/pomodoro.tsx), timer ref-based evita trava 00:59 (PomodoroTimer.tsx), Inbox exibe destino (InboxModal.tsx), labels "Tipo:"/"Pasta:" tecnicos (Ideias.tsx), filtro por pasta nas notas (Ideias.tsx), /insights redireciona para /analise (App.tsx+Sidebar.tsx)
+
+### Módulo 11: Migração Alembic + PRAGMA
+- **Antes:** Schema gerenciado manualmente, SQLite sem PRAGMA foreign_keys
+- **Depois:** Alembic com autogenerate, migrations em `migrations/versions/`, `env.py` exclui `notas_fts` do autogenerate, `database.py` + `env.py` configuram `PRAGMA foreign_keys = ON`, startup executa `alembic upgrade head` automaticamente
 
 ---
 

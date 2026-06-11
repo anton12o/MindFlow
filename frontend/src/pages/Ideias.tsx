@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas } from '../api/notas'
 import { getConexoes } from '../api/conexoes'
@@ -36,6 +36,7 @@ export default function Ideias() {
   const [search, setSearch] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [showGrafo, setShowGrafo] = useState(false)
+  const [pastaFilter, setPastaFilter] = useState<number | null>(null)
   const [showSlash, setShowSlash] = useState(false)
   const [extractText, setExtractText] = useState('')
   const [showExtract, setShowExtract] = useState(false)
@@ -45,6 +46,8 @@ export default function Ideias() {
   const [propriedades, setPropriedades] = useState<Record<string, string>>({})
   const [novaPropKey, setNovaPropKey] = useState('')
   const [novaPropVal, setNovaPropVal] = useState('')
+  const selectedIdRef = useRef(selectedId)
+  useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
   const searchDebounced = useDebounce(search, 300)
 
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
@@ -57,7 +60,7 @@ export default function Ideias() {
 
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
-    queryFn: () => getConexoes(selectedId!),
+    queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
     enabled: !!selectedId,
   })
 
@@ -181,6 +184,20 @@ export default function Ideias() {
           }} />
         ) : (
           <div className="space-y-1">
+            {pastas && pastas.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                <button onClick={() => setPastaFilter(null)}
+                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${pastaFilter === null ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+                  Todas
+                </button>
+                {pastas.map(p => (
+                  <button key={p.id} onClick={() => setPastaFilter(p.id)}
+                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${pastaFilter === p.id ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+                    📁 {p.nome}
+                  </button>
+                ))}
+              </div>
+            )}
             {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
             {notasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar notas</p>}
             {!notasLoad && !notasErr && filtered.length === 0 && (
@@ -188,7 +205,9 @@ export default function Ideias() {
                 {searchDebounced ? 'Nenhuma nota encontrada' : 'Nenhuma nota criada ainda'}
               </p>
             )}
-            {!notasLoad && !notasErr && filtered.map(n => {
+            {!notasLoad && !notasErr && filtered
+              .filter(n => !pastaFilter || n.pasta_id === pastaFilter)
+              .map(n => {
               const tipo = tipos?.find(t => t.id === n.tipo_id)
               return (
                 <button key={n.id} onClick={() => selectNota(n)}
@@ -212,17 +231,19 @@ export default function Ideias() {
               <div className="flex-1 flex items-center gap-3">
                 {editando ? (
                   <>
+                    <label className="text-xs text-text-muted">Tipo:</label>
                     <select value={String(notaAtual.tipo_id || '')} onChange={e => {
                       const v = e.target.value
-                      updateMut.mutate({ id: selectedId!, data: { tipo_id: v ? Number(v) : null } })
+                      updateMut.mutate({ id: selectedIdRef.current!, data: { tipo_id: v ? Number(v) : null } })
                     }}
                       className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
                       <option value="">Sem tipo</option>
                       {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
                     </select>
+                    <label className="text-xs text-text-muted">Pasta:</label>
                     <select value={String(notaAtual.pasta_id || '')} onChange={e => {
                       const v = e.target.value
-                      updateMut.mutate({ id: selectedId!, data: { pasta_id: v ? Number(v) : null } })
+                      updateMut.mutate({ id: selectedIdRef.current!, data: { pasta_id: v ? Number(v) : null } })
                     }}
                       className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
                       <option value="">Sem pasta</option>
@@ -270,7 +291,7 @@ export default function Ideias() {
                           <button key={cmd.label} onClick={() => {
                             const newContent = conteudo.replace(/\/(\w*)$/, cmd.insert)
                             setConteudo(newContent)
-                            updateMut.mutate({ id: selectedId!, data: { conteudo: newContent } })
+                            updateMut.mutate({ id: selectedIdRef.current!, data: { conteudo: newContent } })
                             setShowSlash(false)
                           }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2">

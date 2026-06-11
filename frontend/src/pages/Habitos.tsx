@@ -27,6 +27,7 @@ export default function Habitos() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    if (!form.nome.trim()) return
     try {
       const h = await createHabito({
         nome: form.nome,

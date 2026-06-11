@@ -19,9 +19,6 @@ export const getTarefas = (data?: string) =>
 export const createTarefa = (data: Partial<Tarefa>) =>
   request<Tarefa>('/rotina/tarefas', { method: 'POST', body: JSON.stringify(data) })
 
-export const updateTarefaStatus = (id: number, status: string) =>
-  request<Tarefa>(`/rotina/tarefas/${id}?status=${status}`, { method: 'PATCH' })
-
 export const updateTarefa = (id: number, data: Partial<Tarefa>) =>
   request<Tarefa>(`/rotina/tarefas/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
+import { PomodoroProvider } from './store/pomodoro'
 import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
@@ -48,7 +49,7 @@ function Layout() {
     { id: 'flashcards', label: 'Ir para Flashcards', action: () => navigate('/flashcards') },
     { id: 'tipos', label: 'Ir para Tipos', action: () => navigate('/tipos') },
     { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
-    { id: 'insights', label: 'Ir para Insights', action: () => navigate('/insights') },
+    { id: 'analise', label: 'Ir para Análise', action: () => navigate('/analise') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
     { id: 'import', label: 'Importar dados (JSON)', action: () => setImportOpen(true) },
     { id: 'export', label: 'Exportar dados (JSON)', action: async () => {
@@ -69,11 +70,13 @@ function Layout() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      const target = e.target as HTMLElement
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k' && !isInput) {
         e.preventDefault()
         setShowPalette(p => !p)
       }
-      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i' && !isInput) {
         e.preventDefault()
         setInboxOpen(p => !p)
       }
@@ -100,7 +103,8 @@ function Layout() {
           <Route path="/flashcards" element={<Flashcards />} />
           <Route path="/tipos" element={<Tipos />} />
           <Route path="/consultas" element={<Consultas />} />
-          <Route path="/insights" element={<Insights />} />
+          <Route path="/analise" element={<Insights />} />
+          <Route path="/insights" element={<Navigate to="/analise" replace />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
@@ -131,7 +135,9 @@ export default function App() {
       <ThemeProvider>
         <ErrorBoundary>
           <BrowserRouter>
-            <Layout />
+            <PomodoroProvider>
+              <Layout />
+            </PomodoroProvider>
           </BrowserRouter>
         </ErrorBoundary>
       </ThemeProvider>

@@ -47,7 +47,13 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 @router.get("", response_model=list[NotaRead])
 def list_notas(q: str | None = None, data: str | None = None, session: Session = Depends(get_session)):
     if q:
-        fts_query = " AND ".join(f'"{w}"' for w in q.split() if w)
+        q = q.strip()
+        if not q:
+            return []
+        tokens = [w.replace('"', '') for w in q.split() if w.strip()]
+        if not tokens:
+            return []
+        fts_query = " AND ".join(f'"{t}"' for t in tokens)
         ids = [
             r[0] for r in session.execute(
                 text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
@@ -104,7 +110,7 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Template não encontrado")
     conteudo = re.sub(r'\{\{data\}\}', date.today().isoformat(), t.conteudo)
     conteudo = re.sub(r'\{\{titulo\}\}', t.nome, conteudo)
-    nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=t.propriedades.copy())
+    nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=(t.propriedades.copy() if t.propriedades else None))
     session.add(nota)
     session.flush()
     if conteudo:
@@ -115,6 +121,13 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
 
 @router.get("/estatisticas")
 def estatisticas_notas(mes: int, ano: int, session: Session = Depends(get_session)):
+    if mes < 1 or mes > 12:
+        return {
+            "por_dia": {},
+            "total_mes": 0,
+            "streak": 0,
+            "ultimo_dia": 0,
+        }
     return calcular_estatisticas(mes, ano, session)
 
 @router.get("/{nota_id}", response_model=NotaRead)
@@ -179,6 +192,11 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
 
 @router.post("/{nota_id}/tags/{tag_id}")
 def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):
+    existing = session.exec(
+        select(NotaTag).where(NotaTag.nota_id == nota_id, NotaTag.tag_id == tag_id)
+    ).first()
+    if existing:
+        return {"ok": True}
     nt = NotaTag(nota_id=nota_id, tag_id=tag_id)
     session.add(nt)
     session.commit()

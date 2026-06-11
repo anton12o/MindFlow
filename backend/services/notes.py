@@ -16,7 +16,9 @@ def extrair_wikilinks(conteudo: str) -> list[str]:
     return result
 
 
-def processar_wikilinks(nota_id: int, conteudo: str, session: Session):
+def processar_wikilinks(nota_id: int, conteudo: str | None, session: Session):
+    if not conteudo:
+        return
     existing = session.exec(
         select(ConexaoNota).where(
             ConexaoNota.nota_origem_id == nota_id,
@@ -47,4 +49,5 @@ def criar_nota_resumo(conteudo_resumo: str, session: Session, contexto_nome: str
     )
     session.add(nota)
     session.flush()
+    processar_wikilinks(nota.id, conteudo_resumo, session)
     return nota

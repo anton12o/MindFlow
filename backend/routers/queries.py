@@ -68,17 +68,25 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
         stmt = select(Nota)
         filtros = q.filtros or {}
         if filtros.get("q"):
-            fts_query = " AND ".join(f'"{w}"' for w in filtros["q"].split() if w)
-            ids = [
-                r[0] for r in session.execute(
-                    text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
-                    {"q": fts_query},
-                ).all()
-            ]
-            if ids:
-                stmt = stmt.where(Nota.id.in_(ids))
-            else:
+            q = filtros["q"].strip()
+            if not q:
                 stmt = stmt.where(1 == 0)
+            else:
+                tokens = [w.replace('"', '') for w in q.split() if w.strip()]
+                if not tokens:
+                    stmt = stmt.where(1 == 0)
+                else:
+                    fts_query = " AND ".join(f'"{t}"' for t in tokens)
+                    ids = [
+                        r[0] for r in session.execute(
+                            text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
+                            {"q": fts_query},
+                        ).all()
+                    ]
+                    if ids:
+                        stmt = stmt.where(Nota.id.in_(ids))
+                    else:
+                        stmt = stmt.where(1 == 0)
         if filtros.get("tipo_id"):
             stmt = stmt.where(Nota.tipo_id == filtros["tipo_id"])
         dados = session.exec(stmt).all()
@@ -104,9 +112,10 @@ def batch_edit(query_id: int, batch: BatchInput, session: Session = Depends(get_
     alteracoes_validas = {k: v for k, v in batch.alteracoes.items() if k in campos}
     for item_id in batch.ids:
         db = session.get(model_class, item_id)
-        if db:
-            for k, v in alteracoes_validas.items():
-                setattr(db, k, v)
-            session.add(db)
+        if not db:
+            raise HTTPException(status_code=404, detail=f"{model_class.__name__} {item_id} não encontrado")
+        for k, v in alteracoes_validas.items():
+            setattr(db, k, v)
+        session.add(db)
     session.commit()
     return {"ok": True}

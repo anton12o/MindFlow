@@ -1,20 +1,41 @@
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
+import { usePomodoroContext } from '../store/pomodoro'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
   onFinalizar?: () => void
 }
 
+function playBeep() {
+  try {
+    const ctx = new AudioContext()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = 880
+    osc.type = 'sine'
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + 0.5)
+    setTimeout(() => ctx.close(), 1000)
+  } catch { /* audio not available */ }
+}
+
 export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
-  const [minutos, setMinutos] = useState(25)
-  const [segundos, setSegundos] = useState(0)
-  const [ativo, setAtivo] = useState(false)
-  const [sessaoId, setSessaoId] = useState<number | null>(null)
-  const [resumo, setResumo] = useState('')
-  const [mostrarResumo, setMostrarResumo] = useState(false)
+  const {
+    minutos, setMinutos, segundos, setSegundos,
+    ativo, setAtivo,
+    sessaoId, setSessaoId,
+    resumo, setResumo,
+    mostrarResumo, setMostrarResumo,
+  } = usePomodoroContext()
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
+  const timeRef = useRef({ minutos, segundos })
+  timeRef.current = { minutos, segundos }
   const queryClient = useQueryClient()
 
   const finalizarMut = useMutation({
@@ -52,37 +73,36 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         )
       }
     } else {
+      setAtivo(true)
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
         contexto_id: contexto?.id || null,
         duracao_min: minutos,
       }).then(s => {
         setSessaoId(s.id)
-        setAtivo(true)
-      }).catch(e => console.error('[Pomodoro] criar sessão', e))
+      }).catch(e => {
+        console.error('[Pomodoro] criar sessão', e)
+        setAtivo(false)
+      })
     }
   }
 
   useEffect(() => {
-    if (ativo) {
-      interval.current = setInterval(() => {
-        setSegundos(s => {
-          if (s === 0) {
-            setMinutos(m => {
-              if (m === 0) {
-                clearInterval(interval.current)
-                setAtivo(false)
-                setMostrarResumo(true)
-                return 0
-              }
-              return m - 1
-            })
-            return 59
-          }
-          return s - 1
-        })
-      }, 1000)
-    }
+    if (!ativo) return
+    interval.current = setInterval(() => {
+      const { minutos: m, segundos: s } = timeRef.current
+      if (s > 0) {
+        setSegundos(s - 1)
+      } else if (m > 0) {
+        setSegundos(59)
+        setMinutos(m - 1)
+      } else {
+        clearInterval(interval.current)
+        setAtivo(false)
+        setMostrarResumo(true)
+        playBeep()
+      }
+    }, 1000)
     return () => clearInterval(interval.current)
   }, [ativo, sessaoId])
 

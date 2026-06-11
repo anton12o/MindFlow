@@ -149,11 +149,23 @@ async def import_data(file: UploadFile):
                 atualizados = 0
 
                 for record in dados:
-                    record_id = record.get("id")
-                    if record_id is not None and record_id in existing_ids:
-                        atualizados += 1
+                    if nome_tabela == "notas_tags":
+                        existing_nt = session.exec(
+                            select(NotaTag).where(
+                                NotaTag.nota_id == record["nota_id"],
+                                NotaTag.tag_id == record["tag_id"],
+                            )
+                        ).first()
+                        if existing_nt:
+                            atualizados += 1
+                        else:
+                            inseridos += 1
                     else:
-                        inseridos += 1
+                        record_id = record.get("id")
+                        if record_id is not None and record_id in existing_ids:
+                            atualizados += 1
+                        else:
+                            inseridos += 1
 
                     if nome_tabela == "conexoes_notas":
                         session.execute(

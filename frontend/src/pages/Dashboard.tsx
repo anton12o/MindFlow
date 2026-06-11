@@ -27,7 +27,7 @@ function Card({ titulo, children, loading, erro, vazio }: {
       {loading && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
       {erro && <p className="text-sm text-danger py-4">Erro ao carregar</p>}
       {vazio && <p className="text-sm text-text-muted py-4 text-center">Nenhum item</p>}
-      {!loading && !erro && children}
+      {!loading && !erro && !vazio && children}
     </div>
   )
 }
@@ -62,7 +62,11 @@ export default function Dashboard() {
 
   const toggleTarefaMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['dashboard', 'tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['tarefas'] })
+    },
   })
 
   const checkHabitoMut = useMutation({
