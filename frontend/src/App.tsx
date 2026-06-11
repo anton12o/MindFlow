@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
 import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
+import ImportModal from './components/ImportModal'
 import Dashboard from './pages/Dashboard'
 import Rotina from './pages/Rotina'
 import Habitos from './pages/Habitos'
@@ -26,10 +27,17 @@ const queryClient = new QueryClient({
 function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const queryClient = useQueryClient()
   const [showPalette, setShowPalette] = useState(false)
   const [inboxOpen, setInboxOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
 
   const page = location.pathname.slice(1) || 'dashboard'
+
+  function handleImportSuccess() {
+    queryClient.invalidateQueries()
+    navigate('/')
+  }
 
   const commands = [
     { id: 'dashboard', label: 'Ir para Dashboard', action: () => navigate('/') },
@@ -42,6 +50,7 @@ function Layout() {
     { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
     { id: 'insights', label: 'Ir para Insights', action: () => navigate('/insights') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
+    { id: 'import', label: 'Importar dados (JSON)', action: () => setImportOpen(true) },
     { id: 'export', label: 'Exportar dados (JSON)', action: async () => {
       const data = await exportAll()
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -80,7 +89,7 @@ function Layout() {
 
   return (
     <div className="h-screen flex overflow-hidden">
-      <Sidebar inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} />
+      <Sidebar inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} onOpenImport={() => setImportOpen(true)} />
       <main className="flex-1 overflow-y-auto">
         <Routes>
           <Route path="/" element={<Dashboard />} />
@@ -95,6 +104,7 @@ function Layout() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </main>
+      {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSuccess={handleImportSuccess} />}
       {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
     </div>
   )

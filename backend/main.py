@@ -3,7 +3,7 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import create_db_and_tables, setup_fts
-from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export
+from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data
 from seed import seed_db
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
@@ -28,6 +28,7 @@ app.include_router(flashcards.router, prefix="/api/flashcards", tags=["Flashcard
 app.include_router(tipos.router, prefix="/api/tipos", tags=["Tipos"])
 app.include_router(queries.router, prefix="/api/queries", tags=["Queries"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
+app.include_router(import_data.router, prefix="/api/import", tags=["Import"])
 
 @app.on_event("startup")
 def on_startup():

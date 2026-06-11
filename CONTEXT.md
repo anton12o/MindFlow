@@ -42,7 +42,7 @@ Frontend chama `VITE_API_URL` (fallback `http://localhost:8000/api`).
 mindflow/
 ├── CONTEXT.md              ← este arquivo
 ├── backend/
-│   ├── main.py             # App FastAPI, CORS, logging, 9 routers + FTS5 startup
+│   ├── main.py             # App FastAPI, CORS, logging, 10 routers + FTS5 startup
 │   ├── database.py         # Engine SQLite + create_db_and_tables + setup_fts
 │   ├── models.py           # 15+ entidades SQLModel
 │   ├── seed.py             # Seed templates + tipos
@@ -55,7 +55,8 @@ mindflow/
 │   │   ├── flashcards.py   # CRUD + review SM-2
 │   │   ├── tipos.py        # CRUD tipos de objeto
 │   │   ├── queries.py      # CRUD + executar + batch edit
-│   │   └── export.py       # GET /api/export (dump completo)
+│   │   ├── export.py       # GET /api/export (dump completo)
+│   │   └── import_data.py  # POST /api/import (upload + upsert + validação)
 │   └── services/
 │       ├── __init__.py
 │       ├── spaced_repetition.py  # Algoritmo SM-2
@@ -72,9 +73,11 @@ mindflow/
 │       │   ├── client.ts     # fetch com AbortController, timeout 10s, JSON.parse
 │       │   ├── inbox.ts, habitos.ts, rotina.ts, pomodoro.ts
 │       │   ├── notas.ts, flashcards.ts, tipos.ts, queries.ts
-│       │   ├── conexoes.ts, grafo.ts, templates.ts
-│       │   └── export.ts     # exportAll()
+│   │   ├── conexoes.ts, grafo.ts, templates.ts
+│   │   ├── export.ts     # exportAll()
+│   │   └── import_export.ts  # importFile() + ImportResult type
 │       ├── hooks/useDebounce.ts
+│       ├── hooks/useImport.ts  # useImport() — { mutate, isLoading, resultado, erro, reset }
 │       ├── utils/date.ts     # formatDateLocal, hojeLocal
 │       ├── components/
 │       │   ├── Sidebar.tsx         # Nav + toggle tema + export + inbox
@@ -82,8 +85,9 @@ mindflow/
 │       │   ├── ConfirmModal.tsx    # Modal reutilizável (destructive, fade-in, Escape)
 │       │   ├── CommandPalette.tsx  # Ctrl+K
 │       │   ├── EditorMarkdown.tsx  # CodeMirror 6
-│       │   ├── ErrorBoundary.tsx
-│       │   ├── CalendarioSemanal.tsx
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── ImportModal.tsx     # 3-step: seleção, confirmação, resultado
+│   │   ├── CalendarioSemanal.tsx
 │       │   ├── GrafoNotas.tsx      # d3-force
 │       │   ├── TemplateModal.tsx   # Aplicar templates
 │       │   └── PomodoroTimer.tsx   # Timer + resumo opcional
@@ -198,6 +202,17 @@ mindflow/
 ### Export (`/api/export`)
 - `GET /` — exportar todas as 15 tabelas como JSON + metadados
 
+### Import (`/api/import`)
+- `POST /` — importar JSON via `UploadFile` (multipart/form-data)
+  - Validação: JSON válido, pelo menos uma tabela conhecida, < 50 MB (senão 413)
+  - Transação única: upsert por ID (insere ou atualiza), rollback se falhar
+  - Ordens das tabelas respeita FK: tipos → pastas (topological sort) → tags → … → conexoes → tags
+  - `ConexaoNota` usa `ON CONFLICT(nota_origem_id, nota_destino_id, tipo) DO UPDATE`
+  - `NotaTag` usa `ON CONFLICT(nota_id, tag_id) DO NOTHING`
+  - `SessaoPomodoro.resumo_nota_id` inválido → setado como null
+  - FTS5 rebuild no final
+  - Retorna resumo: `{ sucesso, importado_em, tabelas: { nome: { inseridos, atualizados } } }`
+
 ---
 
 ## Sessão de Refinamento — 8 Módulos
@@ -233,6 +248,10 @@ mindflow/
 ### Módulo 8: Consistência Visual
 - **Antes:** Títulos variados (`text-xl`, `text-lg`, `text-2xl`). Cards com padding inconsistente (`p-6`, `p-12`, `p-5` vs padrão `p-4`). Cor hardcoded `text-green-400`. `max-width` variado. Botão Inbox do Dashboard com tamanho diferente.
 - **Depois:** Todos os títulos `text-2xl font-bold`. Cards padronizados `p-4`. `text-green-400` → `text-success`. Todos `max-w-4xl`. Botões `px-4 py-1.5 text-sm`.
+
+### Módulo 9: Import de Dados
+- **Antes:** Zero formas de importar dados de volta pro app.
+- **Depois:** `POST /api/import` recebe JSON via UploadFile (multipart), valida antes de escrever (JSON válido, pelo menos uma tabela conhecida, ≤50 MB). Transação única com upsert por ID — se falha, rollback completo. Ordem das tabelas respeita FK (tipos → pastas → tags → … → conexoes). Pastas ordenadas topologicamente (pais antes de filhos). `ConexaoNota` usa `ON CONFLICT` na unique `(origem, destino, tipo)`. `NotaTag` usa `ON CONFLICT DO NOTHING`. `SessaoPomodoro.resumo_nota_id` inválido silenciosamente setado como null. FTS5 rebuild no final. Retorna `{ sucesso, importado_em, tabelas }`. Hook `useImport` no frontend com `mutate`, `isLoading`, `resultado`, `erro`, `reset`. Componente `ImportModal` com 3 passos (seleção → confirmação → resultado), drag and drop, fade-in 150ms, fecha com Escape. Sidebar ganha botão "↑ Importar" ao lado do "↓ Exportar". Comando "Importar dados (JSON)" na paleta Ctrl+K. Após sucesso, invalida todo cache React Query e navega para Dashboard.
 
 ---
 

@@ -15,8 +15,8 @@ const navItems = [
   { icon: '◎', label: 'Insights', page: '/insights' },
 ]
 
-export default function Sidebar({ inboxOpen, onToggleInbox }: {
-  inboxOpen: boolean; onToggleInbox: () => void
+export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
+  inboxOpen: boolean; onToggleInbox: () => void; onOpenImport: () => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -40,11 +40,11 @@ export default function Sidebar({ inboxOpen, onToggleInbox }: {
         ))}
         <div className="flex-1" />
         <button
-          onClick={toggleTheme}
+          onClick={onOpenImport}
           className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
-          title={`Tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+          title="Importar dados"
         >
-          {theme === 'dark' ? '☀' : '☾'}
+          ↑
         </button>
         <button
           onClick={async () => {
@@ -65,6 +65,13 @@ export default function Sidebar({ inboxOpen, onToggleInbox }: {
           title="Exportar dados"
         >
           ↓
+        </button>
+        <button
+          onClick={toggleTheme}
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
+          title={`Tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+        >
+          {theme === 'dark' ? '☀' : '☾'}
         </button>
         <button
           onClick={onToggleInbox}
