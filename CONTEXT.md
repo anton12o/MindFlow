@@ -36,6 +36,36 @@ Frontend chama `VITE_API_URL` (fallback `http://localhost:8000/api`).
 
 ---
 
+## Migrations (Alembic)
+
+Usamos Alembic 1.14+ para gerenciar mudanças de schema do SQLite.
+
+```bash
+# Criar nova migration (após alterar models.py)
+cd backend
+alembic revision --autogenerate -m "descricao da mudanca"
+
+# Revisar o arquivo gerado em migrations/versions/ e remover
+# qualquer menção a notas_fts (FTS5 é gerenciado manualmente)
+
+# Aplicar migrations pendentes
+alembic upgrade head
+
+# Verificar estado atual
+alembic current
+```
+
+> **⚠️ NUNCA deletar o banco para resolver problemas de schema. Sempre criar uma migration.**
+
+### Como funciona no startup
+
+- `database.py:run_migrations()` executa `alembic upgrade head` automaticamente
+- Se o banco não existe, ele é criado do zero via migration
+- Se o banco existe mas não tem `alembic_version` (transição), estampa como head
+- `setup_fts()` roda depois para configurar FTS5 (fora do Alembic)
+
+---
+
 ## Estrutura de Arquivos
 
 ```
@@ -43,9 +73,14 @@ mindflow/
 ├── CONTEXT.md              ← este arquivo
 ├── backend/
 │   ├── main.py             # App FastAPI, CORS, logging, 10 routers + FTS5 startup
-│   ├── database.py         # Engine SQLite + create_db_and_tables + setup_fts
+│   ├── database.py         # Engine SQLite + run_migrations + setup_fts
 │   ├── models.py           # 15+ entidades SQLModel
 │   ├── seed.py             # Seed templates + tipos
+│   ├── alembic.ini         # Config Alembic
+│   ├── migrations/
+│   │   ├── env.py          # Importa models, target_metadata = SQLModel.metadata
+│   │   ├── script.py.mako
+│   │   └── versions/       # Migrations geradas
 │   ├── routers/
 │   │   ├── inbox.py        # CRUD inbox
 │   │   ├── habitos.py      # CRUD hábitos + registros

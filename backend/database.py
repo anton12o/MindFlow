@@ -1,7 +1,10 @@
 import logging
 from sqlmodel import SQLModel, create_engine, Session
-from sqlalchemy import text
+from sqlalchemy import text, inspect
+from sqlalchemy.exc import OperationalError
 from pathlib import Path
+from alembic.config import Config
+from alembic import command
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +15,24 @@ engine = create_engine(
     pool_pre_ping=True,
 )
 
-def create_db_and_tables():
+ALEMBIC_CFG = Config(Path(__file__).parent / "alembic.ini")
+ALEMBIC_CFG.set_main_option("sqlalchemy.url", str(engine.url))
+
+def run_migrations():
     try:
-        SQLModel.metadata.create_all(engine)
-        logger.info("Tabelas criadas/verificadas com sucesso")
+        if not DB_PATH.exists():
+            logger.info("Banco não encontrado — criando via migrations")
+            command.upgrade(ALEMBIC_CFG, "head")
+        else:
+            inspector = inspect(engine)
+            tables = inspector.get_table_names()
+            if "alembic_version" not in tables and tables:
+                logger.info("Banco existente sem controle de versão — estampando como head")
+                command.stamp(ALEMBIC_CFG, "head")
+            command.upgrade(ALEMBIC_CFG, "head")
+        logger.info("Migrations aplicadas com sucesso")
     except Exception as e:
-        logger.error("Erro ao criar tabelas: %s", e)
+        logger.error("Erro ao executar migrations: %s", e)
         raise
 
 def setup_fts():

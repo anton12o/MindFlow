@@ -2,7 +2,7 @@ import os
 import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from database import create_db_and_tables, setup_fts
+from database import run_migrations, setup_fts
 from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data
 from seed import seed_db
 
@@ -33,7 +33,7 @@ app.include_router(import_data.router, prefix="/api/import", tags=["Import"])
 @app.on_event("startup")
 def on_startup():
     logger.info("Iniciando MindFlow API...")
-    create_db_and_tables()
+    run_migrations()
     setup_fts()
     seed_db()
     logger.info("MindFlow API pronta")
