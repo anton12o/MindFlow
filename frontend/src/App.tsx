@@ -14,6 +14,7 @@ import Flashcards from './pages/Flashcards'
 import Tipos from './pages/Tipos'
 import Consultas from './pages/Consultas'
 import Insights from './pages/Insights'
+import { exportAll } from './api/export'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -41,6 +42,16 @@ function Layout() {
     { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
     { id: 'insights', label: 'Ir para Insights', action: () => navigate('/insights') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
+    { id: 'export', label: 'Exportar dados (JSON)', action: async () => {
+      const data = await exportAll()
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `mindflow-export-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    }},
   ]
 
   useEffect(() => {
@@ -58,8 +69,13 @@ function Layout() {
         setInboxOpen(p => !p)
       }
     }
+    const openInbox = () => setInboxOpen(p => !p)
     window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
+    window.addEventListener('open-inbox', openInbox)
+    return () => {
+      window.removeEventListener('keydown', handler)
+      window.removeEventListener('open-inbox', openInbox)
+    }
   }, [])
 
   return (

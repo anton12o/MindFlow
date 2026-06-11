@@ -18,14 +18,17 @@ def extrair_wikilinks(conteudo: str) -> list[str]:
 
 def processar_wikilinks(nota_id: int, conteudo: str, session: Session):
     existing = session.exec(
-        select(ConexaoNota).where(ConexaoNota.nota_origem_id == nota_id)
+        select(ConexaoNota).where(
+            ConexaoNota.nota_origem_id == nota_id,
+            ConexaoNota.tipo == "wikilink",
+        )
     ).all()
     for conn in existing:
         session.delete(conn)
 
     for title in extrair_wikilinks(conteudo):
         target = session.exec(
-            select(Nota).where(Nota.titulo == title)
+            select(Nota).where(Nota.titulo.ilike(title))
         ).first()
         if target and target.id != nota_id:
             conn = ConexaoNota(
@@ -36,9 +39,10 @@ def processar_wikilinks(nota_id: int, conteudo: str, session: Session):
             session.add(conn)
 
 
-def criar_nota_resumo(conteudo_resumo: str, session: Session) -> Nota:
+def criar_nota_resumo(conteudo_resumo: str, session: Session, contexto_nome: str | None = None) -> Nota:
+    prefixo = f"Resumo Pomodoro ({contexto_nome})" if contexto_nome else "Resumo Pomodoro"
     nota = Nota(
-        titulo=f"Resumo Pomodoro — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        titulo=f"{prefixo} — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         conteudo=conteudo_resumo,
     )
     session.add(nota)

@@ -9,6 +9,24 @@ import GrafoNotas from '../components/GrafoNotas'
 import type { Nota } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 
+function renderConteudo(conteudo: string, notas: Nota[], onSelect: (n: Nota) => void) {
+  const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
+  return parts.map((part, i) => {
+    const m = part.match(/^\[\[([^\]]+?)(?:\|([^\]]+))?\]\]$/)
+    if (!m) return <span key={i}>{part}</span>
+    const titulo = m[1].trim()
+    const alias = m[2]?.trim() || titulo
+    const target = notas.find(n => n.titulo.toLowerCase() === titulo.toLowerCase())
+    if (!target) return <span key={i} className="text-danger/70">{alias}</span>
+    return (
+      <button key={i} onClick={() => onSelect(target)}
+        className="text-accent hover:underline cursor-pointer font-semibold">
+        {alias}
+      </button>
+    )
+  })
+}
+
 export default function Ideias() {
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -29,7 +47,7 @@ export default function Ideias() {
   const [novaPropVal, setNovaPropVal] = useState('')
   const searchDebounced = useDebounce(search, 300)
 
-  const { data: notas } = useQuery({
+  const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
     queryKey: ['notas', searchDebounced],
     queryFn: () => getNotas(searchDebounced || undefined),
   })
@@ -66,6 +84,7 @@ export default function Ideias() {
     mutationFn: (id: number) => deleteNota(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
+      queryClient.invalidateQueries({ queryKey: ['conexoes'] })
       setSelectedId(null)
     },
   })
@@ -134,9 +153,12 @@ export default function Ideias() {
 
   const filtered = notas || []
 
-  const notasRelacionadas = notas?.filter(n =>
-    conexoes?.some(c => c.nota_destino_id === n.id || c.nota_origem_id === n.id)
-  ).filter(n => n.id !== selectedId) || []
+  const saida = notas?.filter(n =>
+    conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
+  ) || []
+  const entrada = notas?.filter(n =>
+    conexoes?.some(c => c.nota_destino_id === selectedId && c.nota_origem_id === n.id)
+  ) || []
 
   return (
     <div className="flex h-full">
@@ -159,7 +181,14 @@ export default function Ideias() {
           }} />
         ) : (
           <div className="space-y-1">
-            {filtered.map(n => {
+            {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
+            {notasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar notas</p>}
+            {!notasLoad && !notasErr && filtered.length === 0 && (
+              <p className="text-sm text-text-muted py-4 text-center">
+                {searchDebounced ? 'Nenhuma nota encontrada' : 'Nenhuma nota criada ainda'}
+              </p>
+            )}
+            {!notasLoad && !notasErr && filtered.map(n => {
               const tipo = tipos?.find(t => t.id === n.tipo_id)
               return (
                 <button key={n.id} onClick={() => selectNota(n)}
@@ -253,7 +282,9 @@ export default function Ideias() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-text-primary whitespace-pre-wrap font-mono leading-relaxed">{notaAtual.conteudo || 'Nenhum conteúdo'}</div>
+                  <div className="text-sm text-text-primary whitespace-pre-wrap font-mono leading-relaxed">
+                    {notaAtual.conteudo ? renderConteudo(notaAtual.conteudo, notas || [], selectNota) : 'Nenhum conteúdo'}
+                  </div>
                 )}
               </div>
 
@@ -313,19 +344,34 @@ export default function Ideias() {
               )}
             </div>
 
-            {conexoes && conexoes.length > 0 && (
+            {(entrada.length > 0 || saida.length > 0) && (
               <div className="mt-8 pt-4 border-t border-border">
-                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
-                  {conexoes.length} conexão(ões)
-                </h2>
-                <div className="flex flex-wrap gap-2">
-                  {notasRelacionadas.map(n => (
-                    <button key={n.id} onClick={() => selectNota(n)}
-                      className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent">
-                      → {n.titulo}
-                    </button>
-                  ))}
-                </div>
+                {saida.length > 0 && (
+                  <div className="mb-3">
+                    <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Aponta para</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {saida.map(n => (
+                        <button key={n.id} onClick={() => selectNota(n)}
+                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent">
+                          → {n.titulo}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {entrada.length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Apontam para esta</h2>
+                    <div className="flex flex-wrap gap-2">
+                      {entrada.map(n => (
+                        <button key={n.id} onClick={() => selectNota(n)}
+                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent">
+                          ← {n.titulo}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getFlashcards, getReviewCards, createFlashcard, updateFlashcard, reviewFlashcard, deleteFlashcard } from '../api/flashcards'
+import ConfirmModal from '../components/ConfirmModal'
 import { getNotas } from '../api/notas'
 
 const labels = ['', 'Muito difícil', 'Difícil', 'Médio', 'Fácil', 'Muito fácil']
@@ -12,18 +13,19 @@ export default function Flashcards() {
   const [form, setForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; pergunta: string } | null>(null)
 
-  const { data: cards, isLoading } = useQuery({
+  const { data: cards, isLoading: cardsLoad, isError: cardsErr } = useQuery({
     queryKey: ['flashcards', 'review'],
     queryFn: getReviewCards,
   })
 
-  const { data: allCards } = useQuery({
+  const { data: allCards, isLoading: allLoad, isError: allErr } = useQuery({
     queryKey: ['flashcards', 'all'],
     queryFn: () => getFlashcards(),
   })
 
-  const { data: notas } = useQuery({
+  const { data: notas, isLoading: notasLoad } = useQuery({
     queryKey: ['notas'],
     queryFn: () => getNotas(),
   })
@@ -74,8 +76,8 @@ export default function Flashcards() {
     })
   }
 
-  if (isLoading) {
-    return <div className="p-6 text-text-muted text-sm">Carregando...</div>
+  if (cardsLoad) {
+    return <div className="p-6 text-text-muted text-sm animate-pulse">Carregando...</div>
   }
 
   return (
@@ -101,7 +103,8 @@ export default function Flashcards() {
             <select value={form.nota_id} onChange={e => setForm(f => ({ ...f, nota_id: e.target.value }))}
               className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none">
               <option value="">Sem nota associada</option>
-              {(notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
+              {notasLoad && <option disabled>Carregando...</option>}
+              {!notasLoad && (notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
             </select>
             <button type="submit" disabled={!form.pergunta.trim() || !form.resposta.trim()}
               className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar flashcard</button>
@@ -109,7 +112,9 @@ export default function Flashcards() {
         </form>
       )}
 
-      {currentCard ? (
+      {cardsLoad && <div className="bg-bg-secondary rounded-xl border border-border p-4 text-center mb-8"><p className="text-text-muted animate-pulse">Carregando...</p></div>}
+      {cardsErr && <div className="bg-bg-secondary rounded-xl border border-border p-4 text-center mb-8"><p className="text-danger">Erro ao carregar flashcards</p></div>}
+      {!cardsLoad && !cardsErr && currentCard ? (
         <div className="mb-8">
           <div
             onClick={() => setVirado(!virado)}
@@ -138,18 +143,21 @@ export default function Flashcards() {
             </div>
           )}
         </div>
-      ) : (
-        <div className="bg-bg-secondary rounded-xl border border-border p-12 text-center mb-8">
+      ) : !cardsLoad && !cardsErr ? (
+        <div className="bg-bg-secondary rounded-xl border border-border p-4 text-center mb-8">
           <p className="text-text-muted text-lg mb-2">Nenhum card pendente</p>
           <p className="text-text-muted text-sm">Crie um novo flashcard acima ou eles aparecerão automaticamente conforme você cria notas com flashcards</p>
         </div>
-      )}
+      ) : null}
 
-      {allCards && allCards.length > 0 && (
-        <div>
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
-            Todos os flashcards ({allCards.length})
-          </h2>
+      <div>
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Todos os flashcards</h2>
+        {allLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
+        {allErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar flashcards</p>}
+        {!allLoad && !allErr && (!allCards || allCards.length === 0) && (
+          <p className="text-sm text-text-muted py-4 text-center">Nenhum flashcard criado</p>
+        )}
+        {!allLoad && !allErr && allCards && allCards.length > 0 && (
           <div className="space-y-2">
             {allCards.map(fc => {
               const editing = editId === fc.id
@@ -183,7 +191,7 @@ export default function Flashcards() {
                     <div className="flex items-center gap-1 shrink-0">
                       <button onClick={() => { setEditId(fc.id); setEditForm({ pergunta: fc.pergunta, resposta: fc.resposta, nota_id: fc.nota_id ? String(fc.nota_id) : '' }) }}
                         className="text-xs text-text-muted hover:text-accent">✎</button>
-                      <button onClick={() => { if (confirm('Remover este flashcard?')) deleteMut.mutate(fc.id) }}
+                      <button onClick={() => setConfirmDelete({ id: fc.id, pergunta: fc.pergunta })}
                         className="text-xs text-text-muted hover:text-danger">✕</button>
                     </div>
                   </>
@@ -191,7 +199,18 @@ export default function Flashcards() {
               </div>
             )})}
           </div>
-        </div>
+        )}
+      </div>
+
+      {confirmDelete && (
+        <ConfirmModal
+          titulo="Remover flashcard"
+          mensagem={`Tem certeza que deseja remover "${confirmDelete.pergunta}"?`}
+          destructive
+          confirmLabel="Remover"
+          onConfirm={() => { deleteMut.mutate(confirmDelete.id); setConfirmDelete(null) }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   )

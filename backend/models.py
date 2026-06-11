@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
+from sqlalchemy import UniqueConstraint
 from typing import Optional, Any
 from datetime import datetime, date
 
@@ -220,6 +221,10 @@ class ConexaoNota(SQLModel, table=True):
     nota_origem_id: int = Field(foreign_key="notas.id")
     nota_destino_id: int = Field(foreign_key="notas.id")
     tipo: str = "wikilink"
+
+    __table_args__ = (
+        UniqueConstraint("nota_origem_id", "nota_destino_id", "tipo", name="uq_conexao"),
+    )
 
 class ConexaoNotaRead(SQLModel):
     id: int

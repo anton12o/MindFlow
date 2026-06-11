@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getInbox, createInbox, deleteInbox } from '../api/inbox'
+import ConfirmModal from './ConfirmModal'
 import type { InboxItem } from '../types'
 
 export default function InboxModal({ onClose }: { onClose: () => void }) {
@@ -7,6 +8,7 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
   const [saved, setSaved] = useState(false)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [items, setItems] = useState<InboxItem[]>([])
+  const [confirmDelete, setConfirmDelete] = useState<InboxItem | null>(null)
 
   const loadItems = () => {
     getInbox(false).then(setItems).catch(e => console.error('[Inbox] carregar', e))
@@ -39,7 +41,6 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
   }
 
   async function handleDelete(id: number) {
-    if (!confirm('Remover este item?')) return
     try {
       await deleteInbox(id)
       setItems(prev => prev.filter(i => i.id !== id))
@@ -78,11 +79,22 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             {items.map(item => (
               <div key={item.id} className="flex items-center justify-between gap-2 bg-bg-tertiary rounded-lg px-3 py-2">
                 <span className="text-sm flex-1">{item.conteudo}</span>
-                <button onClick={() => handleDelete(item.id)}
+                <button onClick={() => setConfirmDelete(item)}
                   className="text-xs text-text-muted hover:text-danger shrink-0">✕</button>
               </div>
             ))}
           </div>
+        )}
+
+        {confirmDelete && (
+          <ConfirmModal
+            titulo="Remover item"
+            mensagem={`Tem certeza que deseja remover "${confirmDelete.conteudo}"?`}
+            destructive
+            confirmLabel="Remover"
+            onConfirm={() => { handleDelete(confirmDelete.id); setConfirmDelete(null) }}
+            onCancel={() => setConfirmDelete(null)}
+          />
         )}
       </div>
     </div>

@@ -1,6 +1,7 @@
 import re
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, SQLModel
+from sqlalchemy import text
 from database import get_session
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
@@ -45,9 +46,20 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 # ─── Notas ───
 @router.get("", response_model=list[NotaRead])
 def list_notas(q: str | None = None, data: str | None = None, session: Session = Depends(get_session)):
-    stmt = select(Nota)
     if q:
-        stmt = stmt.where(Nota.titulo.contains(q) | Nota.conteudo.contains(q))
+        fts_query = " AND ".join(f'"{w}"' for w in q.split() if w)
+        ids = [
+            r[0] for r in session.execute(
+                text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
+                {"q": fts_query},
+            ).all()
+        ]
+        notas_map = {n.id: n for n in session.exec(select(Nota).where(Nota.id.in_(ids))).all()}
+        notas = [notas_map[i] for i in ids if i in notas_map]
+        if data:
+            notas = [n for n in notas if n.criado_em.startswith(data)]
+        return notas
+    stmt = select(Nota)
     if data:
         stmt = stmt.where(Nota.criado_em.startswith(data))
     return session.exec(stmt.order_by(Nota.atualizado_em.desc())).all()
@@ -94,6 +106,9 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     conteudo = re.sub(r'\{\{titulo\}\}', t.nome, conteudo)
     nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=t.propriedades.copy())
     session.add(nota)
+    session.flush()
+    if conteudo:
+        processar_wikilinks(nota.id, conteudo, session)
     session.commit()
     session.refresh(nota)
     return nota

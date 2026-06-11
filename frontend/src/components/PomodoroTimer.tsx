@@ -15,23 +15,29 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const [resumo, setResumo] = useState('')
   const [mostrarResumo, setMostrarResumo] = useState(false)
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
-  const resumoRef = useRef(resumo)
-  resumoRef.current = resumo
   const queryClient = useQueryClient()
 
   const finalizarMut = useMutation({
-    mutationFn: (params: { id: number; resumo?: string }) =>
-      finalizarSessao(params.id, params.resumo),
+    mutationFn: (params: { id: number; body: { conteudo_resumo?: string; contexto_nome?: string } }) =>
+      finalizarSessao(params.id, params.body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pomodoro', 'sessoes'] })
       queryClient.invalidateQueries({ queryKey: ['notas'] })
-      onFinalizar?.()
     },
   })
 
-  function finalizar() {
+  function handleFinalizar(comResumo: boolean) {
     if (sessaoId) {
-      finalizarMut.mutate({ id: sessaoId, resumo: resumoRef.current || undefined })
+      finalizarMut.mutate(
+        {
+          id: sessaoId,
+          body: {
+            conteudo_resumo: comResumo && resumo ? resumo : undefined,
+            contexto_nome: contexto?.nome,
+          },
+        },
+        { onSuccess: () => onFinalizar?.() },
+      )
     }
   }
 
@@ -39,7 +45,12 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     if (ativo) {
       clearInterval(interval.current)
       setAtivo(false)
-      finalizar()
+      if (sessaoId) {
+        finalizarMut.mutate(
+          { id: sessaoId, body: { contexto_nome: contexto?.nome } },
+          { onSuccess: () => onFinalizar?.() },
+        )
+      }
     } else {
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
@@ -62,7 +73,6 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
                 clearInterval(interval.current)
                 setAtivo(false)
                 setMostrarResumo(true)
-                finalizar()
                 return 0
               }
               return m - 1
@@ -98,24 +108,35 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
           <textarea
             value={resumo}
             onChange={e => setResumo(e.target.value)}
-            placeholder="Registrar resumo da sessão..."
+            placeholder="Registrar resumo da sessão (opcional)..."
             className="w-full bg-bg-tertiary rounded-lg p-3 text-sm outline-none resize-none h-20 focus:ring-1 focus:ring-accent"
           />
-          <button
-            onClick={() => {
-              finalizar()
-              setMostrarResumo(false)
-            }}
-            className="mt-2 px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
-          >
-            Salvar resumo
-          </button>
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => {
+                handleFinalizar(false)
+                setMostrarResumo(false)
+              }}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+            >
+              Pular
+            </button>
+            <button
+              onClick={() => {
+                handleFinalizar(true)
+                setMostrarResumo(false)
+              }}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+            >
+              Salvar resumo
+            </button>
+          </div>
         </div>
       )}
 
       {!ativo && !mostrarResumo && minutos === 0 && segundos === 0 && (
         <button
-          onClick={() => { setMinutos(25); setSegundos(0); setResumo('') }}
+          onClick={() => { setMinutos(25); setSegundos(0); setResumo(''); setSessaoId(null) }}
           className="text-sm text-accent hover:underline"
         >
           Novo Pomodoro

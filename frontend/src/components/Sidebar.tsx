@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../store/theme'
 import InboxModal from './InboxModal'
+import { exportAll } from '../api/export'
 
 const navItems = [
   { icon: '◉', label: 'Dashboard', page: '/' },
@@ -44,6 +45,26 @@ export default function Sidebar({ inboxOpen, onToggleInbox }: {
           title={`Tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
         >
           {theme === 'dark' ? '☀' : '☾'}
+        </button>
+        <button
+          onClick={async () => {
+            try {
+              const data = await exportAll()
+              const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+              const url = URL.createObjectURL(blob)
+              const a = document.createElement('a')
+              a.href = url
+              a.download = `mindflow-export-${new Date().toISOString().slice(0, 10)}.json`
+              a.click()
+              URL.revokeObjectURL(url)
+            } catch (e) {
+              console.error('[Export]', e)
+            }
+          }}
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
+          title="Exportar dados"
+        >
+          ↓
         </button>
         <button
           onClick={onToggleInbox}

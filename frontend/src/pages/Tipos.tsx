@@ -9,7 +9,7 @@ export default function Tipos() {
   const [editing, setEditing] = useState<number | null>(null)
   const [form, setForm] = useState({ nome: '', icone: '📄' })
 
-  const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
+  const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
 
   const createMut = useMutation({
     mutationFn: () => createTipo({ nome: form.nome, icone: form.icone }),
@@ -33,7 +33,7 @@ export default function Tipos() {
   })
 
   return (
-    <div className="p-6 max-w-3xl">
+    <div className="p-6 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Tipos de Objeto</h1>
 
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
@@ -51,7 +51,12 @@ export default function Tipos() {
       </div>
 
       <div className="space-y-2">
-        {(tipos || []).map(t => (
+        {isLoading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
+        {isError && <p className="text-sm text-danger py-8 text-center">Erro ao carregar tipos</p>}
+        {!isLoading && !isError && (!tipos || tipos.length === 0) && (
+          <p className="text-sm text-text-muted py-8 text-center">Nenhum tipo criado ainda</p>
+        )}
+        {!isLoading && !isError && (tipos || []).map(t => (
           <div key={t.id} className="bg-bg-secondary rounded-xl border border-border p-4">
             {editing === t.id ? (
               <div className="flex items-center gap-2">

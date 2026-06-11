@@ -1,20 +1,28 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { getHabitos, createHabito, updateHabito, deleteHabito, createRegistro } from '../api/habitos'
+import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal } from '../utils/date'
 import type { Habito } from '../types'
 
 const TIPO_LABEL: Record<string, string> = { binario: 'Sim/Não', quantitativo: 'Contagem' }
 
 export default function Habitos() {
+  const navigate = useNavigate()
   const [habitos, setHabitos] = useState<Habito[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ nome: '', tipo: 'binario' as 'binario' | 'quantitativo', categoria: '', meta: '' })
   const [feedback, setFeedback] = useState<{ id: number; texto: string } | null>(null)
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({ nome: '', tipo: '' as string, categoria: '', meta: '' })
+  const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: number; nome: string } | null>(null)
 
   useEffect(() => {
-    getHabitos().then(setHabitos).catch(e => console.error('[Habitos] listar', e))
+    setLoading(true)
+    setError(false)
+    getHabitos().then(data => { setHabitos(data); setLoading(false) }).catch(e => { console.error('[Habitos] listar', e); setError(true); setLoading(false) })
   }, [])
 
   async function handleCreate(e: React.FormEvent) {
@@ -109,7 +117,12 @@ export default function Habitos() {
       )}
 
       <div className="space-y-3">
-        {habitos.filter(h => h.ativo).map(h => {
+        {loading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
+        {error && <p className="text-sm text-danger py-8 text-center">Erro ao carregar hábitos</p>}
+        {!loading && !error && habitos.filter(h => h.ativo).length === 0 && (
+          <p className="text-sm text-text-muted py-8 text-center">Nenhum hábito criado ainda</p>
+        )}
+        {!loading && !error && habitos.filter(h => h.ativo).map(h => {
           const editing = editId === h.id
           return (
           <div key={h.id} className="bg-bg-secondary rounded-xl border border-border p-4">
@@ -163,8 +176,10 @@ export default function Habitos() {
                   </>
                 ) : (
                   <>
+                    <button onClick={() => navigate(`/pomodoro?contexto_tipo=habito&contexto_id=${h.id}&nome=${encodeURIComponent(h.nome)}`)}
+                      className="text-xs text-text-muted hover:text-accent" title="Iniciar Pomodoro">▶</button>
                     <button onClick={() => handleEdit(h)} className="text-xs text-text-muted hover:text-accent">✎</button>
-                    <button onClick={() => { if (confirm('Remover este hábito?')) deleteHabito(h.id).then(() => setHabitos(prev => prev.filter(x => x.id !== h.id))).catch(e => console.error('[Habitos] deletar', e)) }}
+                    <button onClick={() => setConfirmDeleteId({ id: h.id, nome: h.nome })}
                       className="text-xs text-text-muted hover:text-danger ml-1">✕</button>
                   </>
                 )}
@@ -173,6 +188,22 @@ export default function Habitos() {
           </div>
         )})}
       </div>
+
+      {confirmDeleteId && (
+        <ConfirmModal
+          titulo="Remover hábito"
+          mensagem={`Tem certeza que deseja remover "${confirmDeleteId.nome}"?`}
+          destructive
+          confirmLabel="Remover"
+          onConfirm={() => {
+            deleteHabito(confirmDeleteId.id)
+              .then(() => setHabitos(prev => prev.filter(x => x.id !== confirmDeleteId.id)))
+              .catch(e => console.error('[Habitos] deletar', e))
+            setConfirmDeleteId(null)
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   )
 }

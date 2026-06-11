@@ -55,13 +55,13 @@ export default function Insights() {
   const grid = gerarGrid()
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold">Insights</h1>
+        <h1 className="text-2xl font-bold">Insights</h1>
         {stats && (
           <div className="flex items-center gap-4 text-sm">
             <span className="text-text-muted">{stats.total_mes} notas no mês</span>
-            <span className="text-green-400 font-semibold">🔥 {stats.streak} dias seguidos</span>
+            <span className="text-success font-semibold">🔥 {stats.streak} dias seguidos</span>
           </div>
         )}
       </div>

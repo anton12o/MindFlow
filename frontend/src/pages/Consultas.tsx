@@ -14,10 +14,10 @@ export default function Consultas() {
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
 
-  const { data: queries } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
+  const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
 
-  const { data: result, refetch: refetchResult } = useQuery({
+  const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr } = useQuery({
     queryKey: ['query-result', selectedQuery],
     queryFn: () => executarQuery(selectedQuery!),
     enabled: !!selectedQuery,
@@ -83,7 +83,7 @@ export default function Consultas() {
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
-        <h1 className="text-lg font-bold mb-4">Consultas</h1>
+        <h1 className="text-2xl font-bold mb-6">Consultas</h1>
 
         <form onSubmit={e => { e.preventDefault(); createMut.mutate() }} className="mb-4 flex flex-col gap-2">
           <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome da consulta"
@@ -112,7 +112,12 @@ export default function Consultas() {
         </form>
 
         <div className="space-y-1">
-          {(queries || []).map(q => (
+          {qLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
+          {qErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar consultas</p>}
+          {!qLoad && !qErr && (!queries || queries.length === 0) && (
+            <p className="text-sm text-text-muted py-4 text-center">Nenhuma consulta criada</p>
+          )}
+          {!qLoad && !qErr && (queries || []).map(q => (
             <div key={q.id} className="flex items-center gap-1">
               <button onClick={() => setSelectedQuery(q.id)}
                 className={`flex-1 text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedQuery === q.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
@@ -178,10 +183,12 @@ export default function Consultas() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {(result?.dados || []).map(renderCard)}
-                {(!result?.dados || result.dados.length === 0) && (
+                {resLoad && <p className="text-text-muted text-sm col-span-full text-center py-8 animate-pulse">Carregando...</p>}
+                {resErr && <p className="text-danger text-sm col-span-full text-center py-8">Erro ao executar consulta</p>}
+                {!resLoad && !resErr && (!result?.dados || result.dados.length === 0) && (
                   <p className="text-text-muted text-sm col-span-full text-center py-8">Nenhum resultado</p>
                 )}
+                {!resLoad && !resErr && (result?.dados || []).map(renderCard)}
               </div>
             )}
           </div>

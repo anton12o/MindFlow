@@ -11,6 +11,7 @@ router = APIRouter()
 
 class FinalizarSessaoBody(BaseModel):
     conteudo_resumo: Optional[str] = None
+    contexto_nome: Optional[str] = None
 
 @router.get("/sessoes", response_model=list[SessaoPomodoroRead])
 def list_sessoes(session: Session = Depends(get_session)):
@@ -32,7 +33,7 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
         raise HTTPException(status_code=404, detail="Sessão não encontrada")
     s.finalizado_em = datetime.now().isoformat()
     if body.conteudo_resumo:
-        nota = criar_nota_resumo(body.conteudo_resumo, session)
+        nota = criar_nota_resumo(body.conteudo_resumo, session, body.contexto_nome)
         s.resumo_nota_id = nota.id
     session.commit()
     session.refresh(s)

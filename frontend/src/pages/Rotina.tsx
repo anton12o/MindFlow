@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa } from '../api/rotina'
 import CalendarioSemanal from '../components/CalendarioSemanal'
+import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal } from '../utils/date'
 import type { BlocoRotina, Tarefa } from '../types'
 
@@ -23,15 +24,16 @@ export default function Rotina() {
   const [blocoForm, setBlocoForm] = useState({ titulo: '', hora_inicio: '', hora_fim: '' })
   const [editBloco, setEditBloco] = useState<{ id: number; titulo: string; hora_inicio: string; hora_fim: string } | null>(null)
   const [editTarefa, setEditTarefa] = useState<{ id: number; titulo: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<{ type: 'bloco' | 'tarefa'; id: number; label: string } | null>(null)
   const hoje = hojeLocal()
   const queryKey = ['rotina', 'tarefas', hoje] as const
 
-  const { data: blocos } = useQuery({
+  const { data: blocos, isLoading: blocosLoad, isError: blocosErr } = useQuery({
     queryKey: ['rotina', 'blocos', hoje],
     queryFn: () => getBlocos(hoje),
   })
 
-  const { data: tarefas } = useQuery({
+  const { data: tarefas, isLoading: tarefasLoad, isError: tarefasErr } = useQuery({
     queryKey,
     queryFn: () => getTarefas(hoje),
   })
@@ -118,7 +120,7 @@ export default function Rotina() {
   }
 
   return (
-    <div className="p-6 max-w-5xl">
+    <div className="p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">Rotina Diária</h1>
         <div className="flex rounded-lg border border-border overflow-hidden">
@@ -153,7 +155,9 @@ export default function Rotina() {
             )}
 
             <div className="space-y-1">
-              {[...(blocos || [])].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)).map(b => {
+              {blocosLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
+              {blocosErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar blocos</p>}
+              {!blocosLoad && !blocosErr && blocos && blocos.length > 0 && [...blocos].sort((a, b) => a.hora_inicio.localeCompare(b.hora_inicio)).map(b => {
                 const s = statusBloco(b.hora_inicio, b.hora_fim)
                 const editing = editBloco?.id === b.id
                 return (
@@ -180,13 +184,13 @@ export default function Rotina() {
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditBloco({ id: b.id, titulo: b.titulo, hora_inicio: b.hora_inicio, hora_fim: b.hora_fim })}
                         className="text-xs text-text-muted hover:text-accent">✎</button>
-                      <button onClick={() => { if (confirm('Remover este bloco?')) deleteBlocoMut.mutate(b.id) }}
+                      <button onClick={() => setConfirmDelete({ type: 'bloco', id: b.id, label: b.titulo })}
                         className="text-xs text-text-muted hover:text-danger">✕</button>
                     </div>
                   </div>
                 )
               })}
-              {(!blocos || blocos.length === 0) && <p className="text-sm text-text-muted py-4 text-center">Nenhum bloco definido</p>}
+              {!blocosLoad && !blocosErr && (!blocos || blocos.length === 0) && <p className="text-sm text-text-muted py-4 text-center">Nenhum bloco definido</p>}
             </div>
           </div>
 
@@ -203,7 +207,9 @@ export default function Rotina() {
             </form>
 
             <div className="space-y-1">
-              {(tarefas || []).map(t => {
+              {tarefasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
+              {tarefasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar tarefas</p>}
+              {!tarefasLoad && !tarefasErr && (tarefas || []).map(t => {
                 const editing = editTarefa?.id === t.id
                 return (
                 <div key={t.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors">
@@ -228,16 +234,31 @@ export default function Rotina() {
                       </span>
                       <button onClick={() => setEditTarefa({ id: t.id, titulo: t.titulo })}
                         className="text-xs text-text-muted hover:text-accent">✎</button>
-                      <button onClick={() => { if (confirm('Remover esta tarefa?')) deleteTarefaMut.mutate(t.id) }}
+                      <button onClick={() => setConfirmDelete({ type: 'tarefa', id: t.id, label: t.titulo })}
                         className="text-xs text-text-muted hover:text-danger">✕</button>
                     </>
                   )}
                 </div>
               )})}
-              {(!tarefas || tarefas.length === 0) && <p className="text-sm text-text-muted py-4 text-center">Nenhuma tarefa hoje</p>}
+              {!tarefasLoad && !tarefasErr && (!tarefas || tarefas.length === 0) && <p className="text-sm text-text-muted py-4 text-center">Nenhuma tarefa hoje</p>}
             </div>
           </div>
         </div>
+      )}
+
+      {confirmDelete && (
+        <ConfirmModal
+          titulo={`Remover ${confirmDelete.type === 'bloco' ? 'bloco' : 'tarefa'}`}
+          mensagem={`Tem certeza que deseja remover "${confirmDelete.label}"?`}
+          destructive
+          confirmLabel="Remover"
+          onConfirm={() => {
+            if (confirmDelete.type === 'bloco') deleteBlocoMut.mutate(confirmDelete.id)
+            else deleteTarefaMut.mutate(confirmDelete.id)
+            setConfirmDelete(null)
+          }}
+          onCancel={() => setConfirmDelete(null)}
+        />
       )}
     </div>
   )

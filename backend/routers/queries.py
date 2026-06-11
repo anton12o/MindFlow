@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, SQLModel
+from sqlalchemy import text
 from database import get_session
 from models import QuerySalva, QuerySalvaCreate, QuerySalvaRead, Nota, Tarefa, TipoObjeto
 
@@ -67,7 +68,17 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
         stmt = select(Nota)
         filtros = q.filtros or {}
         if filtros.get("q"):
-            stmt = stmt.where(Nota.titulo.contains(filtros["q"]) | Nota.conteudo.contains(filtros["q"]))
+            fts_query = " AND ".join(f'"{w}"' for w in filtros["q"].split() if w)
+            ids = [
+                r[0] for r in session.execute(
+                    text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
+                    {"q": fts_query},
+                ).all()
+            ]
+            if ids:
+                stmt = stmt.where(Nota.id.in_(ids))
+            else:
+                stmt = stmt.where(1 == 0)
         if filtros.get("tipo_id"):
             stmt = stmt.where(Nota.tipo_id == filtros["tipo_id"])
         dados = session.exec(stmt).all()
