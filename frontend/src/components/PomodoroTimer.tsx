@@ -73,16 +73,15 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         )
       }
     } else {
-      setAtivo(true)
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
         contexto_id: contexto?.id || null,
         duracao_min: minutos,
       }).then(s => {
         setSessaoId(s.id)
+        setAtivo(true)
       }).catch(e => {
         console.error('[Pomodoro] criar sessão', e)
-        setAtivo(false)
       })
     }
   }

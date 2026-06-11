@@ -48,6 +48,9 @@ def delete_bloco(bloco_id: int, session: Session = Depends(get_session)):
     b = session.get(BlocoRotina, bloco_id)
     if not b:
         raise HTTPException(status_code=404, detail="Bloco não encontrado")
+    for t in session.exec(select(Tarefa).where(Tarefa.bloco_id == bloco_id)).all():
+        t.bloco_id = None
+        session.add(t)
     session.delete(b)
     session.commit()
     return {"ok": True}

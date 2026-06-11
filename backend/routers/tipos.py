@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_
 from database import get_session
-from models import TipoObjeto, TipoObjetoCreate, TipoObjetoRead, TipoObjetoUpdate
+from models import TipoObjeto, TipoObjetoCreate, TipoObjetoRead, TipoObjetoUpdate, Nota, Tarefa, QuerySalva
 
 router = APIRouter()
 
@@ -41,6 +41,14 @@ def delete_tipo(tipo_id: int, session: Session = Depends(get_session)):
     db = session.get(TipoObjeto, tipo_id)
     if not db:
         raise HTTPException(status_code=404, detail="Tipo não encontrado")
+    notas = session.exec(select(Nota).where(Nota.tipo_id == tipo_id)).all()
+    tarefas = session.exec(select(Tarefa).where(Tarefa.tipo_id == tipo_id)).all()
+    queries = session.exec(select(QuerySalva).where(QuerySalva.tipo_objeto_id == tipo_id)).all()
+    if notas or tarefas or queries:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Tipo em uso por {len(notas)} nota(s), {len(tarefas)} tarefa(s) e {len(queries)} consulta(s). Remova as referências antes de excluir."
+        )
     session.delete(db)
     session.commit()
     return {"ok": True}

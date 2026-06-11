@@ -53,14 +53,18 @@ function Layout() {
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
     { id: 'import', label: 'Importar dados (JSON)', action: () => setImportOpen(true) },
     { id: 'export', label: 'Exportar dados (JSON)', action: async () => {
-      const data = await exportAll()
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `mindflow-export-${new Date().toISOString().slice(0, 10)}.json`
-      a.click()
-      URL.revokeObjectURL(url)
+      try {
+        const data = await exportAll()
+        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `mindflow-export-${new Date().toISOString().slice(0, 10)}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        console.error('[Export]', e)
+      }
     }},
   ]
 

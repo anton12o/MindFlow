@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useSearchParams } from 'react-router-dom'
 import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas } from '../api/notas'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
@@ -48,6 +49,14 @@ export default function Ideias() {
   const [novaPropVal, setNovaPropVal] = useState('')
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const notaId = searchParams.get('nota_id')
+    if (notaId && notas) {
+      const target = notas.find(n => n.id === Number(notaId))
+      if (target) selectNota(target)
+    }
+  }, [searchParams, notas])
   const searchDebounced = useDebounce(search, 300)
 
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({

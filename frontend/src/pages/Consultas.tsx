@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
+import ConfirmModal from '../components/ConfirmModal'
 
 export default function Consultas() {
   const queryClient = useQueryClient()
@@ -13,6 +14,7 @@ export default function Consultas() {
   const [newGroup, setNewGroup] = useState('')
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
@@ -124,7 +126,7 @@ export default function Consultas() {
                 {q.nome}
                 <div className="text-xs text-text-muted">{q.visualizacao}{q.visualizacao === 'kanban' ? ` por ${q.campo_agrupamento}` : ''}</div>
               </button>
-              <button onClick={() => deleteMut.mutate(q.id)}
+              <button onClick={() => setConfirmDeleteId(q.id)}
                 className="text-xs text-text-muted hover:text-danger">✕</button>
             </div>
           ))}
@@ -198,6 +200,19 @@ export default function Consultas() {
           </div>
         )}
       </div>
+      {confirmDeleteId !== null && (
+        <ConfirmModal
+          titulo="Remover consulta"
+          mensagem={`Tem certeza que deseja remover esta consulta?`}
+          destructive
+          confirmLabel="Remover"
+          onConfirm={() => {
+            deleteMut.mutate(confirmDeleteId)
+            setConfirmDeleteId(null)
+          }}
+          onCancel={() => setConfirmDeleteId(null)}
+        />
+      )}
     </div>
   )
 }

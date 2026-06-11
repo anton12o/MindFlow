@@ -9,6 +9,7 @@ from models import (
     Tag, TagCreate, TagRead, NotaTag,
     ConexaoNota, ConexaoNotaRead,
     TemplateNota, TemplateRead, TemplateBase,
+    Flashcard, SessaoPomodoro,
 )
 from services import processar_wikilinks
 from services.estatisticas import calcular_estatisticas
@@ -54,12 +55,15 @@ def list_notas(q: str | None = None, data: str | None = None, session: Session =
         if not tokens:
             return []
         fts_query = " AND ".join(f'"{t}"' for t in tokens)
-        ids = [
-            r[0] for r in session.execute(
-                text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
-                {"q": fts_query},
-            ).all()
-        ]
+        try:
+            ids = [
+                r[0] for r in session.execute(
+                    text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
+                    {"q": fts_query},
+                ).all()
+            ]
+        except Exception:
+            ids = []
         notas_map = {n.id: n for n in session.exec(select(Nota).where(Nota.id.in_(ids))).all()}
         notas = [notas_map[i] for i in ids if i in notas_map]
         if data:
@@ -159,6 +163,14 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
     n = session.get(Nota, nota_id)
     if not n:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
+    for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
+        session.delete(tag)
+    for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
+        fc.nota_id = None
+        session.add(fc)
+    for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
+        s.resumo_nota_id = None
+        session.add(s)
     conns = session.exec(
         select(ConexaoNota).where(
             or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)

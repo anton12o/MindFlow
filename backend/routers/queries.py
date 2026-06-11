@@ -77,12 +77,15 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
                     stmt = stmt.where(1 == 0)
                 else:
                     fts_query = " AND ".join(f'"{t}"' for t in tokens)
-                    ids = [
-                        r[0] for r in session.execute(
-                            text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
-                            {"q": fts_query},
-                        ).all()
-                    ]
+                    try:
+                        ids = [
+                            r[0] for r in session.execute(
+                                text("SELECT rowid FROM notas_fts WHERE notas_fts MATCH :q ORDER BY rank"),
+                                {"q": fts_query},
+                            ).all()
+                        ]
+                    except Exception:
+                        ids = []
                     if ids:
                         stmt = stmt.where(Nota.id.in_(ids))
                     else:

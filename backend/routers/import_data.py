@@ -150,10 +150,14 @@ async def import_data(file: UploadFile):
 
                 for record in dados:
                     if nome_tabela == "notas_tags":
+                        nt_nota_id = record.get("nota_id")
+                        nt_tag_id = record.get("tag_id")
+                        if nt_nota_id is None or nt_tag_id is None:
+                            raise HTTPException(422, "Item em 'notas_tags' sem nota_id ou tag_id")
                         existing_nt = session.exec(
                             select(NotaTag).where(
-                                NotaTag.nota_id == record["nota_id"],
-                                NotaTag.tag_id == record["tag_id"],
+                                NotaTag.nota_id == nt_nota_id,
+                                NotaTag.tag_id == nt_tag_id,
                             )
                         ).first()
                         if existing_nt:
@@ -168,6 +172,10 @@ async def import_data(file: UploadFile):
                             inseridos += 1
 
                     if nome_tabela == "conexoes_notas":
+                        origem = record.get("nota_origem_id")
+                        destino = record.get("nota_destino_id")
+                        if origem is None or destino is None:
+                            raise HTTPException(422, "Item em 'conexoes_notas' sem nota_origem_id ou nota_destino_id")
                         session.execute(
                             text("""
                                 INSERT INTO conexoes_notas (nota_origem_id, nota_destino_id, tipo)
@@ -176,20 +184,24 @@ async def import_data(file: UploadFile):
                                 DO UPDATE SET tipo = :tipo2
                             """),
                             {
-                                "origem": record["nota_origem_id"],
-                                "destino": record["nota_destino_id"],
+                                "origem": origem,
+                                "destino": destino,
                                 "tipo": record.get("tipo", "wikilink"),
                                 "tipo2": record.get("tipo", "wikilink"),
                             }
                         )
                     elif nome_tabela == "notas_tags":
+                        nt_nota_id = record.get("nota_id")
+                        nt_tag_id = record.get("tag_id")
+                        if nt_nota_id is None or nt_tag_id is None:
+                            raise HTTPException(422, "Item em 'notas_tags' sem nota_id ou tag_id")
                         session.execute(
                             text("""
                                 INSERT INTO notas_tags (nota_id, tag_id)
                                 VALUES (:nota_id, :tag_id)
                                 ON CONFLICT(nota_id, tag_id) DO NOTHING
                             """),
-                            {"nota_id": record["nota_id"], "tag_id": record["tag_id"]}
+                            {"nota_id": nt_nota_id, "tag_id": nt_tag_id}
                         )
                     else:
                         instance = model_cls(**record)

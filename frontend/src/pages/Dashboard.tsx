@@ -3,7 +3,7 @@ import { getTarefas, getBlocos, updateTarefa } from '../api/rotina'
 import { getHabitos, getRegistros, createRegistro } from '../api/habitos'
 import { getInbox } from '../api/inbox'
 import PomodoroTimer from '../components/PomodoroTimer'
-import { hojeLocal } from '../utils/date'
+import { formatDateLocal, hojeLocal } from '../utils/date'
 import type { Habito, Tarefa } from '../types'
 
 function calcStreak(registros: { data: string }[]): number {
@@ -11,7 +11,7 @@ function calcStreak(registros: { data: string }[]): number {
   let streak = 0
   const d = new Date()
   while (true) {
-    const chave = d.toISOString().slice(0, 10)
+    const chave = formatDateLocal(d)
     if (dias.has(chave)) { streak++; d.setDate(d.getDate() - 1) }
     else break
   }
