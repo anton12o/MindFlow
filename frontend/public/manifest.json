@@ -1,0 +1,42 @@
+{
+  "name": "MindFlow",
+  "short_name": "MindFlow",
+  "description": "Seu segundo cérebro local-first",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D1A",
+  "theme_color": "#1A1A2E",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Captura rápida (Inbox)",
+      "short_name": "Inbox",
+      "description": "Abrir captura rápida",
+      "url": "/?shortcut=inbox",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Novo Pomodoro",
+      "short_name": "Pomodoro",
+      "description": "Iniciar sessão de foco",
+      "url": "/?shortcut=pomodoro",
+      "icons": [{ "src": "/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}
