@@ -218,6 +218,149 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh }: Calendari
   )
 }
 
+interface GanttViewProps {
+  query: { tipo_objeto_id: number; campo_agrupamento?: string }
+  result: { dados: Array<{ id: number; titulo: string; propriedades?: Record<string, unknown>; [key: string]: unknown }> } | undefined
+  resLoad: boolean
+  resErr: boolean
+  onRefresh: () => void
+}
+
+function GanttView({ query, result, resLoad, resErr, onRefresh }: GanttViewProps) {
+  const [scale, setScale] = useState<'day' | 'week' | 'month'>('day')
+  const total = result?.total || 0
+  const truncated = total > 100
+
+  const getDateRange = () => {
+    if (!result?.dados || !query.campo_agrupamento) return { min: new Date(), max: new Date() }
+    const campo = query.campo_agrupamento
+    let min = new Date('2099-12-31')
+    let max = new Date('1970-01-01')
+    for (const item of result.dados) {
+      const inicio = item.propriedades?.['data_inicio'] as string
+      const fim = item.propriedades?.['data_fim'] as string
+      if (inicio) {
+        const d = new Date(inicio)
+        if (d < min) min = d
+      }
+      if (fim) {
+        const d = new Date(fim)
+        if (d > max) max = d
+      }
+    }
+    if (min > max) {
+      const now = new Date()
+      min = new Date(now.getFullYear(), now.getMonth(), 1)
+      max = new Date(now.getFullYear(), now.getMonth() + 2, 0)
+    }
+    min.setDate(1)
+    max = new Date(max.getFullYear(), max.getMonth() + 1, 0)
+    return { min, max }
+  }
+
+  const { min, max } = getDateRange()
+  const daysDiff = Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24))
+  const dayWidth = scale === 'day' ? 40 : scale === 'week' ? 200 : 600
+  const totalWidth = Math.max(daysDiff * dayWidth, 800)
+
+  const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
+
+  if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+  if (resErr) return <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de data (campo_agrupamento) na consulta</p>
+  if (!result?.dados?.length) return <p className="text-text-muted text-center py-8">Nenhum item com data_inicio e data_fim</p>
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold">Gantt — {result.dados.length} itens {truncated && <span className="text-warning text-sm">(limitado a 100 de {total})</span>}</h3>
+        <div className="flex gap-2">
+          <select value={scale} onChange={e => setScale(e.target.value as any)}
+            className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
+            <option value="day">Dia</option>
+            <option value="week">Semana</option>
+            <option value="month">Mês</option>
+          </select>
+        </div>
+      </div>
+      {truncated && (
+        <div className="mb-3 p-2 bg-warning/10 border border-warning/30 rounded-lg text-warning text-sm text-center">
+          Mostrando 100 de {total} itens. Refine os filtros para ver todos.
+        </div>
+      )}
+      <div className="flex-1 overflow-auto relative" style={{ width: totalWidth }}>
+        {/* Time header */}
+        <div className="sticky top-0 bg-bg-secondary border-b border-border z-10" style={{ width: totalWidth }}>
+          <div className="flex" style={{ width: totalWidth }}>
+            {Array.from({ length: daysDiff + 1 }, (_, i) => {
+              const d = new Date(min)
+              d.setDate(d.getDate() + i)
+              return (
+                <div key={i} className="border-r border-border text-center text-xs font-medium text-text-muted py-1"
+                  style={{ width: dayWidth, minWidth: dayWidth }}>
+                  {scale === 'day' ? formatDate(d) : formatDate(d)}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+        {/* Rows */}
+        <div style={{ width: totalWidth }}>
+          {result.dados.map((item, rowIndex) => {
+            const inicio = item.propriedades?.['data_inicio'] as string
+            const fim = item.propriedades?.['data_fim'] as string
+            if (!inicio || !fim) return null
+            const start = new Date(inicio)
+            const end = new Date(fim)
+            const startOffset = Math.max(0, Math.ceil((start.getTime() - min.getTime()) / (1000 * 60 * 60 * 24)))
+            const duration = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
+            const left = startOffset * dayWidth
+            const width = duration * dayWidth
+            return (
+              <div key={item.id} className="relative h-10 border-b border-border/50"
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault()
+                }}
+              >
+                <div
+                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-md"
+                  style={{ left, width, minWidth: 40 }}
+                  draggable
+                  onDragStart={e => {
+                    e.dataTransfer.setData('itemId', String(item.id))
+                    e.dataTransfer.setData('type', 'move')
+                  }}
+                  onDragEnd={e => {
+                    e.preventDefault()
+                  }}
+                >
+                  <div className="px-2 py-1 text-xs text-white truncate" title={item.titulo}>{item.titulo}</div>
+                </div>
+                <div className="absolute left-0 top-1 w-1 h-8 bg-transparent border-l-2 border-white/50 cursor-w-resize"
+                  onDragStart={e => {
+                    e.dataTransfer.setData('itemId', String(item.id))
+                    e.dataTransfer.setData('type', 'resize-start')
+                    e.dataTransfer.setData('originalLeft', String(left))
+                    e.dataTransfer.setData('originalWidth', String(width))
+                  }}
+                />
+                <div className="absolute right-0 top-1 w-1 h-8 bg-transparent border-r-2 border-white/50 cursor-e-resize"
+                  onDragStart={e => {
+                    e.dataTransfer.setData('itemId', String(item.id))
+                    e.dataTransfer.setData('type', 'resize-end')
+                    e.dataTransfer.setData('originalLeft', String(left))
+                    e.dataTransfer.setData('originalWidth', String(width))
+                  }}
+                />
+              </div>
+            )}
+          )}
+        </div>
+      </div>
+  )
+}
+
 export default function Consultas() {
   const queryClient = useQueryClient()
   const [selectedQuery, setSelectedQuery] = useState<number | null>(null)
@@ -234,8 +377,12 @@ export default function Consultas() {
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
 
   const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr } = useQuery({
-    queryKey: ['query-result', selectedQuery],
-    queryFn: () => executarQuery(selectedQuery!),
+    queryKey: ['query-result', selectedQuery, queryAtual?.visualizacao],
+    queryFn: () => executarQuery(
+      selectedQuery!,
+      queryAtual?.visualizacao === 'calendario' ? mesAtual : undefined,
+      queryAtual?.visualizacao === 'gantt'
+    ),
     enabled: !!selectedQuery,
   })
 
@@ -372,6 +519,7 @@ export default function Consultas() {
             <option value="galeria">Galeria (cards com imagem)</option>
             <option value="formulario">Formulário (criar nota)</option>
             <option value="calendario">Calendário (mensal)</option>
+            <option value="gantt">Gantt (cronograma)</option>
           </select>
           {newView === 'kanban' && (
             <select value={newGroup} onChange={e => setNewGroup(e.target.value)}

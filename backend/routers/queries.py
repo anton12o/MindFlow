@@ -54,7 +54,7 @@ class ExecutarResult(SQLModel):
 
 
 @router.post("/{query_id}/executar")
-def executar_query(query_id: int, mes: str | None = None, session: Session = Depends(get_session)):
+def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, session: Session = Depends(get_session)):
     q = session.get(QuerySalva, query_id)
     if not q:
         raise HTTPException(status_code=404, detail="Consulta não encontrada")
@@ -102,8 +102,20 @@ def executar_query(query_id: int, mes: str | None = None, session: Session = Dep
                 raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para filtro por mês")
             campo = q.campo_agrupamento
             stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
+        # Gantt view: filter only notes with both data_inicio and data_fim
+        if gantt:
+            if not q.campo_agrupamento:
+                raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para Gantt")
+            campo_inicio = "data_inicio"
+            campo_fim = "data_fim"
+            stmt = stmt.where(
+                text(f"propriedades->>'{campo_inicio}' IS NOT NULL AND propriedades->>'{campo_fim}' IS NOT NULL")
+            )
         dados = session.exec(stmt).all()
-        return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id} for d in dados]}
+        total = len(dados)
+        if gantt:
+            dados = dados[:100]  # hard limit 100
+        return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id} for d in dados], "total": total}
 
 
 class BatchInput(SQLModel):
