@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from datetime import datetime
@@ -94,7 +95,10 @@ def _topological_sort_pastas(pastas: list[dict]) -> list[dict]:
 
 @router.post("")
 async def import_data(file: UploadFile):
-    contents = await file.read()
+    try:
+        contents = await asyncio.wait_for(file.read(), timeout=30)
+    except asyncio.TimeoutError:
+        raise HTTPException(408, "Tempo limite excedido ao receber arquivo")
 
     if len(contents) > MAX_FILE_SIZE:
         raise HTTPException(413, "Arquivo muito grande — limite de 50 MB")

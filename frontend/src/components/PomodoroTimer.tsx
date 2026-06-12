@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { usePomodoroContext } from '../store/pomodoro'
-import ConfirmModal from './ConfirmModal'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
@@ -35,15 +34,14 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     mostrarResumo, setMostrarResumo,
     config, setConfig,
     fase, setFase, cicloAtual, setCicloAtual,
-    advancePhase, resetTimer,
+    advancePhase, resetTimer, startedAtRef,
   } = usePomodoroContext()
-  const interval = useRef<ReturnType<typeof setInterval>>(undefined)
-  const timeRef = useRef({ minutos, segundos })
-  timeRef.current = { minutos, segundos }
+  const rafRef = useRef(0)
+  const lastDisplaySecRef = useRef(-1)
   const isCreating = useRef(false)
   const queryClient = useQueryClient()
   const [showConfig, setShowConfig] = useState(false)
-  const saveTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   // Debounced config save
   useEffect(() => {
@@ -82,7 +80,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
   function toggle() {
     if (ativo) {
-      clearInterval(interval.current)
+      cancelAnimationFrame(rafRef.current)
       setAtivo(false)
       if (sessaoId) {
         finalizarMut.mutate(
@@ -100,6 +98,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       }).then(s => {
         isCreating.current = false
         setSessaoId(s.id)
+        startedAtRef.current = Date.now()
         setAtivo(true)
       }).catch(e => {
         isCreating.current = false
@@ -112,27 +111,50 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
   useEffect(() => {
     if (!ativo) return
-    interval.current = setInterval(() => {
-      const { minutos: m, segundos: s } = timeRef.current
-      if (s > 0) {
-        setSegundos(s - 1)
-      } else if (m > 0) {
-        setSegundos(59)
-        setMinutos(m - 1)
-      } else {
-        clearInterval(interval.current)
+
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+
+    // Immediate first-frame correction from wall-clock timestamp
+    const initialElapsed = Date.now() - startedAtRef.current
+    const initialRemainingMs = Math.max(0, phaseMs - initialElapsed)
+    const initialTotalSec = Math.ceil(initialRemainingMs / 1000)
+    setMinutos(Math.floor(initialTotalSec / 60))
+    setSegundos(initialTotalSec % 60)
+    lastDisplaySecRef.current = initialTotalSec
+
+    if (initialElapsed >= phaseMs) {
+      setAtivo(false)
+      playBeep()
+      if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
+      else setShowPhaseTransition({ type: 'pausa_end' })
+      return
+    }
+
+    function tick() {
+      const elapsed = Date.now() - startedAtRef.current
+      const remainingMs = Math.max(0, phaseMs - elapsed)
+      const totalSec = Math.ceil(remainingMs / 1000)
+
+      if (totalSec !== lastDisplaySecRef.current) {
+        lastDisplaySecRef.current = totalSec
+        setMinutos(Math.floor(totalSec / 60))
+        setSegundos(totalSec % 60)
+      }
+
+      if (elapsed >= phaseMs) {
         setAtivo(false)
         playBeep()
-        // Phase transition logic
-        if (fase === 'foco') {
-          setShowPhaseTransition({ type: 'foco_end' })
-        } else {
-          setShowPhaseTransition({ type: 'pausa_end' })
-        }
+        if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
+        else setShowPhaseTransition({ type: 'pausa_end' })
+        return
       }
-    }, 1000)
-    return () => clearInterval(interval.current)
-  }, [ativo, sessaoId, fase])
+
+      rafRef.current = requestAnimationFrame(tick)
+    }
+
+    rafRef.current = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(rafRef.current)
+  }, [ativo, fase, config])
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
 
@@ -176,7 +198,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
           <span className={`transition-transform ${showConfig ? 'rotate-180' : ''}`}>▼</span>
         </button>
         {showConfig && (
-          <div className="p-3 space-y-3 border-t border-border bg-bg-secondary" disabled={ativo}>
+          <div className="p-3 space-y-3 border-t border-border bg-bg-secondary">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-text-muted mb-1">Foco (min)</label>

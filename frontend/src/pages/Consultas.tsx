@@ -1,15 +1,11 @@
-import { useState, useRef } from 'react'
+import React, { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
 import { updateNota, createNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
-import {
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/core'
-import { useSortable } from '@dnd-kit/sortable'
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { useSortable, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 interface SchemaField {
@@ -19,7 +15,7 @@ interface SchemaField {
 
 interface FormularioViewProps {
   query: { tipo_objeto_id: number }
-  tipo: { schema_campos: Record<string, SchemaField> } | undefined
+  tipo: { icone?: string; nome?: string; schema_campos: Record<string, SchemaField> } | undefined
   onClose: () => void
   onCreate: () => void
 }
@@ -121,14 +117,14 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
 }
 
 interface CalendarioViewProps {
-  query: { tipo_objeto_id: number; campo_agrupamento?: string }
+  query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
   result: { dados: Array<{ id: number; titulo: string; [key: string]: unknown }> } | undefined
   resLoad: boolean
   resErr: boolean
   onRefresh: () => void
 }
 
-function CalendarioView({ query, result, resLoad, resErr, onRefresh }: CalendarioViewProps) {
+function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: CalendarioViewProps) {
   const [mesAtual, setMesAtual] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
@@ -176,15 +172,15 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh }: Calendari
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setMesAtual(m => {
-          const [a, m] = m.split('-').map(Number)
-          const d = new Date(a, m - 2, 1)
+        <button onClick={() => setMesAtual(mesStr => {
+          const [a, mesNum] = mesStr.split('-').map(Number)
+          const d = new Date(a, mesNum - 2, 1)
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         })} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover">‹</button>
         <h3 className="text-lg font-semibold capitalize">{mesLabel}</h3>
-        <button onClick={() => setMesAtual(m => {
-          const [a, m] = m.split('-').map(Number)
-          const d = new Date(a, m, 1)
+        <button onClick={() => setMesAtual(mesStr => {
+          const [a, mesNum] = mesStr.split('-').map(Number)
+          const d = new Date(a, mesNum, 1)
           return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
         })} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover">›</button>
       </div>
@@ -219,21 +215,20 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh }: Calendari
 }
 
 interface GanttViewProps {
-  query: { tipo_objeto_id: number; campo_agrupamento?: string }
-  result: { dados: Array<{ id: number; titulo: string; propriedades?: Record<string, unknown>; [key: string]: unknown }> } | undefined
+  query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
+  result: { dados: Array<{ id: number; titulo: string; propriedades?: Record<string, unknown>; [key: string]: unknown }>; total?: number } | undefined
   resLoad: boolean
   resErr: boolean
   onRefresh: () => void
 }
 
-function GanttView({ query, result, resLoad, resErr, onRefresh }: GanttViewProps) {
+function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: GanttViewProps) {
   const [scale, setScale] = useState<'day' | 'week' | 'month'>('day')
   const total = result?.total || 0
   const truncated = total > 100
 
   const getDateRange = () => {
     if (!result?.dados || !query.campo_agrupamento) return { min: new Date(), max: new Date() }
-    const campo = query.campo_agrupamento
     let min = new Date('2099-12-31')
     let max = new Date('1970-01-01')
     for (const item of result.dados) {
@@ -306,7 +301,7 @@ function GanttView({ query, result, resLoad, resErr, onRefresh }: GanttViewProps
         </div>
         {/* Rows */}
         <div style={{ width: totalWidth }}>
-          {result.dados.map((item, rowIndex) => {
+          {result.dados.map((item, _rowIndex) => {
             const inicio = item.propriedades?.['data_inicio'] as string
             const fim = item.propriedades?.['data_fim'] as string
             if (!inicio || !fim) return null
@@ -358,8 +353,48 @@ function GanttView({ query, result, resLoad, resErr, onRefresh }: GanttViewProps
           )}
         </div>
       </div>
+    </div>
   )
 }
+
+interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; [key: string]: unknown }
+
+interface SortableItemProps {
+  item: CardItem
+  tipos: Array<{ id: number; icone?: string }> | undefined
+  selectedIds: Set<number>
+  toggleSelect: (id: number) => void
+}
+
+const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds, toggleSelect }: SortableItemProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+  const tipo = tipos?.find(t => t.id === item.tipo_id)
+  const secondaryProp = Object.entries(item).find(([k, v]) => k !== 'id' && k !== 'titulo' && k !== 'status' && k !== 'prioridade' && k !== 'tipo_id' && v)
+  return (
+    <li ref={setNodeRef} style={style} {...attributes} {...listeners}
+      className={`bg-bg-secondary rounded-lg border p-2 cursor-grab transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+      <div className="flex items-center gap-2">
+        <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent">⋮⋮</div>
+        <input type="checkbox" checked={selectedIds.has(item.id)}
+          onChange={() => toggleSelect(item.id)} className="accent-accent" />
+        {tipo && <span className="text-sm">{tipo.icone}</span>}
+        <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
+        {secondaryProp && <span className="text-xs text-text-muted">{secondaryProp[0]}: {String(secondaryProp[1]).slice(0, 30)}</span>}
+        {item.status && (
+          <span className={`text-xs px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
+            {item.status}
+          </span>
+        )}
+        {item.prioridade && <span className="text-xs text-text-muted">{item.prioridade}</span>}
+      </div>
+    </li>
+  )
+})
 
 export default function Consultas() {
   const queryClient = useQueryClient()
@@ -372,13 +407,15 @@ export default function Consultas() {
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
-  const [mesAtual, setMesAtual] = useState(() => {
+  const [mesAtual, _setMesAtual] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
 
   const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
+
+  const queryAtual = queries?.find(q => q.id === selectedQuery)
 
   const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr } = useQuery({
     queryKey: ['query-result', selectedQuery, queryAtual?.visualizacao],
@@ -414,18 +451,15 @@ export default function Consultas() {
     },
   })
 
-  const queryAtual = queries?.find(q => q.id === selectedQuery)
-
-  function toggleSelect(id: number) {
+  const toggleSelect = useCallback((id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
-  }
+  }, [])
 
-  interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; [key: string]: unknown }
   function renderCard(item: CardItem) {
     return (
       <div key={item.id} onClick={() => toggleSelect(item.id)}
@@ -447,41 +481,20 @@ export default function Consultas() {
     )
   }
 
-  // Lista view: dense column with drag-and-drop
-  function SortableItem({ item, index }: { item: CardItem; index: number }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-    }
-    const tipo = tipos?.find(t => t.id === item.tipo_id)
-    const secondaryProp = Object.entries(item).find(([k, v]) => k !== 'id' && k !== 'titulo' && k !== 'status' && k !== 'prioridade' && k !== 'tipo_id' && v)
-    return (
-      <li ref={setNodeRef} style={style} {...attributes} {...listeners}
-        className={`bg-bg-secondary rounded-lg border p-2 cursor-grab transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
-        <div className="flex items-center gap-2">
-          <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent">⋮⋮</div>
-          <input type="checkbox" checked={selectedIds.has(item.id)}
-            onChange={() => toggleSelect(item.id)} className="accent-accent" />
-          {tipo && <span className="text-sm">{tipo.icone}</span>}
-          <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
-          {secondaryProp && <span className="text-xs text-text-muted">{secondaryProp[0]}: {String(secondaryProp[1]).slice(0, 30)}</span>}
-          {item.status && (
-            <span className={`text-xs px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
-              {item.status}
-            </span>
-          )}
-          {item.prioridade && <span className="text-xs text-text-muted">{item.prioridade}</span>}
-        </div>
-      </li>
-    )
-  }
 
-  async function handleDragEnd(e: { active: { id: CardItem['id'] }; over: { id: CardItem['id'] } | null }) {
-    if (!e.over || e.active.id === e.over.id) return
-    const activeIndex = result.dados.findIndex(d => d.id === e.active.id)
-    const overIndex = result.dados.findIndex(d => d.id === e.over.id)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  async function handleDragEnd(e: DragEndEvent) {
+    const over = e.over
+    if (!over || e.active.id === over.id || !result) return
+    const activeId = e.active.id as number
+    const overId = over.id as number
+    const activeIndex = result.dados.findIndex(d => d.id === activeId)
+    const overIndex = result.dados.findIndex(d => d.id === overId)
     if (activeIndex === -1 || overIndex === -1) return
 
     const newDados = [...result.dados]
@@ -560,8 +573,7 @@ export default function Consultas() {
       </div>
 
       <div className="flex-1 p-6 overflow-y-auto">
-        {queryAtual ? (
-          <div>
+        {queryAtual ? <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{queryAtual.nome}</h2>
               {selectedIds.size > 0 && (
@@ -625,14 +637,15 @@ export default function Consultas() {
               ) : !result?.dados || result.dados.length === 0 ? (
                 <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
               ) : (
-                <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}
-                  collisionDetection={sortableKeyboardCoordinates} onDragEnd={handleDragEnd}>
+                <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+                <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}>
                   <ul className="divide-y divide-border bg-bg-secondary rounded-xl border border-border max-h-[60vh] overflow-y-auto">
-                    {result.dados.map((item, index) => (
-                      <SortableItem key={item.id} item={item} index={index} />
+                    {result.dados.map((item) => (
+                      <SortableItem key={item.id} item={item} tipos={tipos} selectedIds={selectedIds} toggleSelect={toggleSelect} />
                     ))}
                   </ul>
                 </SortableContext>
+                </DndContext>
               )
             ) : queryAtual.visualizacao === 'galeria' ? (
               resLoad ? (
@@ -683,7 +696,6 @@ export default function Consultas() {
             ) : queryAtual.visualizacao === 'calendario' ? (
               <CalendarioView
                 query={queryAtual}
-                tipo={tipos?.find(t => t.id === queryAtual.tipo_objeto_id)}
                 result={result}
                 resLoad={resLoad}
                 resErr={resErr}
@@ -696,14 +708,23 @@ export default function Consultas() {
                 onClose={() => setSelectedQuery(null)}
                 onCreate={refetchResult}
               />
-            ) : (
+            ) : queryAtual.visualizacao === 'gantt' ? (
+              <GanttView
+                query={queryAtual}
+                result={result}
+                resLoad={resLoad}
+                resErr={resErr}
+                onRefresh={refetchResult}
+              />
+            ) : null}
           </div>
-        ) : (
+        : (
           <div className="h-full flex items-center justify-center text-text-muted text-sm">
             Selecione ou crie uma consulta
           </div>
         )}
       </div>
+
       {confirmDeleteId !== null && (
         <ConfirmModal
           titulo="Remover consulta"

@@ -1,3 +1,4 @@
+import re
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, SQLModel
@@ -71,11 +72,11 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
         stmt = select(Nota)
         filtros = q.filtros or {}
         if filtros.get("q"):
-            q = filtros["q"].strip()
-            if not q:
+            search_term = filtros["q"].strip()
+            if not search_term:
                 stmt = stmt.where(1 == 0)
             else:
-                tokens = [w.replace('"', '') for w in q.split() if w.strip()]
+                tokens = [w.replace('"', '') for w in search_term.split() if w.strip()]
                 if not tokens:
                     stmt = stmt.where(1 == 0)
                 else:
@@ -101,6 +102,8 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             if not q.campo_agrupamento:
                 raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para filtro por mês")
             campo = q.campo_agrupamento
+            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', campo):
+                raise HTTPException(status_code=422, detail="campo_agrupamento inválido")
             stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
         # Gantt view: filter only notes with both data_inicio and data_fim
         if gantt:

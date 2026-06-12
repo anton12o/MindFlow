@@ -28,6 +28,7 @@ export default function Analise() {
     queryKey: ['notas', 'data', diaSelecionado],
     queryFn: () => getNotas(undefined, diaSelecionado!),
     enabled: !!diaSelecionado,
+    staleTime: 60_000,
   })
 
   function gerarGrid() {

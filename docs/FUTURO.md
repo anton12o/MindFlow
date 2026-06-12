@@ -167,3 +167,44 @@
 - Bug 25: Feedback visual ao criar/editar notas
 - Bug 26: Indicador de salvamento automático
 - Bug 27: Confirmação ao sair com alterações não salvas
+
+---
+
+### 5 bugs de segurança/robustez (auditoria)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Módulo 21
+
+**Descrição:**
+- SQL injection via f-string em `queries.py:104` — `campo_agrupamento` validado com regex
+- `extrair_bloco` sem `cover_url` em `notas.py:250` — adicionado `extrair_cover_url()`
+- tag IDs não-numéricos silenciosos em `notas.py:82` — `logger.warning` adicionado
+- `sessaoId` em deps do timer (`PomodoroTimer.tsx:134`) — removido do array
+- import sem timeout em `import_data.py:98` — `asyncio.wait_for(30s)` + HTTP 408
+
+---
+
+### sw.js — filtro chrome-extension
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Módulo 21
+
+**Descrição:** Service Worker tentava cachear URLs de extensões (`chrome-extension://`), gerando erro no console. Adicionado filtro `event.request.url.startsWith('http')` antes de `cache.put()`.
+
+---
+
+### Botão encerrar app / shutdown
+**Status:** ⏳ Planejado
+**Origem:** Revisão do usuário
+
+**Descrição:** Permitir encerrar o servidor sem precisar de terminal (Ctrl+C). Três abordagens possíveis:
+- **Opção A (mais simples):** Botão "Encerrar app" na sidebar que chama `POST /api/shutdown` → FastAPI encerra processo com `os.kill(os.getpid(), signal.SIGTERM)`
+- **Opção B (mais elegante):** Ícone na bandeja do Windows via `pystray` com menu "Abrir" / "Encerrar"
+- **Opção C:** Capturar fechamento da janela do terminal via `start.py` para encerrar uvicorn junto
+
+**Recomendação:** A + C juntos cobrem usuário técnico (fecha terminal) e não técnico (botão na UI). Opção B para V2.
+
+**Arquivos envolvidos:**
+- `backend/routers/shutdown.py` (novo) — endpoint POST /api/shutdown
+- `frontend/src/components/Sidebar.tsx` — botão encerrar
+- `start.py` — capturar fechamento do terminal
+
+**Dependências:** Nenhuma.

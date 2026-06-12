@@ -66,3 +66,16 @@ def create_registro(habito_id: int, r: RegistroHabitoCreate, session: Session = 
     session.commit()
     session.refresh(db)
     return db
+
+@router.delete("/{habito_id}/registros/{data}")
+def delete_registro_por_data(habito_id: int, data: str, session: Session = Depends(get_session)):
+    stmt = select(RegistroHabito).where(
+        RegistroHabito.habito_id == habito_id,
+        RegistroHabito.data == data
+    )
+    r = session.exec(stmt).first()
+    if not r:
+        raise HTTPException(status_code=404, detail="Registro não encontrado")
+    session.delete(r)
+    session.commit()
+    return {"ok": True}

@@ -49,6 +49,15 @@ SCHEMA_CAMPOS_PADRAO = {
 }
 
 
+TIPOS_PADRAO = [
+    {"nome": "Tarefa", "icone": "✅"},
+    {"nome": "Nota", "icone": "📄"},
+    {"nome": "Ideia", "icone": "💡"},
+    {"nome": "Livro", "icone": "📖"},
+    {"nome": "Projeto", "icone": "📋"},
+]
+
+
 def seed_templates(session: Session):
     existing = session.exec(select(TemplateNota).limit(1)).first()
     if not existing:
@@ -61,8 +70,8 @@ def seed_tipos(session: Session):
     existing = session.exec(select(TipoObjeto).limit(1)).first()
     if not existing:
         for t in TIPOS_PADRAO:
-            schema = SCHEMA_CAMPOS_PADRAO.get(t.nome, {})
-            session.add(TipoObjeto(nome=t.nome, icone=t.icone, schema_campos=schema))
+            schema = SCHEMA_CAMPOS_PADRAO.get(t["nome"], {})
+            session.add(TipoObjeto(nome=t["nome"], icone=t["icone"], schema_campos=schema))
         session.commit()
     else:
         # Atualizar schema_campos dos tipos existentes se vazio

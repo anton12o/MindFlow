@@ -813,13 +813,64 @@ Os bugs 25, 26 e 27 foram adiados por serem de melhoria UX, não funcionais:
 
 ---
 
-## 12. Próximos Passos
+## 12. Módulo 20: Otimizações de Performance
+
+**Antes:** Buscas sem índices, chunks grandes, staleTime genérico, sidebar sem virtualização, componentes sem memo.
+
+**Depois:**
+- **PRAGMAs SQLite:** WAL, synchronous=NORMAL, cache_size=-40000, temp_store=MEMORY, busy_timeout=5000 (`backend/database.py`)
+- **GZipMiddleware:** compressão de responses ≥500 bytes (`backend/main.py`)
+- **10 índices SQLite:** Migration `8616ba3b846c` — FTS5 rowid, tags.nome, notas tags/pasta/tipo/data, tarefas data/status/bloco, sessoes_pomodoro finalizado_em, conexoes_notas origem/destino
+- **Eager loading staleTime:** grafo/templates/tags → 5min, conexoes → 2min, notas/flashcards → 1min
+- **Virtualização:** Sidebar de notas (Ideias.tsx) + lista de flashcards (Flashcards.tsx) com `@tanstack/react-virtual`
+- **`React.memo`:** EditorMarkdown, FlashcardItem, SortableItem
+- **`useCallback([])`:** handlers estáveis em FlashcardItem e SortableItem (evita recriação)
+- **`codemirror` removido:** pacote umbrella não utilizado (economiza ~200kB no bundle)
+
+---
+
+## 13. Módulo 21: Correção Final — 5 Bugs Restantes + sw.js
+
+**Antes:** 5 bugs de baixo risco identificados na auditoria mas não corrigidos — SQL injection potencial, cover_url ausente em extração, tag IDs não-numéricos silenciosos, dependência extra no timer, upload sem timeout.
+
+**Depois:**
+
+| # | Bug | Arquivo | Correção |
+|---|-----|---------|----------|
+| 1 | **SQL injection via f-string** | `queries.py:104` | `campo_agrupamento` validado com regex `^[a-zA-Z_][a-zA-Z0-9_]*$` — 422 se inválido |
+| 2 | **`extrair_bloco` sem `cover_url`** | `notas.py:250` | `nova.cover_url = extrair_cover_url(...)` adicionado antes do flush |
+| 3 | **tag IDs não-numéricos silenciosos** | `notas.py:82` | `logger.warning` para cada valor descartado |
+| 4 | **`sessaoId` em deps do timer** | `PomodoroTimer.tsx:134` | `sessaoId` removido do array de dependências do `useEffect` |
+| 5 | **import sem timeout** | `import_data.py:98` | `asyncio.wait_for(file.read(), timeout=30)` + HTTP 408 |
+
+**Extra:** `sw.js` corrigido para filtrar apenas URLs `http://` antes de `cache.put()`, eliminando erro `chrome-extension` no console.
+
+---
+
+## 14. Módulo 22: Correções de Layout e Comportamento (4 itens)
+
+**Antes:** Editor sem lineWrapping (texto longo ia pra lateral), Pomodoro freeze ao trocar de página (closure stale no setInterval), calendário de hábitos inexistente, tags na sidebar sem contraste e overflow escondido.
+
+**Depois:**
+
+| # | Problema | Correção | Arquivos |
+|---|----------|----------|----------|
+| 1 | Editor sem quebra de linha | `EditorView.lineWrapping` ativado, Inter 15px/1.7 | `EditorMarkdown.tsx` |
+| 2 | Pomodoro freeze ao trocar de página | `startedAtRef` (wall-clock) + `requestAnimationFrame` em vez de `setInterval` | `store/pomodoro.tsx`, `PomodoroTimer.tsx` |
+| 3 | Sem calendário de hábitos | Novo componente `HabitoCalendario.tsx` + backend `DELETE /{habito_id}/registros/{data}` | `HabitoCalendario.tsx` (novo), `habitos.py`, `habitos.ts` |
+| 4 | Tags sem cor + overflow | Chips com cor translúcida + borda, `max-h-20 overflow-y-auto`, containers `min-w-0 overflow-hidden` | `Ideias.tsx` |
+
+**Bônus:** `sw.js` com cache bust automático (`__VERSION__` → timestamp no build), `start.py` com rebuild inteligente (compara timestamps).
+
+---
+
+## 15. Próximos Passos
 
 As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.
 
 ---
 
-## 13. Filosofia do Projeto
+## 15. Filosofia do Projeto
 
 MindFlow segue alguns princípios fundamentais:
 
@@ -834,4 +885,4 @@ MindFlow segue alguns princípios fundamentais:
 ---
 
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: 12 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA).*
+*Última atualização: 12 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow).*

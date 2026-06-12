@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import run_migrations, setup_fts
 from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data
@@ -13,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="MindFlow API")
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

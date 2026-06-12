@@ -18,3 +18,6 @@ export const getRegistros = (habitoId: number) =>
 
 export const createRegistro = (habitoId: number, data: Partial<RegistroHabito>) =>
   request<RegistroHabito>(`/habitos/${habitoId}/registros`, { method: 'POST', body: JSON.stringify(data) })
+
+export const deleteRegistro = (habitoId: number, data: string) =>
+  request<{ ok: boolean }>(`/habitos/${habitoId}/registros/${encodeURIComponent(data)}`, { method: 'DELETE' })

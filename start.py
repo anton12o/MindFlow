@@ -12,6 +12,7 @@ import sys
 import subprocess
 import webbrowser
 import time
+from pathlib import Path
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
@@ -38,6 +39,24 @@ def install_backend_deps():
     print("[OK] Dependencias do backend instaladas")
 
 
+def precisa_rebuildar() -> bool:
+    dist_index = Path(FRONTEND_DIST) / "index.html"
+    if not dist_index.exists():
+        return True
+    dist_mtime = dist_index.stat().st_mtime
+    src_dir = Path(FRONTEND) / "src"
+    if src_dir.exists():
+        for f in src_dir.rglob("*"):
+            if f.is_file() and f.stat().st_mtime > dist_mtime:
+                return True
+    # Also check sw.js and vite.config.ts for changes
+    for extra in ["public/sw.js", "vite.config.ts", "index.html"]:
+        p = Path(FRONTEND) / extra
+        if p.exists() and p.stat().st_mtime > dist_mtime:
+            return True
+    return False
+
+
 def ensure_frontend():
     node_modules = os.path.join(FRONTEND, "node_modules")
 
@@ -56,15 +75,15 @@ def ensure_frontend():
             sys.exit(1)
         print("[OK] npm install concluido")
 
-    if not os.path.exists(FRONTEND_DIST):
-        print("[Frontend] Build nao encontrado — executando npm run build...")
+    if precisa_rebuildar():
+        print("[Frontend] Codigo fonte modificado — rebuildando...")
         result = subprocess.run(["npm", "run", "build"], cwd=FRONTEND, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"[ERROR] npm run build falhou:\n{result.stderr}")
             sys.exit(1)
         print("[OK] Frontend buildado")
     else:
-        print("[OK] Frontend ja buildado")
+        print("[OK] Frontend ja atualizado")
 
 
 def start_server():

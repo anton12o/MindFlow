@@ -45,7 +45,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
   const [simNodes, setSimNodes] = useState<SimNode[]>([])
   const [hoveredId, setHoveredId] = useState<number | null>(null)
 
-  const { data, isLoading, isError } = useQuery({ queryKey: ['grafo'], queryFn: getGrafo })
+  const { data, isLoading, isError } = useQuery({ queryKey: ['grafo'], queryFn: getGrafo, staleTime: 300_000 })
 
   useEffect(() => {
     if (!data || data.nodes.length === 0) return

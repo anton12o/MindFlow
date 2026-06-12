@@ -1,7 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getHabitos, createHabito, updateHabito, deleteHabito, createRegistro } from '../api/habitos'
 import ConfirmModal from '../components/ConfirmModal'
+import HabitoCalendario from '../components/HabitoCalendario'
 import { hojeLocal } from '../utils/date'
 import type { Habito } from '../types'
 
@@ -9,80 +11,94 @@ const TIPO_LABEL: Record<string, string> = { binario: 'Sim/Não', quantitativo: 
 
 export default function Habitos() {
   const navigate = useNavigate()
-  const [habitos, setHabitos] = useState<Habito[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const queryClient = useQueryClient()
+  const { data: habitos = [], isLoading, isError } = useQuery({
+    queryKey: ['habitos'],
+    queryFn: () => getHabitos(true),
+  })
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ nome: '', tipo: 'binario' as 'binario' | 'quantitativo', categoria: '', meta: '' })
   const [feedback, setFeedback] = useState<{ id: number; texto: string } | null>(null)
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    return () => { if (feedbackTimer.current) clearTimeout(feedbackTimer.current) }
+  }, [])
+
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({ nome: '', tipo: '' as string, categoria: '', meta: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: number; nome: string } | null>(null)
+  const [calendarOpenId, setCalendarOpenId] = useState<number | null>(null)
 
-  useEffect(() => {
-    let ignore = false
-    setLoading(true)
-    setError(false)
-    getHabitos().then(data => { if (!ignore) { setHabitos(data); setError(false); setLoading(false) } }).catch(e => { if (!ignore) { console.error('[Habitos] listar', e); setError(true); setLoading(false) } })
-    return () => { ignore = true; if (feedbackTimer.current) clearTimeout(feedbackTimer.current) }
-  }, [])
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.nome.trim()) return
-    try {
-      const h = await createHabito({
-        nome: form.nome,
-        tipo: form.tipo,
-        categoria: form.categoria || null,
-        meta: form.meta ? parseFloat(form.meta) : null,
-      })
-      setHabitos(prev => [h, ...prev])
+  const createMut = useMutation({
+    mutationFn: (data: Parameters<typeof createHabito>[0]) => createHabito(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['habitos'] })
       setForm({ nome: '', tipo: 'binario', categoria: '', meta: '' })
       setShowForm(false)
-    } catch (e) {
-      console.error('[Habitos] criar', e)
-    }
+    },
+  })
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.nome.trim()) return
+    createMut.mutate({
+      nome: form.nome,
+      tipo: form.tipo,
+      categoria: form.categoria || null,
+      meta: form.meta ? parseFloat(form.meta) : null,
+    })
   }
 
-  async function handleEdit(h: Habito) {
+  function handleEdit(h: Habito) {
     setEditId(h.id)
     setEditForm({ nome: h.nome, tipo: h.tipo, categoria: h.categoria || '', meta: h.meta !== null ? String(h.meta) : '' })
   }
 
-  async function handleSaveEdit() {
+  const updateMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateHabito>[1] }) => updateHabito(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['habitos'] })
+      setEditId(null)
+    },
+  })
+
+  function handleSaveEdit() {
     if (!editId) return
     if (!editForm.nome.trim()) return
-    try {
-      const updated = await updateHabito(editId, {
+    updateMut.mutate({
+      id: editId,
+      data: {
         nome: editForm.nome,
         tipo: editForm.tipo as 'binario' | 'quantitativo',
         categoria: editForm.categoria || null,
         meta: editForm.meta ? parseFloat(editForm.meta) : null,
-      })
-      setHabitos(prev => prev.map(h => h.id === editId ? updated : h))
-      setEditId(null)
-    } catch (e) {
-      console.error('[Habitos] editar', e)
-    }
+      },
+    })
   }
 
-  async function handleCheck(habitoId: number, feito: boolean) {
-    const hoje = hojeLocal()
-    try {
-      await createRegistro(habitoId, {
-        habito_id: habitoId,
-        data: hoje,
-        valor: feito ? 1 : 0,
-      })
-      setFeedback({ id: habitoId, texto: 'Feito ✓' })
+  const checkMut = useMutation({
+    mutationFn: ({ habitoId, feito }: { habitoId: number; feito: boolean }) =>
+      createRegistro(habitoId, { habito_id: habitoId, data: hojeLocal(), valor: feito ? 1 : 0 }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
+      setFeedback({ id: variables.habitoId, texto: 'Feito ✓' })
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
       feedbackTimer.current = setTimeout(() => setFeedback(null), 1500)
-    } catch (e) {
-      console.error('[Habitos] registrar', e)
-    }
+    },
+  })
+
+  function handleCheck(habitoId: number, feito: boolean) {
+    checkMut.mutate({ habitoId, feito })
   }
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteHabito(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['habitos'] })
+      queryClient.invalidateQueries({ queryKey: ['registros'] })
+    },
+  })
 
   return (
     <div className="p-6 max-w-4xl">
@@ -123,15 +139,16 @@ export default function Habitos() {
       )}
 
       <div className="space-y-3">
-        {loading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
-        {error && <p className="text-sm text-danger py-8 text-center">Erro ao carregar hábitos</p>}
-        {!loading && !error && habitos.filter(h => h.ativo).length === 0 && (
+        {isLoading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
+        {isError && <p className="text-sm text-danger py-8 text-center">Erro ao carregar hábitos</p>}
+        {!isLoading && !isError && habitos.filter(h => h.ativo).length === 0 && (
           <p className="text-sm text-text-muted py-8 text-center">Nenhum hábito criado ainda</p>
         )}
-        {!loading && !error && habitos.filter(h => h.ativo).map(h => {
+        {!isLoading && !isError && habitos.filter(h => h.ativo).map(h => {
           const editing = editId === h.id
           return (
           <div key={h.id} className="bg-bg-secondary rounded-xl border border-border p-4">
+            <div className="flex flex-col gap-0">
             <div className="flex items-center justify-between">
               {editing ? (
                 <div className="flex items-center gap-2 flex-1">
@@ -182,6 +199,8 @@ export default function Habitos() {
                   </>
                 ) : (
                   <>
+                    <button onClick={() => setCalendarOpenId(calendarOpenId === h.id ? null : h.id)}
+                      className="text-xs text-text-muted hover:text-accent" title="Ver calendário">📅</button>
                     <button onClick={() => navigate(`/pomodoro?contexto_tipo=habito&contexto_id=${h.id}&nome=${encodeURIComponent(h.nome)}`)}
                       className="text-xs text-text-muted hover:text-accent" title="Iniciar Pomodoro">▶</button>
                     <button onClick={() => handleEdit(h)} className="text-xs text-text-muted hover:text-accent">✎</button>
@@ -190,6 +209,10 @@ export default function Habitos() {
                   </>
                 )}
               </div>
+            </div>
+              {calendarOpenId === h.id && (
+                <HabitoCalendario habitoId={h.id} cor={h.cor || '#5B8DEF'} />
+              )}
             </div>
           </div>
         )})}
@@ -202,9 +225,7 @@ export default function Habitos() {
           destructive
           confirmLabel="Remover"
           onConfirm={() => {
-            deleteHabito(confirmDeleteId.id)
-              .then(() => setHabitos(prev => prev.filter(x => x.id !== confirmDeleteId.id)))
-              .catch(e => console.error('[Habitos] deletar', e))
+            deleteMut.mutate(confirmDeleteId.id)
             setConfirmDeleteId(null)
           }}
           onCancel={() => setConfirmDeleteId(null)}

@@ -21,6 +21,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
   const { data: templates, isLoading, isError } = useQuery({
     queryKey: ['templates'],
     queryFn: getTemplates,
+    staleTime: 300_000,
   })
 
   const aplicarMut = useMutation({

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mindflow-v1';
+const CACHE_NAME = 'mindflow-__VERSION__';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
@@ -56,8 +56,8 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Cache successful responses
-        if (networkResponse.ok) {
+        // Cache successful responses (only http/https — avoid extension schemes)
+        if (networkResponse.ok && event.request.url.startsWith('http')) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);

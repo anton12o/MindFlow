@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode, type Dispatch, type SetStateAction } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, type ReactNode, type Dispatch, type SetStateAction } from 'react'
 
 type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
 
@@ -54,6 +54,8 @@ interface PomodoroContextType {
   // Actions
   resetTimer: () => void
   advancePhase: () => void
+  // Timestamp ref for smooth resume
+  startedAtRef: React.MutableRefObject<number>
 }
 
 const PomodoroContext = createContext<PomodoroContextType | null>(null)
@@ -68,6 +70,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [mostrarResumo, setMostrarResumo] = useState(false)
   const [cicloAtual, setCicloAtual] = useState(0)
   const [fase, setFase] = useState<Fase>('foco')
+  const startedAtRef = useRef(0)
 
   // Persist config
   useEffect(() => {
@@ -116,6 +119,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       fase, setFase,
       resetTimer,
       advancePhase,
+      startedAtRef,
     }}>
       {children}
     </PomodoroContext.Provider>

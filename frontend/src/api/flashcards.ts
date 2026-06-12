@@ -11,7 +11,7 @@ export const createFlashcard = (data: { nota_id?: number; pergunta: string; resp
   request<Flashcard>('/flashcards', { method: 'POST', body: JSON.stringify(data) })
 
 export const reviewFlashcard = (id: number, qualidade: number) =>
-  request<Flashcard>(`/flashcards/${id}/review?qualidade=${qualidade}`, { method: 'POST' })
+  request<Flashcard>(`/flashcards/${id}/review`, { method: 'POST', body: JSON.stringify({ qualidade }) })
 
 export const updateFlashcard = (id: number, data: { pergunta?: string; resposta?: string; nota_id?: number | null }) =>
   request<Flashcard>(`/flashcards/${id}`, { method: 'PATCH', body: JSON.stringify(data) })

@@ -395,7 +395,7 @@ Auditoria completa do código (~50 issues) seguida de 3 lotes de correções + i
 ```bash
 cd frontend && npm run build
 # 0 erros TypeScript
-# Apenas warning de chunk size > 500 kB (pré-existente, chunk único sem code-split)
+# Apenas warning de chunk size > 500 kB (pré-existente, chunk Ideias CodeMirror)
 ```
 
 ```bash
@@ -403,18 +403,16 @@ cd backend && python -c "from main import app; print('OK')"
 # OK — todos os imports, routers, e FTS5 setup funcionam
 ```
 
-### Resumo das Correções (55 no total)
+### Resumo das Correções
 
-| Lote | Itens | Foco |
+| Fase | Itens | Foco |
 |------|-------|------|
-| Lote 1 🔴 | 10 | Integridade FK, FTS5 exception-safe, validação de import |
-| Inflight + TDZ 🛠️ | 2 | Race condition client.ts + TDZ Ideias.tsx |
-| Lote 2 🟡 | 11 | Robustez: limites, estados loading/error, cleanup |
-| Lote 3 🔴 | 10 | Polish: logging, novos endpoints, signal merge |
-| Lote 4 🟡 | 13 | Input validation, wildcard leak, loading states |
-| Lote 5 🟢 | 10 | Baixa prioridade: Pydantic, acessibilidade, dead code |
+| Módulo 10 🔴 | 26 bugs | Crashes, stale closures, timeouts, UX |
+| Módulo 12 🔴🟡🟢 | 55 issues | Integridade FK, robustez, polish, acessibilidade |
+| Módulo 20 ⚡ | 8 otimizações | PRAGMAs SQLite, índices, virtualização, memo |
+| Módulo 21 🛡️ | 5 bugs + 1 | SQL injection, cover_url, timer, timeout, SW |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript · Release v1.0.0 publicada
+**Status:** Backend OK · Frontend 0 erros TypeScript · 0 bugs conhecidos · Release v1.0.0
 
 ### Módulo 13: Release v1.0.0 + Polimento
 
@@ -502,10 +500,52 @@ cd backend && python -c "from main import app; print('OK')"
 
 ---
 
-### Bugs Pendentes (UX de notas — baixa prioridade)
-- **Bug 25:** UX de notas — melhorar feedback visual ao criar/editar notas
-- **Bug 26:** UX de notas — indicador de salvamento automático
-- **Bug 27:** UX de notas — confirmação ao sair com alterações não salvas
+### Módulo 20: Otimizações de Performance
+
+**Antes:** Buscas sem índices, chunks grandes, staleTime genérico, sidebar sem virtualização, componentes sem memo.
+
+**Depois:**
+- **PRAGMAs SQLite:** WAL, synchronous=NORMAL, cache_size=-40000, temp_store=MEMORY, busy_timeout=5000 (`backend/database.py`)
+- **GZipMiddleware:** compressão de responses ≥500 bytes (`backend/main.py`)
+- **10 índices SQLite:** Migration `8616ba3b846c` — FTS5 rowid, tags.nome, notas tags/pasta/tipo/data, tarefas data/status/bloco, sessoes_pomodoro finalizado_em, conexoes_notas origem/destino
+- **Eager loading staleTime:** grafo/templates/tags → 5min, conexoes → 2min, notas/flashcards → 1min
+- **Virtualização:** Sidebar de notas (Ideias.tsx) + lista de flashcards (Flashcards.tsx) com `@tanstack/react-virtual`
+- **`React.memo`:** EditorMarkdown, FlashcardItem, SortableItem
+- **`useCallback([])`:** handlers estáveis em FlashcardItem e SortableItem (evita recriação)
+- **`codemirror` removido:** pacote umbrella não utilizado (economiza ~200kB no bundle)
+
+---
+
+### Módulo 21: Correção Final — 5 Bugs Restantes
+
+**Antes:** 5 bugs de baixo risco identificados na auditoria mas não corrigidos — SQL injection potencial, cover_url ausente em extração, tag IDs não-numéricos silenciosos, dependência extra no timer, upload sem timeout.
+
+**Depois:**
+
+| # | Bug | Arquivo | Correção |
+|---|-----|---------|----------|
+| 1 | **SQL injection via f-string** | `queries.py:104` | `campo_agrupamento` validado com regex `^[a-zA-Z_][a-zA-Z0-9_]*$` — 422 se inválido |
+| 2 | **`extrair_bloco` sem `cover_url`** | `notas.py:250` | `nova.cover_url = extrair_cover_url(...)` adicionado antes do flush |
+| 3 | **tag IDs não-numéricos silenciosos** | `notas.py:82` | `logger.warning` para cada valor descartado |
+| 4 | **`sessaoId` em deps do timer** | `PomodoroTimer.tsx:134` | `sessaoId` removido do array de dependências do `useEffect` |
+| 5 | **import sem timeout** | `import_data.py:98` | `asyncio.wait_for(file.read(), timeout=30)` + HTTP 408 |
+
+**Extra:** `sw.js` corrigido para filtrar apenas URLs `http://` antes de `cache.put()`, eliminando erro `chrome-extension` no console.
+
+---
+
+### Módulo 22: Correções de Layout e Comportamento (4 itens)
+
+**Antes:** Editor sem lineWrapping (texto longo ia pra lateral), Pomodoro freeze ao trocar de página (closure stale no setInterval), calendário de hábitos inexistente, tags na sidebar sem contraste e overflow escondido.
+
+**Depois:**
+
+1. **Editor lineWrapping + tipografia** — `EditorView.lineWrapping` ativado, fonte trocada para Inter 15px/1.7, monospace mantido só em code blocks
+2. **Pomodoro freeze** — `startedAtRef` (wall-clock) adicionado no context, `setInterval` substituído por `requestAnimationFrame` com correção imediata na primeira frame
+3. **Calendário mensal de hábitos** — Componente `HabitoCalendario.tsx`, grade 7×N com navegação, toggle registro via POST/DELETE, backend `DELETE /{habito_id}/registros/{data}`
+4. **Tags sidebar + overflow** — Chips com `background-color: cor + 20%` + borda, `max-h-20 overflow-y-auto`, botões `px-2 shrink-0`, containers `min-w-0 overflow-hidden`
+
+**Arquivos:** `EditorMarkdown.tsx`, `PomodoroTimer.tsx`, `store/pomodoro.tsx`, `HabitoCalendario.tsx` (novo), `habitos.py`, `habitos.ts`, `Ideias.tsx`, `sw.js`, `vite.config.ts`, `start.py`
 
 ---
 

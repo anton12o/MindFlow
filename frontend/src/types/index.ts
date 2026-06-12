@@ -68,6 +68,7 @@ export interface Nota {
   conteudo: string
   pasta_id: number | null
   tipo_id: number | null
+  ordem: number | null
   criado_em: string
   atualizado_em: string
   propriedades?: Record<string, any>

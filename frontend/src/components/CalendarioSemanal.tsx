@@ -1,13 +1,14 @@
-import { useQueries, useMutation, useQueryClient, useQuery } from '@tanstack/react-query'
+import React, { useState } from 'react'
+import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, getTarefas, updateBloco } from '../api/rotina'
 import { formatDateLocal, hojeLocal } from '../utils/date'
+import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
   verticalListSortingStrategy,
   useSortable,
   sortableKeyboardCoordinates,
-} from '@dnd-kit/core'
-import { useSensor, useSensors, PointerSensor, KeyboardSensor } from '@dnd-kit/core'
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import ConfirmModal from './ConfirmModal'
 import type { BlocoRotina } from '../types'
@@ -50,6 +51,21 @@ export default function CalendarioSemanal() {
     })),
   })
 
+  const [showRecurrentModal, setShowRecurrentModal] = useState<{ blocoId: number; diaIdx: number; novaHoraInicio: string; novaHoraFim: string } | null>(null)
+  const queryClient = useQueryClient()
+
+  const updateBlocoMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<BlocoRotina> }) => updateBloco(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['rotina', 'blocos'] })
+    },
+  })
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
   const blocosLoading = blocosResults.some(r => r.isLoading)
   const blocosError = blocosResults.some(r => r.isError)
   const tarefasLoading = tarefasResults.some(r => r.isLoading)
@@ -74,16 +90,6 @@ export default function CalendarioSemanal() {
   const ultimo = weekDays[6].date
   const semanaLabel = `Semana de ${formatShort(primeiro)} a ${formatShort(ultimo)}`
 
-  const [draggingId, setDraggingId] = useState<number | null>(null)
-  const [showRecurrentModal, setShowRecurrentModal] = useState<{ blocoId: number; diaIdx: number; novaHoraInicio: string; novaHoraFim: string } | null>(null)
-  const queryClient = useQueryClient()
-
-  const updateBlocoMut = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: Partial<BlocoRotina> }) => updateBloco(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['rotina', 'blocos'] })
-    },
-  })
 
   function horaParaMinutos(hora: string): number {
     const [h, m] = hora.split(':').map(Number)
@@ -96,10 +102,10 @@ export default function CalendarioSemanal() {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
   }
 
-  function handleDragEnd(e: { active: { id: number }; over: { id: string } | null }) {
+  function handleDragEnd(e: DragEndEvent) {
     if (!e.over || e.active.id === e.over.id) return
-    const blocoId = e.active.id
-    const targetCell = e.over.id // format: "diaIdx-hora"
+    const blocoId = e.active.id as number
+    const targetCell = String(e.over.id) // format: "diaIdx-hora"
     const [diaIdxStr, hora] = targetCell.split('-')
     const diaIdx = Number(diaIdxStr)
     if (isNaN(diaIdx) || !hora) return
@@ -133,40 +139,8 @@ export default function CalendarioSemanal() {
     })
   }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  )
-
-  function SortableItem({ bloco, hora, diaIdx }: { bloco: BlocoRotina; hora: string; diaIdx: number }) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bloco.id })
-    const style = {
-      transform: CSS.Transform.toString(transform),
-      transition,
-      opacity: isDragging ? 0.5 : 1,
-      zIndex: isDragging ? 50 : 1,
-    }
-    const cellId = `${diaIdx}-${hora}`
-    return (
-      <div
-        ref={setNodeRef}
-        style={style}
-        {...attributes}
-        {...listeners}
-        className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent' : ''}`}
-        style={{
-          backgroundColor: bloco.cor ? `${bloco.cor}30` : 'var(--color-accent-light)',
-          color: bloco.cor || 'var(--color-accent)',
-          ...style,
-        }}
-      >
-        <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">⋮⋮</div>
-        {bloco.titulo}
-      </div>
-    )
-  }
-
   return (
+    <>
     <div className="overflow-x-auto">
       <div className="text-sm text-text-muted mb-2">{semanaLabel}</div>
       <div className="min-w-[700px]">
@@ -184,7 +158,8 @@ export default function CalendarioSemanal() {
         </div>
 
         {/* Grid */}
-        <SortableContext items={blocosPorDia.flat().map(b => b.id)} strategy={verticalListSortingStrategy} collisionDetection={sortableKeyboardCoordinates} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+        <SortableContext items={blocosPorDia.flat().map(b => b.id)} strategy={verticalListSortingStrategy}>
           {HORAS.map(hora => (
             <div key={hora} className="grid grid-cols-[60px_repeat(7,1fr)] gap-px bg-border">
               <div className="bg-bg-primary p-1 text-xs text-text-muted text-right pr-2 font-mono">
@@ -196,7 +171,7 @@ export default function CalendarioSemanal() {
                 return (
                   <div key={weekDays[diaIdx].date} className="bg-bg-primary min-h-[48px] p-0.5 relative">
                     {blocoNaHora.map(b => (
-                      <SortableItem key={b.id} id={b.id} bloco={b} hora={hora} diaIdx={diaIdx} />
+                      <SortableItem key={b.id} bloco={b} />
                     ))}
                     {hora === '07' && tarefasDoDia.length > 0 && (
                       <div className="text-xs text-text-muted mt-0.5 px-1 truncate">
@@ -209,6 +184,7 @@ export default function CalendarioSemanal() {
             </div>
           ))}
         </SortableContext>
+        </DndContext>
       </div>
     </div>
 
@@ -242,6 +218,30 @@ export default function CalendarioSemanal() {
           }}
         />
       )}
-    </div>
+    </>
   )
 }
+
+const SortableItem = React.memo(function SortableItem({ bloco }: { bloco: BlocoRotina }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: bloco.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : 1,
+    backgroundColor: bloco.cor ? `${bloco.cor}30` : 'var(--color-accent-light)',
+    color: bloco.cor || 'var(--color-accent)',
+  }
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent' : ''}`}
+    >
+      <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">⋮⋮</div>
+      {bloco.titulo}
+    </div>
+  )
+})

@@ -1,3 +1,4 @@
+import React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTarefas, getBlocos, updateTarefa } from '../api/rotina'
 import { getHabitos, getRegistros, createRegistro } from '../api/habitos'
@@ -18,7 +19,7 @@ function calcStreak(registros: { data: string }[]): number {
   return streak
 }
 
-function Card({ titulo, children, loading, erro, vazio }: {
+const Card = React.memo(function Card({ titulo, children, loading, erro, vazio }: {
   titulo: string; children: React.ReactNode; loading?: boolean; erro?: boolean; vazio?: boolean
 }) {
   return (
@@ -30,30 +31,28 @@ function Card({ titulo, children, loading, erro, vazio }: {
       {!loading && !erro && !vazio && children}
     </div>
   )
-}
+})
 
 export default function Dashboard() {
   const hoje = hojeLocal()
   const queryClient = useQueryClient()
-  const queryKey = ['dashboard', 'tarefas', hoje]
-
   const { data: blocos, isLoading: blocosLoad, isError: blocosErr } = useQuery({
-    queryKey: ['dashboard', 'blocos', hoje],
+    queryKey: ['rotina', 'blocos', hoje],
     queryFn: () => getBlocos(hoje),
   })
 
   const { data: tarefas, isLoading: tarefasLoad, isError: tarefasErr } = useQuery({
-    queryKey,
+    queryKey: ['rotina', 'tarefas', hoje],
     queryFn: () => getTarefas(hoje),
   })
 
   const { data: habitos, isLoading: habLoad, isError: habErr } = useQuery({
-    queryKey: ['dashboard', 'habitos'],
+    queryKey: ['habitos'],
     queryFn: () => getHabitos(true),
   })
 
   const { data: inbox, isLoading: inbLoad, isError: inbErr } = useQuery({
-    queryKey: ['dashboard', 'inbox'],
+    queryKey: ['inbox'],
     queryFn: () => getInbox(false),
   })
 
@@ -63,7 +62,6 @@ export default function Dashboard() {
   const toggleTarefaMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['dashboard', 'tarefas'] })
       queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] })
       queryClient.invalidateQueries({ queryKey: ['tarefas'] })
     },
@@ -72,7 +70,7 @@ export default function Dashboard() {
   const checkHabitoMut = useMutation({
     mutationFn: ({ habitoId, data }: { habitoId: number; data: string }) =>
       createRegistro(habitoId, { habito_id: habitoId, data, valor: 1 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['dashboard', 'habitos'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['habitos'] }),
   })
 
   function handleToggleTarefa(t: Tarefa) {

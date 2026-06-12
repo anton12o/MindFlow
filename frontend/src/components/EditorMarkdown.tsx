@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import React, { useRef, useEffect } from 'react'
 import { EditorView, keymap } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -13,7 +13,7 @@ interface Props {
   onChange: (value: string) => void
 }
 
-export default function EditorMarkdown({ value, onChange }: Props) {
+const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange }: Props) {
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -25,6 +25,7 @@ export default function EditorMarkdown({ value, onChange }: Props) {
     const startState = EditorState.create({
       doc: value,
       extensions: [
+        EditorView.lineWrapping,
         markdown({ base: markdownLanguage }),
         python(),
         javascript(),
@@ -35,8 +36,8 @@ export default function EditorMarkdown({ value, onChange }: Props) {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString())
         }),
         EditorView.theme({
-          '&': { backgroundColor: 'transparent', fontSize: '14px' },
-          '.cm-scroller': { fontFamily: '"JetBrains Mono", ui-monospace, monospace', overflow: 'auto' },
+          '&': { backgroundColor: 'transparent' },
+          '.cm-scroller': { fontFamily: '"Inter", system-ui, -apple-system, sans-serif', fontSize: '15px', lineHeight: '1.7', overflow: 'auto' },
           '.cm-content': { caretColor: '#5B8DEF', padding: '12px 0' },
           '.cm-cursor': { borderLeftColor: '#5B8DEF' },
           '.cm-gutters': { display: 'none' },
@@ -63,4 +64,6 @@ export default function EditorMarkdown({ value, onChange }: Props) {
   }, [value])
 
   return <div ref={ref} className="min-h-[calc(100vh-250px)]" />
-}
+})
+
+export default EditorMarkdown

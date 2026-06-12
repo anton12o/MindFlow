@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas, getTags, createTag, updateTag, getNotaTags } from '../api/notas'
 import request from '../api/client'
 import { getConexoes } from '../api/conexoes'
@@ -62,11 +63,12 @@ export default function Ideias() {
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
     queryKey: ['notas', searchDebounced, tagFilter],
     queryFn: () => getNotas(searchDebounced || undefined, undefined, tagFilter.length > 0 ? tagFilter : undefined),
+    staleTime: 60_000,
   })
 
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
   const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas, staleTime: 300_000 })
-  const { data: tagsData, isLoading: tagsLoad } = useQuery({ queryKey: ['tags'], queryFn: getTags })
+  const { data: tagsData } = useQuery({ queryKey: ['tags'], queryFn: getTags, staleTime: 300_000 })
 
   useEffect(() => {
     if (tagsData) setTags(tagsData)
@@ -74,16 +76,17 @@ export default function Ideias() {
 
   useEffect(() => {
     const notaId = searchParams.get('nota_id')
-    if (notaId && notas) {
+    if (notaId && !selectedId && notas) {
       const target = notas.find(n => n.id === Number(notaId))
       if (target) selectNota(target)
     }
-  }, [searchParams, notas])
+  }, [searchParams, notas, selectedId])
 
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
     enabled: !!selectedId,
+    staleTime: 120_000,
   })
 
   const { data: notaTagsData } = useQuery({
@@ -139,19 +142,11 @@ export default function Ideias() {
     },
   })
 
-  const addTagToNotaMut = useMutation({
-    mutationFn: ({ notaId, tagId }: { notaId: number; tagId: number }) =>
-      request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'POST' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notaTags', selectedId] })
-    },
-  })
-
   const removeTagFromNotaMut = useMutation({
     mutationFn: ({ notaId, tagId }: { notaId: number; tagId: number }) =>
       request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'DELETE' }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notaTags', selectedId] })
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['notaTags', variables.notaId] })
     },
   })
 
@@ -246,6 +241,17 @@ export default function Ideias() {
 
   const filtered = notas || []
 
+  const parentRef = useRef<HTMLDivElement>(null)
+  const visibleItems = useMemo(
+    () => filtered.filter(n => !pastaFilter || n.pasta_id === pastaFilter),
+    [filtered, pastaFilter]
+  )
+  const virtualizer = useVirtualizer({
+    count: visibleItems.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 56,
+  })
+
   const saida = notas?.filter(n =>
     conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
   ) || []
@@ -255,25 +261,27 @@ export default function Ideias() {
 
   return (
     <div className="flex h-full">
-      <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-x-hidden">
+        <div className="flex items-center gap-1 w-full mb-4 shrink-0">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar notas..."
-            className="flex-1 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
+            className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
           />
-          <button onClick={handleCreate} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover" title="Nova nota em branco">+</button>
-          <button onClick={() => setShowTemplateModal(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Criar nota a partir de um modelo pré-definido (template)">📋</button>
-          <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`} title="Grafo de conexões entre notas">🔗</button>
+          <button onClick={handleCreate} className="px-2 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover shrink-0" title="Nova nota em branco">+</button>
+          <button onClick={() => setShowTemplateModal(true)} className="px-2 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover shrink-0" title="Criar nota a partir de um modelo pré-definido (template)">📋</button>
+          <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg shrink-0 ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`} title="Grafo de conexões entre notas">🔗</button>
         </div>
         {showGrafo ? (
-          <GrafoNotas onSelectNota={(id) => {
-            const n = notas?.find(x => x.id === id)
-            if (n) selectNota(n)
-          }} />
+          <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
+            <GrafoNotas onSelectNota={(id) => {
+              const n = notas?.find(x => x.id === id)
+              if (n) selectNota(n)
+            }} />
+          </div>
         ) : (
-          <div className="space-y-1">
+          <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
             {pastas && pastas.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
                 <button onClick={() => setPastaFilter(null)}
@@ -302,15 +310,14 @@ export default function Ideias() {
                     <button onClick={clearTagFilter} className="text-xs text-danger hover:underline">Limpar</button>
                   </div>
                 )}
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto w-full">
                   {tags.map(tag => {
                     const isActive = tagFilter.includes(tag.id)
-                    const bg = tag.cor || '#6B7280'
-                    const textColor = getTextColor(tag.cor)
+                    const cor = tag.cor || '#6B7280'
                     return (
                       <button key={tag.id} onClick={() => toggleTagFilter(tag.id)}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-all ${isActive ? 'ring-2 ring-accent' : ''} ${textColor === 'text-white' ? 'text-white' : 'text-black'}`
-                          style={{ backgroundColor: bg }}>
+                        className={`text-xs px-2 py-0.5 rounded-full font-medium transition-all max-w-full overflow-hidden text-ellipsis whitespace-nowrap inline-flex ${isActive ? 'ring-2 ring-accent' : ''}`}
+                          style={{ backgroundColor: `${cor}33`, color: cor, border: `1px solid ${cor}66` }}>
                         {tag.nome}
                       </button>
                     )
@@ -320,26 +327,32 @@ export default function Ideias() {
             )}
             {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
             {notasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar notas</p>}
-            {!notasLoad && !notasErr && filtered.length === 0 && (
+            {!notasLoad && !notasErr && visibleItems.length === 0 && (
               <p className="text-sm text-text-muted py-4 text-center">
                 {searchDebounced ? 'Nenhuma nota encontrada' : 'Nenhuma nota criada ainda'}
               </p>
             )}
-            {!notasLoad && !notasErr && filtered
-              .filter(n => !pastaFilter || n.pasta_id === pastaFilter)
-              .map(n => {
-              const tipo = tipos?.find(t => t.id === n.tipo_id)
-              return (
-                <button key={n.id} onClick={() => selectNota(n)}
-                  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
-                  <div className="flex items-center gap-1">
-                    {tipo && <span className="text-xs">{tipo.icone}</span>}
-                    <span className="font-medium truncate">{n.titulo}</span>
-                  </div>
-                  <div className="text-xs text-text-muted truncate mt-0.5">{new Date(n.atualizado_em).toLocaleDateString('pt-BR')}</div>
-                </button>
-              )
-            })}
+            {!notasLoad && !notasErr && visibleItems.length > 0 && (
+              <div ref={parentRef} className="flex-1 min-h-0 overflow-y-auto">
+                <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+                  {virtualizer.getVirtualItems().map(virtual => {
+                    const n = visibleItems[virtual.index]
+                    const tipo = tipos?.find(t => t.id === n.tipo_id)
+                    return (
+                      <button key={n.id} onClick={() => selectNota(n)}
+                        style={{ height: virtual.size, transform: `translateY(${virtual.start}px)`, position: 'absolute', width: '100%', left: 0 }}
+                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
+                        <div className="flex items-center gap-1">
+                          {tipo && <span className="text-xs">{tipo.icone}</span>}
+                          <span className="font-medium truncate">{n.titulo}</span>
+                        </div>
+                        <div className="text-xs text-text-muted truncate mt-0.5">{new Date(n.atualizado_em).toLocaleDateString('pt-BR')}</div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -498,7 +511,7 @@ export default function Ideias() {
                       const bg = tag.cor || '#6B7280'
                       const textColor = getTextColor(tag.cor)
                       return (
-                        <div key={tag.id} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${textColor === 'text-white' ? 'text-white' : 'text-black'}`
+                        <div key={tag.id} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${textColor === 'text-white' ? 'text-white' : 'text-black'}`}
                           style={{ backgroundColor: bg }}>
                           {tag.nome}
                           {editando && (

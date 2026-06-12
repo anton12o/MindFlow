@@ -65,6 +65,9 @@ def list_tags(session: Session = Depends(get_session)):
 
 @router.post("/tags", response_model=TagRead)
 def create_tag(t: TagCreate, session: Session = Depends(get_session)):
+    existing = session.exec(select(Tag).where(Tag.nome == t.nome)).first()
+    if existing:
+        return existing
     db = Tag(**t.model_dump())
     session.add(db)
     session.commit()
@@ -76,7 +79,12 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, session: Session = Depends(get_session)):
     tag_id_list = []
     if tag_ids:
-        tag_id_list = [int(t) for t in tag_ids.split(",") if t.strip().isdigit()]
+        for t in tag_ids.split(","):
+            st = t.strip()
+            if st.isdigit():
+                tag_id_list.append(int(st))
+            else:
+                logger.warning("tag_id inválido ignorado na query: %s", st)
     
     if q:
         q = q.strip()
@@ -245,6 +253,7 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
         raise HTTPException(status_code=404, detail="Nota não encontrada")
     titulo = body.trecho.split('\n')[0][:60] or "Trecho extraído"
     nova = Nota(titulo=titulo.strip(), conteudo=body.trecho, tipo_id=body.tipo_id)
+    nova.cover_url = extrair_cover_url(nova.conteudo, nova.propriedades)
     session.add(nova)
     session.flush()
     original.conteudo += f"\n\n[[{nova.titulo}]]"

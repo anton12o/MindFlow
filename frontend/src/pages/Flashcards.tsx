@@ -1,33 +1,103 @@
-import { useState } from 'react'
+import { useState, useRef, memo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { getFlashcards, getReviewCards, createFlashcard, updateFlashcard, reviewFlashcard, deleteFlashcard } from '../api/flashcards'
 import ConfirmModal from '../components/ConfirmModal'
 import { getNotas } from '../api/notas'
+import type { Flashcard } from '../types'
 
 const labels = ['', 'Muito difícil', 'Difícil', 'Médio', 'Fácil', 'Muito fácil']
+
+interface FlashcardItemProps {
+  fc: Flashcard
+  notas: Array<{ id: number; titulo: string }> | undefined
+  onSave: (id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => void
+  onDelete: (id: number, pergunta: string) => void
+}
+
+const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete }: FlashcardItemProps) {
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
+
+  function handleEdit() {
+    setEditForm({
+      pergunta: fc.pergunta,
+      resposta: fc.resposta,
+      nota_id: fc.nota_id ? String(fc.nota_id) : '',
+    })
+    setEditing(true)
+  }
+
+  return (
+    <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4">
+      {editing ? (
+        <div className="flex-1 space-y-2">
+          <input value={editForm.pergunta} onChange={e => setEditForm(f => ({ ...f, pergunta: e.target.value }))}
+            className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none" />
+          <input value={editForm.resposta} onChange={e => setEditForm(f => ({ ...f, resposta: e.target.value }))}
+            className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none" />
+          <select value={editForm.nota_id} onChange={e => setEditForm(f => ({ ...f, nota_id: e.target.value }))}
+            className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
+            <option value="">Sem nota associada</option>
+            {(notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
+          </select>
+          <button onClick={() => onSave(fc.id, { pergunta: editForm.pergunta, resposta: editForm.resposta, nota_id: editForm.nota_id ? Number(editForm.nota_id) : null })}
+            className="text-xs text-success">Salvar</button>
+          <button onClick={() => setEditing(false)} className="text-xs text-text-muted ml-2">Cancelar</button>
+        </div>
+      ) : (
+        <>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{fc.pergunta}</p>
+            <p className="text-xs text-text-muted truncate mt-0.5">{fc.resposta}</p>
+            <p className="text-xs text-text-muted mt-1">
+              Próxima revisão: {new Date(fc.proxima_revisao).toLocaleDateString('pt-BR')}
+              {' · '}Facilidade: {fc.facilidade.toFixed(1)}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button onClick={handleEdit}
+              className="text-xs text-text-muted hover:text-accent">✎</button>
+            <button onClick={() => onDelete(fc.id, fc.pergunta)}
+              className="text-xs text-text-muted hover:text-danger">✕</button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+})
 
 export default function Flashcards() {
   const queryClient = useQueryClient()
   const [virado, setVirado] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
-  const [editId, setEditId] = useState<number | null>(null)
-  const [editForm, setEditForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; pergunta: string } | null>(null)
+  const parentRef = useRef<HTMLDivElement>(null)
 
   const { data: cards, isLoading: cardsLoad, isError: cardsErr } = useQuery({
     queryKey: ['flashcards', 'review'],
     queryFn: getReviewCards,
+    staleTime: 60_000,
   })
 
   const { data: allCards, isLoading: allLoad, isError: allErr } = useQuery({
     queryKey: ['flashcards', 'all'],
     queryFn: () => getFlashcards(),
+    staleTime: 120_000,
+  })
+  const allCardsList = allCards || []
+  const virtualizer = useVirtualizer({
+    count: allCardsList.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
   })
 
   const { data: notas, isLoading: notasLoad } = useQuery({
     queryKey: ['notas'],
     queryFn: () => getNotas(),
+    staleTime: 60_000,
   })
 
   const reviewMut = useMutation({
@@ -54,7 +124,6 @@ export default function Flashcards() {
       updateFlashcard(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
-      setEditId(null)
     },
   })
 
@@ -62,6 +131,14 @@ export default function Flashcards() {
     mutationFn: (id: number) => deleteFlashcard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['flashcards'] }),
   })
+
+  const handleSave = useCallback((id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => {
+    updateMut.mutate({ id, data })
+  }, [])
+
+  const handleDelete = useCallback((id: number, pergunta: string) => {
+    setConfirmDelete({ id, pergunta })
+  }, [])
 
   const currentCard = cards?.[0]
   const total = cards?.length || 0
@@ -157,47 +234,23 @@ export default function Flashcards() {
         {!allLoad && !allErr && (!allCards || allCards.length === 0) && (
           <p className="text-sm text-text-muted py-4 text-center">Nenhum flashcard criado</p>
         )}
-        {!allLoad && !allErr && allCards && allCards.length > 0 && (
-          <div className="space-y-2">
-            {allCards.map(fc => {
-              const editing = editId === fc.id
-              return (
-              <div key={fc.id} className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4">
-                {editing ? (
-                  <div className="flex-1 space-y-2">
-                    <input value={editForm.pergunta} onChange={e => setEditForm(f => ({ ...f, pergunta: e.target.value }))}
-                      className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none" />
-                    <input value={editForm.resposta} onChange={e => setEditForm(f => ({ ...f, resposta: e.target.value }))}
-                      className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none" />
-                    <select value={editForm.nota_id} onChange={e => setEditForm(f => ({ ...f, nota_id: e.target.value }))}
-                      className="w-full bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
-                      <option value="">Sem nota associada</option>
-                      {(notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
-                    </select>
-                    <button onClick={() => updateMut.mutate({ id: fc.id, data: { pergunta: editForm.pergunta, resposta: editForm.resposta, nota_id: editForm.nota_id ? Number(editForm.nota_id) : null } })}
-                      className="text-xs text-success">Salvar</button>
-                    <button onClick={() => setEditId(null)} className="text-xs text-text-muted ml-2">Cancelar</button>
+        {!allLoad && !allErr && allCardsList.length > 0 && (
+          <div ref={parentRef} className="h-96 overflow-y-auto">
+            <div style={{ height: virtualizer.getTotalSize(), position: 'relative' }}>
+              {virtualizer.getVirtualItems().map(virtual => {
+                const fc = allCardsList[virtual.index]
+                return (
+                  <div key={fc.id} style={{ height: virtual.size, transform: `translateY(${virtual.start}px)`, position: 'absolute', width: '100%', left: 0 }}>
+                    <FlashcardItem
+                      fc={fc}
+                      notas={notas}
+                      onSave={handleSave}
+                      onDelete={handleDelete}
+                    />
                   </div>
-                ) : (
-                  <>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{fc.pergunta}</p>
-                      <p className="text-xs text-text-muted truncate mt-0.5">{fc.resposta}</p>
-                      <p className="text-xs text-text-muted mt-1">
-                        Próxima revisão: {new Date(fc.proxima_revisao).toLocaleDateString('pt-BR')}
-                        {' · '}Facilidade: {fc.facilidade.toFixed(1)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button onClick={() => { setEditId(fc.id); setEditForm({ pergunta: fc.pergunta, resposta: fc.resposta, nota_id: fc.nota_id ? String(fc.nota_id) : '' }) }}
-                        className="text-xs text-text-muted hover:text-accent">✎</button>
-                      <button onClick={() => setConfirmDelete({ id: fc.id, pergunta: fc.pergunta })}
-                        className="text-xs text-text-muted hover:text-danger">✕</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )})}
+                )
+              })}
+            </div>
           </div>
         )}
       </div>
