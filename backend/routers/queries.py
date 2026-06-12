@@ -54,7 +54,7 @@ class ExecutarResult(SQLModel):
 
 
 @router.post("/{query_id}/executar")
-def executar_query(query_id: int, session: Session = Depends(get_session)):
+def executar_query(query_id: int, mes: str | None = None, session: Session = Depends(get_session)):
     q = session.get(QuerySalva, query_id)
     if not q:
         raise HTTPException(status_code=404, detail="Consulta não encontrada")
@@ -96,6 +96,12 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
                         stmt = stmt.where(1 == 0)
         if filtros.get("tipo_id"):
             stmt = stmt.where(Nota.tipo_id == filtros["tipo_id"])
+        # Calendar view: filter by month on campo_agrupamento (must be date property)
+        if mes:
+            if not q.campo_agrupamento:
+                raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para filtro por mês")
+            campo = q.campo_agrupamento
+            stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
         dados = session.exec(stmt).all()
         return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id} for d in dados]}
 
