@@ -46,6 +46,20 @@
 
 ---
 
+### Release v1.0.0 (MindFlow.bat + distribuição)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Continuação da Execução simplificada
+
+**Descrição:** Bootstrap para Release via `MindFlow.bat` (~2KB). Verifica Git/Python, clona repositório (se necessário), cria `venv`, instala deps, e chama `start.py`. Anexado à Release v1.0.0 do GitHub para download com um clique.
+
+**Arquivos envolvidos:**
+- `MindFlow.bat` (raiz) — entrypoint único para o usuário final
+- `start.py` — motor principal (já existente)
+
+**Dependências:** Nenhuma.
+
+---
+
 ## 🟡 Média Prioridade — Discutidos, precisam de refinamento
 
 ### 5 novas views nas Consultas

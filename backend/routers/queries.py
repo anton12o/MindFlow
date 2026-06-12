@@ -50,7 +50,7 @@ def delete_query(query_id: int, session: Session = Depends(get_session)):
 
 class ExecutarResult(SQLModel):
     tipo: str
-    dados: list
+    dados: list[Any]
 
 
 @router.post("/{query_id}/executar")
@@ -102,7 +102,7 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
 
 class BatchInput(SQLModel):
     ids: list[int]
-    alteracoes: dict
+    alteracoes: dict[str, Any]
 
 
 @router.patch("/{query_id}/batch")

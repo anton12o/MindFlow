@@ -671,6 +671,23 @@ mindflow/
 
 ---
 
+## 7.5 Módulo 13: Release v1.0.0 + Polimento
+
+**Antes:** App exigia 2 terminais (backend + frontend). Sem entrypoint único. Sem distribuição. Tipos e pastas recarregavam a cada navegação (staleTime padrão 30s). Histórico do Pomodoro sem limpeza.
+
+**Depois:**
+- `start.py` — script único que instala deps Python, builda frontend (se necessário), sobe uvicorn e abre navegador
+- `MindFlow.bat` — bootstrap para Release: verifica Git/Python, clona repositório, cria venv, chama `start.py`. Entrypoint único
+- **Backend serve frontend estático** — `StaticFiles` em `/`. CORS `allow_origins=["*"]`
+- **staleTime 300s** para `['tipos']` e `['pastas']` — evita recarregamentos desnecessários
+- **Limpeza de histórico Pomodoro** — `DELETE /api/pomodoro/sessoes` + UI com ConfirmModal
+- **`docs/FUTURO.md` criado** — 9 itens catalogados por prioridade
+- **CONTEXT.md limpo** — seção "Próximos Passos" substituída por link para `FUTURO.md`
+- **Resíduos removidos** — `generate-spec.js`, `package.json`, `package-lock.json` da raiz
+- **Release v1.0.0 publicada** no GitHub com `MindFlow.bat` anexado
+
+---
+
 ## 8. Decisões Técnicas e Convenções
 
 ### Backend
@@ -735,21 +752,9 @@ Os bugs 25, 26 e 27 foram adiados por serem de melhoria UX, não funcionais:
 
 ---
 
-## 11. Próximos Passos Sugeridos
+## 11. Próximos Passos
 
-### Curto Prazo
-1. **Tags por cores + filtro combinado** — buscar notas por múltiplas tags
-2. **Arrastar blocos de tempo** — drag & drop no calendário semanal
-3. **Notificações nativas (navegador)** — para pomodoro e lembretes
-
-### Médio Prazo
-4. **PWA (service worker + manifest)** — instalação como app no celular/desktop
-5. **App desktop com Tauri ou Electron** — distribuição standalone
-
-### Longo Prazo
-6. **Sincronização peer-to-peer opcional** — sem servidor central
-7. **Plugin system** — extensões em Python/JS
-8. **Mobile-first** — PWA responsivo completo
+As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.
 
 ---
 
@@ -768,4 +773,4 @@ MindFlow segue alguns princípios fundamentais:
 ---
 
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: Módulo 12 concluído (55 correções).*
+*Última atualização: 11 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0).*

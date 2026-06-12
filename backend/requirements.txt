@@ -1,5 +1,5 @@
-fastapi==0.115.0
-uvicorn==0.30.6
-sqlmodel==0.0.22
-python-multipart==0.0.12
-alembic==1.14.1
+fastapi>=0.115
+uvicorn>=0.30
+sqlmodel>=0.0.38
+python-multipart>=0.0.12
+alembic>=1.14

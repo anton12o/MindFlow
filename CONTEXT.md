@@ -77,6 +77,14 @@ alembic current
 ```
 mindflow/
 ├── CONTEXT.md              ← este arquivo
+├── HISTORIA_COMPLETA.md    ← Histórico completo do desenvolvimento
+├── README.md               ← Documentação do projeto
+├── start.py                ← Entrypoint universal (instala, builda, sobe, abre navegador)
+├── start.bat               ← Atalho Windows para start.py
+├── MindFlow.bat            ← Bootstrap para Release (git clone + venv + start.py)
+├── .gitignore
+├── docs/
+│   └── FUTURO.md           ← Futuras adições planejadas
 ├── backend/
 │   ├── main.py             # App FastAPI, CORS, logging, 10 routers + FTS5 startup
 │   ├── database.py         # Engine SQLite + run_migrations + setup_fts
@@ -199,6 +207,7 @@ mindflow/
 - `GET /sessoes` — listar
 - `POST /sessoes` — criar
 - `PATCH /sessoes/{id}/finalizar` — finalizar (+ resumo opcional com `contexto_nome`)
+- `DELETE /sessoes` — limpar histórico (`?antes_de=` opcional)
 
 ### Notas (`/api/notas`)
 - `GET /pastas` — listar pastas
@@ -405,7 +414,24 @@ cd backend && python -c "from main import app; print('OK')"
 | Lote 4 🟡 | 13 | Input validation, wildcard leak, loading states |
 | Lote 5 🟢 | 10 | Baixa prioridade: Pydantic, acessibilidade, dead code |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript
+**Status:** Backend OK · Frontend 0 erros TypeScript · Release v1.0.0 publicada
+
+### Módulo 13: Release v1.0.0 + Polimento
+
+**Antes:** App exigia 2 terminais (backend + frontend). Sem entrypoint único. Sem distribuição. Tipos e pastas recarregavam a cada navegação (staleTime padrão 30s). Histórico do Pomodoro sem limpeza.
+
+**Depois:**
+- `start.py` — script único que instala deps Python, builda frontend (se necessário), sobe uvicorn e abre navegador
+- `MindFlow.bat` — bootstrap para Release: verifica Git/Python, clona repositório, cria venv, chama `start.py`. Entrypoint único
+- **Backend serve frontend estático** — `StaticFiles` em `/`. CORS `allow_origins=["*"]`
+- **staleTime 300s** para `['tipos']` e `['pastas']` — evita recarregamentos desnecessários
+- **Limpeza de histórico Pomodoro** — `DELETE /api/pomodoro/sessoes` + UI com ConfirmModal
+- **`docs/FUTURO.md` criado** — 9 itens catalogados por prioridade
+- **CONTEXT.md limpo** — seção "Próximos Passos" substituída por link para `FUTURO.md`
+- **Resíduos removidos** — `generate-spec.js`, `package.json`, `package-lock.json` da raiz
+- **Release v1.0.0 publicada** no GitHub com `MindFlow.bat` anexado
+
+---
 
 ### Bugs Pendentes (UX de notas — baixa prioridade)
 - **Bug 25:** UX de notas — melhorar feedback visual ao criar/editar notas
@@ -423,6 +449,7 @@ cd backend && python -c "from main import app; print('OK')"
 - **Keyboard:** Ctrl+K (paleta), Ctrl+I (inbox), `/` (slash commands no editor de notas)
 - **Tailwind v4:** `@import "tailwindcss"` — sem `tailwind.config.*`, cores via `@theme`
 - **React Query:** `staleTime: 30_000`, `retry: 1`, `onError` global no `QueryClient`
+- **staleTime específico:** tipos e pastas usam `staleTime: 300_000` (5 min) para evitar recarregamentos
 - **Optimistic updates:** Usados em Rotina (criação de tarefas) com rollback em `onError`
 - **Botões de deletar:** Sempre visíveis (nunca `opacity-0 hover:opacity-100`)
 - **`confirm()` nativo:** Completamente eliminado — substituído por `<ConfirmModal>`
