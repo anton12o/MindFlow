@@ -88,15 +88,18 @@
 ---
 
 ### Tags por cores + filtro combinado
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** CONTEXT.md — Próximos Passos (Item 1)
 
 **Descrição:** Tags já têm campo `cor` no backend, mas não é usado no frontend. Adicionar exibição colorida nas notas + filtro combinado (selecionar múltiplas tags para filtrar notas).
 
 **Arquivos envolvidos:**
-- `frontend/src/pages/Ideias.tsx` — filtro por tags na sidebar
-- `frontend/src/api/notas.ts` — endpoint de listagem com filtro de tags
-- `backend/routers/notas.py` — adicionar filtro `?tag_id=` na listagem
+- `frontend/src/pages/Ideias.tsx` — filtro por tags na sidebar, chips coloridos, modal de criação/edição com color picker
+- `frontend/src/api/notas.ts` — `getNotas` com `tagIds`, `updateTag`, `getNotaTags`
+- `backend/routers/notas.py` — `GET /notas?tag_ids=` (AND), `PATCH /tags/{id}`, `GET /notas/{id}/tags`, `DELETE /notas/{id}/tags/{tag_id}`
+- `backend/models.py` — `TagUpdate` model
+
+**Implementado:** Módulo 1 (Backend), Módulo 2 (Frontend exibição + color picker), Módulo 3 (Frontend filtro combinado)
 
 **Dependências:** Nenhuma. Campo `cor` já existe no modelo.
 

@@ -433,6 +433,16 @@ cd backend && python -c "from main import app; print('OK')"
 
 ---
 
+### Módulo 14: Tags com cores + filtro combinado
+
+**Antes:** Tags existiam no banco com campo `cor` mas eram ignoradas no frontend. Sem filtro por tags.
+
+**Depois:**
+- Backend: `PATCH /tags/{id}` (editar nome/cor), `GET /notas?tag_ids=1,2,3` (filtro AND), `GET /notas/{id}/tags`, `DELETE /notas/{id}/tags/{tag_id}`
+- Frontend: chips coloridos na sidebar e nota (bg da cor + texto auto contraste), color picker (12 presets + hex livre), filtro multi-select na sidebar com badge + limpar, `useDebounce(300ms)`
+
+---
+
 ### Bugs Pendentes (UX de notas — baixa prioridade)
 - **Bug 25:** UX de notas — melhorar feedback visual ao criar/editar notas
 - **Bug 26:** UX de notas — indicador de salvamento automático

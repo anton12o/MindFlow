@@ -1,7 +1,8 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { usePomodoroContext } from '../store/pomodoro'
+import ConfirmModal from './ConfirmModal'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
@@ -32,12 +33,27 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     sessaoId, setSessaoId,
     resumo, setResumo,
     mostrarResumo, setMostrarResumo,
+    config, setConfig,
+    fase, cicloAtual,
   } = usePomodoroContext()
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
   const timeRef = useRef({ minutos, segundos })
   timeRef.current = { minutos, segundos }
   const isCreating = useRef(false)
   const queryClient = useQueryClient()
+  const [showConfig, setShowConfig] = useState(false)
+  const saveTimeout = useRef<ReturnType<typeof setTimeout>>()
+
+  // Debounced config save
+  useEffect(() => {
+    if (saveTimeout.current) clearTimeout(saveTimeout.current)
+    saveTimeout.current = setTimeout(() => {
+      try {
+        localStorage.setItem('mindflow_pomodoro_config', JSON.stringify(config))
+      } catch {}
+    }, 500)
+    return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
+  }, [config])
 
   const finalizarMut = useMutation({
     mutationFn: (params: { id: number; body: { conteudo_resumo?: string; contexto_nome?: string } }) =>
@@ -112,9 +128,15 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
 
+  const phaseLabels: Record<'foco' | 'pausa_curta' | 'pausa_longa', string> = {
+    foco: '🎯 Foco',
+    pausa_curta: '☕ Pausa curta',
+    pausa_longa: '🌿 Pausa longa',
+  }
+
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-col items-center gap-4 w-full max-w-md">
+      <div className="flex items-center gap-4 w-full">
         {contexto && (
           <span className="text-sm text-text-secondary truncate max-w-[150px]">{contexto.nome}</span>
         )}
@@ -125,6 +147,87 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         >
           {ativo ? 'Parar' : 'Iniciar'}
         </button>
+      </div>
+
+      {/* Phase indicator */}
+      <div className="w-full flex items-center justify-between text-sm">
+        <span className="text-text-muted">{phaseLabels[fase]}</span>
+        {fase === 'foco' && config.ciclosAtePausaLonga > 1 && (
+          <span className="text-text-muted">Ciclo {cicloAtual + 1} de {config.ciclosAtePausaLonga}</span>
+        )}
+      </div>
+
+      {/* Config section */}
+      <div className="w-full border border-border rounded-lg overflow-hidden bg-bg-tertiary">
+        <button
+          onClick={() => setShowConfig(!showConfig)}
+          className="w-full flex items-center justify-between p-3 text-left text-sm text-text-secondary hover:bg-bg-hover transition-colors"
+          disabled={ativo}
+        >
+          <span>⚙ Configurações</span>
+          <span className={`transition-transform ${showConfig ? 'rotate-180' : ''}`}>▼</span>
+        </button>
+        {showConfig && (
+          <div className="p-3 space-y-3 border-t border-border bg-bg-secondary" disabled={ativo}>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Foco (min)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={config.focoMin}
+                  onChange={e => setConfig(c => ({ ...c, focoMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Pausa curta (min)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={config.pausaCurtaMin}
+                  onChange={e => setConfig(c => ({ ...c, pausaCurtaMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Pausa longa (min)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="120"
+                  value={config.pausaLongaMin}
+                  onChange={e => setConfig(c => ({ ...c, pausaLongaMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Ciclos até pausa longa</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={config.ciclosAtePausaLonga}
+                  onChange={e => setConfig(c => ({ ...c, ciclosAtePausaLonga: Math.min(20, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => setConfig({ focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4 })}
+              className="text-sm text-accent hover:underline self-start"
+              disabled={ativo}
+            >
+              Restaurar padrão (25 / 5 / 15 / 4)
+            </button>
+          </div>
+        )}
       </div>
 
       {mostrarResumo && !ativo && (
