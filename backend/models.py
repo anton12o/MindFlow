@@ -197,6 +197,10 @@ class TagCreate(TagBase):
 class TagRead(TagBase):
     id: int
 
+class TagUpdate(SQLModel):
+    nome: Optional[str] = None
+    cor: Optional[str] = None
+
 class NotaBase(SQLModel):
     titulo: str
     conteudo: str = ""

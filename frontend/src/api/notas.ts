@@ -1,10 +1,11 @@
 import request from './client'
 import type { Nota, Pasta, Tag } from '../types'
 
-export const getNotas = (q?: string, data?: string) => {
+export const getNotas = (q?: string, data?: string, tagIds?: number[]) => {
   const params = new URLSearchParams()
   if (q) params.set('q', q)
   if (data) params.set('data', data)
+  if (tagIds && tagIds.length > 0) params.set('tag_ids', tagIds.join(','))
   const qs = params.toString()
   return request<Nota[]>(`/notas${qs ? `?${qs}` : ''}`)
 }
@@ -30,3 +31,7 @@ export const createPasta = (data: Partial<Pasta>) =>
 export const getTags = () => request<Tag[]>('/notas/tags')
 export const createTag = (data: Partial<Tag>) =>
   request<Tag>('/notas/tags', { method: 'POST', body: JSON.stringify(data) })
+export const updateTag = (id: number, data: Partial<Tag>) =>
+  request<Tag>(`/notas/tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+export const getNotaTags = (notaId: number) =>
+  request<Tag[]>(`/notas/${notaId}/tags`)

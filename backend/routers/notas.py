@@ -2,6 +2,7 @@ import re
 import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, SQLModel
+from sqlalchemy import func
 from sqlalchemy import text
 from database import get_session
 
@@ -9,7 +10,7 @@ logger = logging.getLogger(__name__)
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
     Pasta, PastaCreate, PastaRead,
-    Tag, TagCreate, TagRead, NotaTag,
+    Tag, TagCreate, TagRead, TagUpdate, NotaTag,
     ConexaoNota, ConexaoNotaRead,
     TemplateNota, TemplateRead, TemplateBase,
     Flashcard, SessaoPomodoro,
@@ -49,7 +50,11 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 
 # ─── Notas ───
 @router.get("", response_model=list[NotaRead])
-def list_notas(q: str | None = None, data: str | None = None, session: Session = Depends(get_session)):
+def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, session: Session = Depends(get_session)):
+    tag_id_list = []
+    if tag_ids:
+        tag_id_list = [int(t) for t in tag_ids.split(",") if t.strip().isdigit()]
+    
     if q:
         q = q.strip()
         if not q:
@@ -72,10 +77,21 @@ def list_notas(q: str | None = None, data: str | None = None, session: Session =
         notas = [notas_map[i] for i in ids if i in notas_map]
         if data:
             notas = [n for n in notas if n.criado_em >= data and n.criado_em < data + "~"]
+        if tag_id_list:
+            # Filtrar notas que têm TODAS as tags (AND)
+            stmt = select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
+            valid_nota_ids = {r[0] for r in session.exec(stmt).all()}
+            notas = [n for n in notas if n.id in valid_nota_ids]
         return notas
+    
     stmt = select(Nota)
     if data:
         stmt = stmt.where(Nota.criado_em >= data, Nota.criado_em < data + "~")
+    if tag_id_list:
+        # Filtrar notas que têm TODAS as tags (AND)
+        stmt = stmt.where(Nota.id.in_(
+            select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
+        ))
     return session.exec(stmt.order_by(Nota.atualizado_em.desc())).all()
 
 @router.post("", response_model=NotaRead)
@@ -220,6 +236,44 @@ def delete_tag(tag_id: int, session: Session = Depends(get_session)):
     for nt in nts:
         session.delete(nt)
     session.delete(tag)
+    session.commit()
+    return {"ok": True}
+
+@router.patch("/tags/{tag_id}", response_model=TagRead)
+def update_tag(tag_id: int, t: TagUpdate, session: Session = Depends(get_session)):
+    tag = session.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag não encontrada")
+    data = t.model_dump(exclude_unset=True)
+    if "nome" in data and data["nome"] != tag.nome:
+        existing = session.exec(select(Tag).where(Tag.nome == data["nome"])).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Tag com esse nome já existe")
+    for k, v in data.items():
+        setattr(tag, k, v)
+    session.add(tag)
+    session.commit()
+    session.refresh(tag)
+    return tag
+
+@router.get("/{nota_id}/tags", response_model=list[TagRead])
+def get_nota_tags(nota_id: int, session: Session = Depends(get_session)):
+    nota = session.get(Nota, nota_id)
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    tags = session.exec(
+        select(Tag).join(NotaTag).where(NotaTag.nota_id == nota_id)
+    ).all()
+    return tags
+
+@router.delete("/{nota_id}/tags/{tag_id}")
+def remove_tag_from_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):
+    nt = session.exec(
+        select(NotaTag).where(NotaTag.nota_id == nota_id, NotaTag.tag_id == tag_id)
+    ).first()
+    if not nt:
+        raise HTTPException(status_code=404, detail="Tag não associada à nota")
+    session.delete(nt)
     session.commit()
     return {"ok": True}
 

@@ -1,13 +1,14 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas } from '../api/notas'
+import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas, getTags, createTag, updateTag, getNotaTags } from '../api/notas'
+import request from '../api/client'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
 import EditorMarkdown from '../components/EditorMarkdown'
 import TemplateModal from '../components/TemplateModal'
 import GrafoNotas from '../components/GrafoNotas'
-import type { Nota } from '../types'
+import type { Nota, Tag } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 
 function renderConteudo(conteudo: string, notas: Nota[], onSelect: (n: Nota) => void) {
@@ -42,6 +43,12 @@ export default function Ideias() {
   const [extractText, setExtractText] = useState('')
   const [showExtract, setShowExtract] = useState(false)
   const [slashQuery, setSlashQuery] = useState('')
+  const [tags, setTags] = useState<Tag[]>([])
+  const [tagFilter, setTagFilter] = useState<number[]>([])
+  const [showTagModal, setShowTagModal] = useState(false)
+  const [editingTag, setEditingTag] = useState<Tag | null>(null)
+  const [newTagNome, setNewTagNome] = useState('')
+  const [newTagCor, setNewTagCor] = useState('#6B7280')
   const slashRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const [propriedades, setPropriedades] = useState<Record<string, string>>({})
@@ -53,12 +60,17 @@ export default function Ideias() {
   const searchDebounced = useDebounce(search, 300)
 
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
-    queryKey: ['notas', searchDebounced],
-    queryFn: () => getNotas(searchDebounced || undefined),
+    queryKey: ['notas', searchDebounced, tagFilter],
+    queryFn: () => getNotas(searchDebounced || undefined, undefined, tagFilter.length > 0 ? tagFilter : undefined),
   })
 
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
   const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas, staleTime: 300_000 })
+  const { data: tagsData, isLoading: tagsLoad } = useQuery({ queryKey: ['tags'], queryFn: getTags })
+
+  useEffect(() => {
+    if (tagsData) setTags(tagsData)
+  }, [tagsData])
 
   useEffect(() => {
     const notaId = searchParams.get('nota_id')
@@ -71,6 +83,12 @@ export default function Ideias() {
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
+    enabled: !!selectedId,
+  })
+
+  const { data: notaTagsData } = useQuery({
+    queryKey: ['notaTags', selectedId],
+    queryFn: ({ queryKey }) => getNotaTags(queryKey[1] as number),
     enabled: !!selectedId,
   })
 
@@ -99,6 +117,41 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
       setSelectedId(null)
+    },
+  })
+
+  const createTagMut = useMutation({
+    mutationFn: (data: Partial<Tag>) => createTag(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] })
+      setNewTagNome('')
+      setNewTagCor('#6B7280')
+      setShowTagModal(false)
+    },
+  })
+
+  const updateTagMut = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Tag> }) => updateTag(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tags'] })
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+      setEditingTag(null)
+    },
+  })
+
+  const addTagToNotaMut = useMutation({
+    mutationFn: ({ notaId, tagId }: { notaId: number; tagId: number }) =>
+      request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'POST' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notaTags', selectedId] })
+    },
+  })
+
+  const removeTagFromNotaMut = useMutation({
+    mutationFn: ({ notaId, tagId }: { notaId: number; tagId: number }) =>
+      request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notaTags', selectedId] })
     },
   })
 
@@ -143,6 +196,33 @@ export default function Ideias() {
       return next
     })
   }
+
+  // --- Tag helpers ---
+  function getLuminance(hex: string): number {
+    const h = hex.replace('#', '')
+    const r = parseInt(h.substring(0, 2), 16)
+    const g = parseInt(h.substring(2, 4), 16)
+    const b = parseInt(h.substring(4, 6), 16)
+    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
+  }
+
+  function getTextColor(hex: string | null): string {
+    if (!hex) return 'text-white'
+    return getLuminance(hex) > 0.5 ? 'text-black' : 'text-white'
+  }
+
+  function toggleTagFilter(tagId: number) {
+    setTagFilter(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId])
+  }
+
+  function clearTagFilter() {
+    setTagFilter([])
+  }
+
+  const PRESET_COLORS = [
+    '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E',
+    '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#8B5CF6',
+  ]
 
   const handleContentChange = useCallback((val: string) => {
     setConteudo(val)
@@ -206,6 +286,36 @@ export default function Ideias() {
                     📁 {p.nome}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {tags.length > 0 && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Tags</span>
+                  <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
+                    className="text-xs text-accent hover:underline">+ Nova</button>
+                </div>
+                {tagFilter.length > 0 && (
+                  <div className="flex items-center gap-1 mb-1">
+                    <span className="text-xs text-text-muted">Filtro: {tagFilter.length} tag{tagFilter.length > 1 ? 's' : ''}</span>
+                    <button onClick={clearTagFilter} className="text-xs text-danger hover:underline">Limpar</button>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-1">
+                  {tags.map(tag => {
+                    const isActive = tagFilter.includes(tag.id)
+                    const bg = tag.cor || '#6B7280'
+                    const textColor = getTextColor(tag.cor)
+                    return (
+                      <button key={tag.id} onClick={() => toggleTagFilter(tag.id)}
+                        className={`text-xs px-2 py-0.5 rounded-full transition-all ${isActive ? 'ring-2 ring-accent' : ''} ${textColor === 'text-white' ? 'text-white' : 'text-black'}`
+                          style={{ backgroundColor: bg }}>
+                        {tag.nome}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             )}
             {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
@@ -379,6 +489,32 @@ export default function Ideias() {
                   </div>
                 </div>
               )}
+
+              {(editando || (notaTagsData && notaTagsData.length > 0)) && (
+                <div className="w-56 shrink-0">
+                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Tags</h3>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {(notaTagsData || []).map(tag => {
+                      const bg = tag.cor || '#6B7280'
+                      const textColor = getTextColor(tag.cor)
+                      return (
+                        <div key={tag.id} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${textColor === 'text-white' ? 'text-white' : 'text-black'}`
+                          style={{ backgroundColor: bg }}>
+                          {tag.nome}
+                          {editando && (
+                            <button onClick={() => removeTagFromNotaMut.mutate({ notaId: selectedId!, tagId: tag.id })}
+                              className="ml-1 hover:opacity-70">✕</button>
+                          )}
+                        </div>
+                      )
+                    })}
+                    {editando && (
+                      <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
+                        className="px-2 py-1 text-xs text-accent hover:underline">+ Adicionar</button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {(entrada.length > 0 || saida.length > 0) && (
@@ -428,6 +564,50 @@ export default function Ideias() {
             if (n) selectNota(n)
           }}
         />
+      )}
+
+      {showTagModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTagModal(false)}>
+          <div className="bg-bg-secondary rounded-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-semibold mb-4">{editingTag ? 'Editar Tag' : 'Nova Tag'}</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Nome</label>
+                <input value={newTagNome} onChange={e => setNewTagNome(e.target.value)}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="Nome da tag" />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Cor</label>
+                <div className="flex items-center gap-2">
+                  <input type="color" value={newTagCor} onChange={e => setNewTagCor(e.target.value)}
+                    className="w-10 h-10 rounded border-0 cursor-pointer" />
+                  <span className="text-sm text-text-muted">ou escolha:</span>
+                </div>
+                <div className="grid grid-cols-6 gap-2 mt-2">
+                  {PRESET_COLORS.map(c => (
+                    <button key={c} type="button" onClick={() => setNewTagCor(c)}
+                      className={`w-8 h-8 rounded transition-transform ${newTagCor === c ? 'ring-2 ring-accent scale-110' : 'hover:scale-105'}`}
+                      style={{ backgroundColor: c }} />
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end mt-6">
+              <button onClick={() => { setShowTagModal(false); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
+                className="px-4 py-2 text-sm rounded-lg bg-bg-tertiary text-text-primary hover:bg-bg-hover">Cancelar</button>
+              <button onClick={() => {
+                if (!newTagNome.trim()) return
+                if (editingTag) {
+                  updateTagMut.mutate({ id: editingTag.id, data: { nome: newTagNome, cor: newTagCor } })
+                } else {
+                  createTagMut.mutate({ nome: newTagNome, cor: newTagCor })
+                }
+              }} className="px-4 py-2 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover">
+                {editingTag ? 'Salvar' : 'Criar'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
