@@ -30,7 +30,7 @@
 ---
 
 ### Execução simplificada (start.py + static serve)
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão do usuário (Item 3)
 
 **Descrição:** Script Python único que instala dependências, builda o frontend (se necessário), sobe o servidor e abre o navegador. Backend passa a servir o frontend buildado como static file, eliminando a necessidade de Node.js no dia a dia.

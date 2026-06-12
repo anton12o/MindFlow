@@ -20,19 +20,24 @@ Anytype (sistema de tipos de objeto), Roam Research (backlinks / wikilinks) e An
 ## Como Rodar
 
 ```bash
-# Backend (raiz do projeto)
+# Tudo em um comando (recomendado)
+python start.py
+
+# Ou manualmente:
+# Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 
-# Frontend
+# Terminal 2 — Frontend (apenas dev)
 cd frontend
 npm install
 npm run dev
 ```
 
-Backend: `http://localhost:8000/api` · Frontend: `http://localhost:5173`
-Frontend chama `VITE_API_URL` (fallback `http://localhost:8000/api`).
+- **Produção:** `http://localhost:8000` (backend serve o frontend buildado)
+- **Desenvolvimento:** backend `http://localhost:8000/api` · frontend `http://localhost:5173`
+- Frontend em dev chama `VITE_API_URL` (fallback `http://localhost:8000/api`).
 
 ---
 

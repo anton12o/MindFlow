@@ -1,7 +1,9 @@
 import os
 import logging
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from database import run_migrations, setup_fts
 from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data
 from seed import seed_db
@@ -13,7 +15,7 @@ app = FastAPI(title="MindFlow API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("CORS_ORIGINS", "http://localhost:5173")],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -29,6 +31,10 @@ app.include_router(tipos.router, prefix="/api/tipos", tags=["Tipos"])
 app.include_router(queries.router, prefix="/api/queries", tags=["Queries"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(import_data.router, prefix="/api/import", tags=["Import"])
+
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
 
 @app.on_event("startup")
 def on_startup():

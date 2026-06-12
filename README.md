@@ -48,36 +48,45 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 
 ## 📦 Pré-requisitos
 
-- **Node.js** 18+ e npm
-- **Python** 3.11+
-- **Git**
+- **Python** 3.12+
+- **Node.js** 18+ e npm (apenas para o primeiro build do frontend)
 
-## 🛠️ Instalação
+## 🛠️ Instalação e Execução
 
-### 1. Clone o repositório
+### 1. Clone e entre no repositório
 
 ```bash
 git clone https://github.com/SEU_USUARIO/mindflow.git
 cd mindflow
 ```
 
-### 2. Backend
+### 2. Inicie com um comando
 
 ```bash
+python start.py
+```
+
+O script instala as dependências do backend, builda o frontend (se necessário),
+sobe o servidor em **http://localhost:8000** e abre o navegador automaticamente.
+
+> Após o primeiro build, Node.js não é mais necessário para rodar o app.
+> Para desenvolvimento, continue usando `npm run dev` no frontend.
+
+### Alternativa: iniciar manualmente
+
+```bash
+# Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
 python -m uvicorn main:app --reload --port 8000
-```
 
-### 3. Frontend
-
-```bash
+# Terminal 2 — Frontend (apenas para desenvolvimento)
 cd frontend
 npm install
 npm run dev
 ```
 
-Acesse **http://localhost:5173**.
+Acesse **http://localhost:5173** (dev) ou **http://localhost:8000** (produção).
 
 ---
 
