@@ -1,8 +1,16 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
+import { updateNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/core'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 export default function Consultas() {
   const queryClient = useQueryClient()
@@ -60,7 +68,7 @@ export default function Consultas() {
     })
   }
 
-  interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; [key: string]: unknown }
+  interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; [key: string]: unknown }
   function renderCard(item: CardItem) {
     return (
       <div key={item.id} onClick={() => toggleSelect(item.id)}
@@ -82,6 +90,62 @@ export default function Consultas() {
     )
   }
 
+  // Lista view: dense column with drag-and-drop
+  function SortableItem({ item, index }: { item: CardItem; index: number }) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+    const tipo = tipos?.find(t => t.id === item.tipo_id)
+    const secondaryProp = Object.entries(item).find(([k, v]) => k !== 'id' && k !== 'titulo' && k !== 'status' && k !== 'prioridade' && k !== 'tipo_id' && v)
+    return (
+      <li ref={setNodeRef} style={style} {...attributes} {...listeners}
+        className={`bg-bg-secondary rounded-lg border p-2 cursor-grab transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+        <div className="flex items-center gap-2">
+          <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent">⋮⋮</div>
+          <input type="checkbox" checked={selectedIds.has(item.id)}
+            onChange={() => toggleSelect(item.id)} className="accent-accent" />
+          {tipo && <span className="text-sm">{tipo.icone}</span>}
+          <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
+          {secondaryProp && <span className="text-xs text-text-muted">{secondaryProp[0]}: {String(secondaryProp[1]).slice(0, 30)}</span>}
+          {item.status && (
+            <span className={`text-xs px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
+              {item.status}
+            </span>
+          )}
+          {item.prioridade && <span className="text-xs text-text-muted">{item.prioridade}</span>}
+        </div>
+      </li>
+    )
+  }
+
+  async function handleDragEnd(e: { active: { id: CardItem['id'] }; over: { id: CardItem['id'] } | null }) {
+    if (!e.over || e.active.id === e.over.id) return
+    const activeIndex = result.dados.findIndex(d => d.id === e.active.id)
+    const overIndex = result.dados.findIndex(d => d.id === e.over.id)
+    if (activeIndex === -1 || overIndex === -1) return
+
+    const newDados = [...result.dados]
+    const [moved] = newDados.splice(activeIndex, 1)
+    newDados.splice(overIndex, 0, moved)
+
+    // Update ordem for affected items
+    for (let i = 0; i < newDados.length; i++) {
+      if (newDados[i].ordem !== i) {
+        try {
+          await updateNota(newDados[i].id, { ordem: i })
+        } catch (err) {
+          console.error('[Consultas] ordem update failed:', err)
+        }
+      }
+    }
+
+    // Optimistic update - we'll refetch
+    refetchResult()
+  }
+
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
@@ -98,6 +162,8 @@ export default function Consultas() {
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             <option value="grid">Grid (cards)</option>
             <option value="kanban">Kanban (colunas)</option>
+            <option value="lista">Lista (densa)</option>
+            <option value="galeria">Galeria (cards com imagem)</option>
           </select>
           {newView === 'kanban' && (
             <select value={newGroup} onChange={e => setNewGroup(e.target.value)}
@@ -190,6 +256,69 @@ export default function Consultas() {
                   ))
                 })()}
               </div>
+              )
+            ) : queryAtual.visualizacao === 'lista' ? (
+              resLoad ? (
+                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+              ) : resErr ? (
+                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+              ) : !result?.dados || result.dados.length === 0 ? (
+                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+              ) : (
+                <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}
+                  collisionDetection={sortableKeyboardCoordinates} onDragEnd={handleDragEnd}>
+                  <ul className="divide-y divide-border bg-bg-secondary rounded-xl border border-border max-h-[60vh] overflow-y-auto">
+                    {result.dados.map((item, index) => (
+                      <SortableItem key={item.id} item={item} index={index} />
+                    ))}
+                  </ul>
+                </SortableContext>
+              )
+            ) : queryAtual.visualizacao === 'galeria' ? (
+              resLoad ? (
+                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+              ) : resErr ? (
+                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+              ) : !result?.dados || result.dados.length === 0 ? (
+                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {(result?.dados || []).map(item => {
+                    const tipo = tipos?.find(t => t.id === item.tipo_id)
+                    const coverUrl = item.cover_url
+                    const hasImage = coverUrl && coverUrl.startsWith('http')
+                    return (
+                      <div key={item.id} onClick={() => toggleSelect(item.id)}
+                        className={`group bg-bg-secondary rounded-xl border border-border overflow-hidden transition-all hover:scale-[1.02] hover:shadow-xl ${selectedIds.has(item.id) ? 'border-accent ring-2 ring-accent' : 'border-border'}`}>
+                        <div className="relative aspect-[4/3] bg-gradient-to-br from-accent/20 to-accent/5">
+                          {hasImage ? (
+                            <img src={coverUrl} alt={item.titulo}
+                              className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90"
+                              loading="lazy" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <span className="text-4xl font-bold text-accent/50">{item.titulo.charAt(0).toUpperCase()}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-center gap-2 mb-1">
+                            {tipo && <span className="text-lg">{tipo.icone}</span>}
+                            <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-text-muted">
+                            {item.status && (
+                              <span className={`px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary'}`}>
+                                {item.status}
+                              </span>
+                            )}
+                            {item.prioridade && <span>{item.prioridade}</span>}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

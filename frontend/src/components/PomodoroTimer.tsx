@@ -34,7 +34,8 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     resumo, setResumo,
     mostrarResumo, setMostrarResumo,
     config, setConfig,
-    fase, cicloAtual,
+    fase, setFase, cicloAtual, setCicloAtual,
+    advancePhase, resetTimer,
   } = usePomodoroContext()
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
   const timeRef = useRef({ minutos, segundos })
@@ -107,6 +108,8 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     }
   }
 
+  const [showPhaseTransition, setShowPhaseTransition] = useState<{ type: 'foco_end' | 'pausa_end' } | null>(null)
+
   useEffect(() => {
     if (!ativo) return
     interval.current = setInterval(() => {
@@ -119,12 +122,17 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       } else {
         clearInterval(interval.current)
         setAtivo(false)
-        setMostrarResumo(true)
         playBeep()
+        // Phase transition logic
+        if (fase === 'foco') {
+          setShowPhaseTransition({ type: 'foco_end' })
+        } else {
+          setShowPhaseTransition({ type: 'pausa_end' })
+        }
       }
     }, 1000)
     return () => clearInterval(interval.current)
-  }, [ativo, sessaoId])
+  }, [ativo, sessaoId, fase])
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
 
@@ -263,9 +271,77 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         </div>
       )}
 
-      {!ativo && !mostrarResumo && minutos === 0 && segundos === 0 && (
+      {/* Phase transition: Foco ended -> show Resumo + "Iniciar pausa?" */}
+      {showPhaseTransition?.type === 'foco_end' && (
+        <div className="w-full max-w-md mt-2">
+          <textarea
+            value={resumo}
+            onChange={e => setResumo(e.target.value)}
+            placeholder="Registrar resumo da sessão (opcional)..."
+            className="w-full bg-bg-tertiary rounded-lg p-3 text-sm outline-none resize-none h-20 focus:ring-1 focus:ring-accent"
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={() => {
+                handleFinalizar(false)
+                advancePhase()
+                resetTimer()
+                setSessaoId(null)
+                setShowPhaseTransition(null)
+              }}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+            >
+              Pular resumo e iniciar pausa
+            </button>
+            <button
+              onClick={() => {
+                handleFinalizar(true)
+                advancePhase()
+                resetTimer()
+                setSessaoId(null)
+                setShowPhaseTransition(null)
+              }}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+            >
+              Salvar resumo e iniciar pausa
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Phase transition: Pausa ended -> "Iniciar próximo foco?" */}
+      {showPhaseTransition?.type === 'pausa_end' && (
+        <div className="w-full max-w-md mt-2 text-center">
+          <p className="text-sm text-text-secondary mb-3">Pausa finalizada. Iniciar próximo foco?</p>
+          <div className="flex gap-2 justify-center">
+            <button
+              onClick={() => {
+                advancePhase()
+                resetTimer()
+                setShowPhaseTransition(null)
+              }}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+            >
+              Não, obrigado
+            </button>
+            <button
+              onClick={() => {
+                advancePhase()
+                resetTimer()
+                setShowPhaseTransition(null)
+                toggle()
+              }}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+            >
+              Sim, iniciar foco
+            </button>
+          </div>
+        </div>
+      )}
+
+      {!ativo && !mostrarResumo && !showPhaseTransition && minutos === 0 && segundos === 0 && (
         <button
-          onClick={() => { setMinutos(25); setSegundos(0); setResumo(''); setSessaoId(null) }}
+          onClick={() => { setMinutos(config.focoMin); setSegundos(0); setResumo(''); setSessaoId(null); setFase('foco'); setCicloAtual(0) }}
           className="text-sm text-accent hover:underline"
         >
           Novo Pomodoro

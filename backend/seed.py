@@ -18,13 +18,35 @@ TEMPLATES_PADRAO = [
      "conteudo": "# {{titulo}}\n\n**Objetivo:**\n\n**Status:** ✅\n\n**Checklist:**\n- [ ] \n\n**Notas:**"},
 ]
 
-TIPOS_PADRAO = [
-    TipoObjeto(nome="Nota", icone="📄"),
-    TipoObjeto(nome="Tarefa", icone="✅"),
-    TipoObjeto(nome="Projeto", icone="📋"),
-    TipoObjeto(nome="Pessoa", icone="👤"),
-    TipoObjeto(nome="Recurso", icone="🔗"),
-]
+SCHEMA_CAMPOS_PADRAO = {
+    "Tarefa": {
+        "status": {"type": "select", "options": ["pendente", "fazendo", "feito"]},
+        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa"]},
+        "vencimento": {"type": "date"},
+        "estimativa": {"type": "number"},
+    },
+    "Nota": {
+        "autor": {"type": "text"},
+        "fonte": {"type": "url"},
+        "lido_em": {"type": "date"},
+    },
+    "Ideia": {
+        "status": {"type": "select", "options": ["rascunho", "refinada", "descartada"]},
+        "cover_url": {"type": "text"},
+    },
+    "Livro": {
+        "autor": {"type": "text"},
+        "paginas": {"type": "number"},
+        "status": {"type": "select", "options": ["lendo", "pausado", "concluido"]},
+        "avaliacao": {"type": "number"},
+    },
+    "Projeto": {
+        "status": {"type": "select", "options": ["planejando", "ativo", "concluido", "pausado"]},
+        "data_inicio": {"type": "date"},
+        "data_fim": {"type": "date"},
+        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa"]},
+    },
+}
 
 
 def seed_templates(session: Session):
@@ -39,7 +61,18 @@ def seed_tipos(session: Session):
     existing = session.exec(select(TipoObjeto).limit(1)).first()
     if not existing:
         for t in TIPOS_PADRAO:
-            session.add(TipoObjeto(nome=t.nome, icone=t.icone))
+            schema = SCHEMA_CAMPOS_PADRAO.get(t.nome, {})
+            session.add(TipoObjeto(nome=t.nome, icone=t.icone, schema_campos=schema))
+        session.commit()
+    else:
+        # Atualizar schema_campos dos tipos existentes se vazio
+        tipos = session.exec(select(TipoObjeto)).all()
+        for t in tipos:
+            if not t.schema_campos:
+                schema = SCHEMA_CAMPOS_PADRAO.get(t.nome, {})
+                if schema:
+                    t.schema_campos = schema
+                    session.add(t)
         session.commit()
 
 

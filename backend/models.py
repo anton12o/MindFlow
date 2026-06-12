@@ -213,6 +213,8 @@ class Nota(NotaBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     criado_em: str = Field(default_factory=now)
     atualizado_em: str = Field(default_factory=now)
+    ordem: int = Field(default=0)
+    cover_url: Optional[str] = None
 
 class NotaCreate(NotaBase):
     pass
@@ -221,6 +223,7 @@ class NotaRead(NotaBase):
     id: int
     criado_em: str
     atualizado_em: str
+    cover_url: Optional[str] = None
 
 class NotaUpdate(SQLModel):
     titulo: Optional[str] = None

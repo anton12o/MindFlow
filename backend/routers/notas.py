@@ -5,8 +5,31 @@ from sqlmodel import Session, select, or_, SQLModel
 from sqlalchemy import func
 from sqlalchemy import text
 from database import get_session
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
+
+COVER_URL_REGEX = re.compile(r'!\[.*?\]\((.*?)\)')
+
+def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | None:
+    """Extrai a primeira URL de imagem do markdown. propriedades.cover_url tem precedência."""
+    def is_valid_url(url: str) -> bool:
+        try:
+            parsed = urlparse(url)
+            return bool(parsed.scheme and parsed.netloc)
+        except Exception:
+            return False
+    
+    if propriedades and propriedades.get('cover_url'):
+        url = propriedades['cover_url']
+        if is_valid_url(url):
+            return url
+    matches = COVER_URL_REGEX.findall(conteudo or '')
+    for url in matches:
+        if is_valid_url(url):
+            return url
+    return None
+
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
     Pasta, PastaCreate, PastaRead,
@@ -97,6 +120,7 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
 @router.post("", response_model=NotaRead)
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
     db = Nota(**n.model_dump())
+    db.cover_url = extrair_cover_url(db.conteudo, db.propriedades)
     session.add(db)
     session.flush()
     processar_wikilinks(db.id, db.conteudo, session)
@@ -175,6 +199,9 @@ def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_sess
     data["atualizado_em"] = datetime.now().isoformat()
     for k, v in data.items():
         setattr(db, k, v)
+    # Re-extract cover_url if content or propriedades changed
+    if "conteudo" in data or "propriedades" in data:
+        db.cover_url = extrair_cover_url(db.conteudo, db.propriedades)
     session.add(db)
     session.flush()
     if "conteudo" in data:
