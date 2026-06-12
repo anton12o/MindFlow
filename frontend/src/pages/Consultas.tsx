@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
-import { updateNota } from '../api/notas'
+import { updateNota, createNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
 import {
   SortableContext,
@@ -11,6 +11,114 @@ import {
 } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+
+interface SchemaField {
+  type: 'text' | 'number' | 'date' | 'url' | 'select'
+  options?: string[]
+}
+
+interface FormularioViewProps {
+  query: { tipo_objeto_id: number }
+  tipo: { schema_campos: Record<string, SchemaField> } | undefined
+  onClose: () => void
+  onCreate: () => void
+}
+
+function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps) {
+  const schema = tipo?.schema_campos || {}
+  const [formData, setFormData] = useState<Record<string, string>>({})
+  const [titulo, setTitulo] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!titulo.trim()) return
+    setSaving(true)
+    const payload: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(formData)) {
+      if (!value.trim()) continue
+      const field = schema[key]
+      if (field?.type === 'number') {
+        payload[key] = Number(value)
+      } else {
+        payload[key] = value
+      }
+    }
+    createNota({ titulo, tipo_id: query.tipo_objeto_id, propriedades: payload })
+      .then(() => {
+        onCreate()
+        onClose()
+      })
+      .catch(err => console.error('[Formulario] create failed:', err))
+      .finally(() => setSaving(false))
+  }
+
+  if (!Object.keys(schema).length) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-text-muted">
+        <p className="text-center">Este tipo não tem schema_campos definido.</p>
+        <button onClick={onClose} className="mt-4 px-4 py-2 bg-accent text-white rounded-lg">Fechar</button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-xl mx-auto p-6 bg-bg-secondary rounded-xl border border-border">
+      <h3 className="text-lg font-semibold mb-4">Nova nota — {tipo?.icone} {tipo?.nome}</h3>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="block text-xs text-text-muted mb-1">Título *</label>
+          <input value={titulo} onChange={e => setTitulo(e.target.value)}
+            className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" required />
+        </div>
+        {Object.entries(schema).map(([key, field]) => (
+          <div key={key}>
+            <label className="block text-xs text-text-muted mb-1">{key}</label>
+            {field.type === 'select' && field.options ? (
+              <select
+                value={formData[key] || ''}
+                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+              >
+                <option value="">Selecione...</option>
+                {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+              </select>
+            ) : field.type === 'date' ? (
+              <input type="date"
+                value={formData[key] || ''}
+                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+            ) : field.type === 'number' ? (
+              <input type="number"
+                value={formData[key] || ''}
+                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+            ) : field.type === 'url' ? (
+              <input type="url"
+                value={formData[key] || ''}
+                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="https://..." />
+            ) : (
+              <input type="text"
+                value={formData[key] || ''}
+                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+            )}
+          </div>
+        ))}
+        <div className="flex gap-2 pt-4">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover">
+            Cancelar
+          </button>
+          <button type="submit" disabled={saving || !titulo.trim()}
+            className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50">
+            {saving ? 'Criando...' : `Criar ${tipo?.nome || 'nota'}`}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
 
 export default function Consultas() {
   const queryClient = useQueryClient()
@@ -164,6 +272,7 @@ export default function Consultas() {
             <option value="kanban">Kanban (colunas)</option>
             <option value="lista">Lista (densa)</option>
             <option value="galeria">Galeria (cards com imagem)</option>
+            <option value="formulario">Formulário (criar nota)</option>
           </select>
           {newView === 'kanban' && (
             <select value={newGroup} onChange={e => setNewGroup(e.target.value)}
@@ -320,16 +429,14 @@ export default function Consultas() {
                   })}
                 </div>
               )
+            ) : queryAtual.visualizacao === 'formulario' ? (
+              <FormularioView
+                query={queryAtual}
+                tipo={tipos?.find(t => t.id === queryAtual.tipo_objeto_id)}
+                onClose={() => setSelectedQuery(null)}
+                onCreate={refetchResult}
+              />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {resLoad && <p className="text-text-muted text-sm col-span-full text-center py-8 animate-pulse">Carregando...</p>}
-                {resErr && <p className="text-danger text-sm col-span-full text-center py-8">Erro ao executar consulta</p>}
-                {!resLoad && !resErr && (!result?.dados || result.dados.length === 0) && (
-                  <p className="text-text-muted text-sm col-span-full text-center py-8">Nenhum resultado</p>
-                )}
-                {!resLoad && !resErr && (result?.dados || []).map(renderCard)}
-              </div>
-            )}
           </div>
         ) : (
           <div className="h-full flex items-center justify-center text-text-muted text-sm">
