@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTheme } from '../store/theme'
+import { useTheme, MODE_ICON } from '../store/theme'
 import InboxModal from './InboxModal'
 import { exportAll } from '../api/export'
 
@@ -21,7 +21,7 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
 }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { theme, toggleTheme } = useTheme()
+  const { mode, cycleTheme } = useTheme()
   const [exporting, setExporting] = useState(false)
   const currentPath = location.pathname
 
@@ -72,11 +72,11 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
           {exporting ? '⌛' : '↓'}
         </button>
         <button
-          onClick={toggleTheme}
+          onClick={cycleTheme}
           className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
-          title={`Tema ${theme === 'dark' ? 'claro' : 'escuro'}`}
+          title={`Tema: ${mode === 'dark' ? 'escuro' : mode === 'light' ? 'claro' : 'sistema'}`}
         >
-          {theme === 'dark' ? '☀' : '☾'}
+          {MODE_ICON[mode]}
         </button>
         <button
           onClick={onToggleInbox}

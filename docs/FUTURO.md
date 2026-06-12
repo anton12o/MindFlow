@@ -126,7 +126,7 @@
 ## 🟢 Baixa Prioridade — Ideias gerais, sem refinamento
 
 ### Notificações nativas (navegador) para Pomodoro
-**Status:** ⏳ Planejado
+**Status:** 🟡 Movido para Média Prioridade
 **Origem:** CONTEXT.md — Próximos Passos (Item 3)
 
 **Descrição:** Usar Notification API do navegador para alertar quando o timer do Pomodoro chegar a zero, mesmo com a aba em segundo plano.
@@ -151,11 +151,88 @@
 
 ---
 
+### Tema "Sistema" automático (☀/🌙/💻)
+**Status:** ✅ Implementado (Jun/2026) — v1.0.1
+**Origem:** Revisão de performance/UX
+
+**Descrição:** Terceira opção no toggle que segue `prefers-color-scheme` do sistema operacional, com listener `matchMedia('change')` para atualizar em tempo real.
+
+**Arquivos:** `store/theme.tsx`, `Sidebar.tsx`
+
+---
+
+### PRAGMA mmap_size + CORS restrito + índice composto
+**Status:** ✅ Implementado (Jun/2026) — v1.0.1
+**Origem:** Revisão de performance/segurança
+
+**Descrição:**
+- `PRAGMA mmap_size=268435456` — acelera leitura em bases maiores
+- CORS restrito a `localhost:5173`, `127.0.0.1:5173`, `localhost:8000`
+- Índice composto `registros_habito(habito_id, data)` — acelera check-ins e streaks
+
+**Arquivos:** `database.py`, `main.py`, migration `fac6c867ba98`
+
+---
+
+### Autocomplete de wikilinks no editor
+**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Origem:** Revisão UX
+
+**Descrição:** Ao digitar `[[`, o editor mostra dropdown com títulos de notas existentes. CM6 tem suporte nativo a autocomplete.
+
+**Arquivos:** `EditorMarkdown.tsx`
+
+---
+
+### Export Markdown (nota = .md + frontmatter YAML)
+**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Origem:** Revisão portabilidade
+
+**Descrição:** Uma nota = um `.md` com frontmatter YAML para propriedades. Download como zip contendo todas as notas.
+
+---
+
+### Journaling diário automático
+**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Origem:** Revisão produtividade
+
+**Descrição:** Template "Diário" aplicado automaticamente ao abrir o Dashboard se não houver nota na data de hoje.
+
+**Arquivos:** `Dashboard.tsx`, templates existentes
+
+---
+
+### GET /api/stats/usage (diário de bordo)
+**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Origem:** Provocação de arquitetura
+
+**Descrição:** Endpoint que agrega: dias ativos nos últimos 30 dias, média de notas/dia, total de pomodoros, streak atual. Alimenta Dashboard e Revisão Semanal.
+
+---
+
+### Revisão Semanal
+**Status:** 🟡 Planejado
+**Origem:** Revisão produtividade
+
+**Descrição:** Página de agregação: taxa de conclusão de hábitos, tarefas concluídas, minutos de foco, notas criadas, prompt reflexivo.
+
+**Dependências:** `GET /api/stats/usage`
+
+---
+
+### Histórico de versões de notas
+**Status:** 🟡 Planejado
+**Origem:** Revisão robustez
+
+**Descrição:** Tabela `versoes_nota` com diff simples + botão "Restaurar". Backend é trivial (~3h). UI de navegação dobra o esforço (~5h).
+
+---
+
 ### App desktop (Tauri ou Electron)
 **Status:** ⏳ Planejado
 **Origem:** CONTEXT.md — Próximos Passos (Item 5)
 
-**Descrição:** Empacotar MindFlow como aplicativo desktop nativo com Tauri (recomendado) ou Electron.
+**Descrição:** Empacotar MindFlow como aplicativo desktop nativo. Tauri é a escolha certa mas o backend Python complica — opções: PyO3, Python embedded, ou reescrita em Rust. **Não fazer agora** — PWA já cumpre o papel.
 
 ---
 
@@ -208,3 +285,47 @@
 - `start.py` — capturar fechamento do terminal
 
 **Dependências:** Nenhuma.
+
+---
+
+## 🔮 Requer Refinamento — Ideias que precisam de spec antes de codar
+
+### Criptografia local (sqlcipher / campo a campo)
+**Status:** ⏳ Ideia
+**Descrição:** Oferecer criptografia transparente via sqlcipher ou criptografia campo a campo com senha mestra. Trade-off real com FTS5 (busca não funciona em texto cifrado). Senha perdida = dados perdidos.
+
+### API de plugins / extensões locais
+**Status:** ⏳ Ideia
+**Descrição:** Hooks para extensões Python numa pasta `extensions/` que adicionam endpoints ou automatizam tarefas. Requer definição de interface, isolamento, permissões.
+
+### Múltiplos workspaces
+**Status:** ⏳ Ideia
+**Descrição:** Permitir criar/alternar workspaces (ex: "Pessoal", "Trabalho"). Cada workspace = um `.db` separado. Exige refatoração do `database.py` (engine singleton).
+
+### Preview de nota ao hover
+**Status:** ⏳ Ideia
+**Descrição:** Tooltip com conteúdo resumido da nota ao pairar em wikilinks. Tecnicamente simples, mas precisa definir gatilho e quantidade de conteúdo.
+
+### Sincronização multi-aba
+**Status:** ⏳ Ideia
+**Descrição:** Timer e tema sincronizam via `BroadcastChannel` entre abas. Precisa definir comportamento: sincronizar display ou estado completo?
+
+### Bundle splitting (CodeMirror + d3-force)
+**Status:** ⏳ Ideia
+**Descrição:** Separar CodeMirror e d3-force em chunks independentes via `manualChunks` do Vite. Ganho pequeno (~200kB só na página Ideias) pra 30min de configuração.
+
+### Suporte mobile refinado
+**Status:** ⏳ Ideia
+**Descrição:** Gestos de swipe, navegação inferior, editor adaptado para touch. Exigiria redesign significativo.
+
+### i18n (múltiplos idiomas)
+**Status:** ⏳ Ideia
+**Descrição:** Internacionalizar interface. Não urgente — fazer só se houver demanda.
+  
+### Rate-limit nos endpoints
+**Status:** ⏳ Ideia
+**Descrição:** Middleware slowapi para FastAPI. Sem autenticação, qualquer processo local pode bombardear o backend. Overengineering para o contexto atual.
+
+### Sanitização Markdown renderizado
+**Status:** ⏳ Ideia
+**Descrição:** Se futuro renderizador HTML for adicionado, usar DOMPurify. Hoje o conteúdo é texto puro — não vulnerável.
