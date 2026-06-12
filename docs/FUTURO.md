@@ -13,7 +13,7 @@
 ## 🔴 Alta Prioridade — Refinados, prontos para execução
 
 ### Timer personalizado (Pomodoro)
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão do usuário (Item 2)
 
 **Descrição:** Permitir que o usuário configure os tempos do Pomodoro antes de iniciar: duração do foco (padrão 25min), pausa curta (padrão 5min) e pausa longa (padrão 15min). As configurações ficam salvas no `localStorage`.
@@ -26,6 +26,8 @@
 **Dependências:** Nenhuma.
 
 **Observações:** O timer atual não tem conceito de "pausa" — apenas foco. Será necessário adicionar ciclo foco → pausa curta → foco → pausa longa.
+
+**Implementado:** Módulo 1 (Context + config), Módulo 2 (UI configuração), Módulo 3 (Ciclo automático)
 
 ---
 
@@ -63,7 +65,7 @@
 ## 🟡 Média Prioridade — Discutidos, precisam de refinamento
 
 ### 5 novas views nas Consultas
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão do usuário (Item 4)
 
 **Descrição:** Adicionar 5 novos modos de visualização às Consultas além de Grid e Kanban.
@@ -84,6 +86,8 @@
 **Dependências:** Definir estrutura do `schema_campos` (convenção de tipos, opções, obrigatoriedade). Preencher seed data.
 
 **Observações:** Feature de maior porte. Recomendado implementar view por view. Formulário depende de definição do schema.
+
+**Implementado:** Lista (Módulo 1), Galeria (Módulo 2), Formulário (Módulo 3), Calendário (Módulo 4), Gantt (Módulo 5)
 
 ---
 
@@ -106,7 +110,7 @@
 ---
 
 ### Arrastar blocos de tempo no calendário semanal
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** CONTEXT.md — Próximos Passos (Item 2)
 
 **Descrição:** Permitir arrastar blocos de horário no CalendarioSemanal para alterar hora_inicio/hora_fim. Drag-and-drop visual com feedback em tempo real.
@@ -130,10 +134,20 @@
 ---
 
 ### PWA (Service Worker + Manifest)
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** CONTEXT.md — Próximos Passos (Item 4)
 
 **Descrição:** Adicionar service worker e manifest para permitir instalação como aplicativo no sistema operacional.
+
+**Arquivos envolvidos:**
+- `frontend/public/manifest.json` — name, icons, shortcuts, theme_color
+- `frontend/public/sw.js` — cache-first assets estáticos, network-only `/api/`
+- `frontend/public/icon-192.svg`, `icon-512.svg` — ícones "MF" gradiente escuro
+- `frontend/vite.config.ts` — hash nos assets, `publicDir: 'public'`
+- `frontend/index.html` — `<link rel="manifest">` + theme-color
+- `frontend/src/main.tsx` — registro SW com error handling
+
+**Implementado:** Manifest + Service Worker + Vite config + Ícones + Registro SW
 
 ---
 

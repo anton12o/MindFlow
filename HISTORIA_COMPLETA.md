@@ -752,13 +752,74 @@ Os bugs 25, 26 e 27 foram adiados por serem de melhoria UX, não funcionais:
 
 ---
 
-## 11. Próximos Passos
+## 11. Módulos 14-19: Features Implementadas
+
+### Módulo 14: Tags com cores + filtro combinado
+
+**Antes:** Tags existiam no banco com campo `cor` mas eram ignoradas no frontend. Sem filtro por tags.
+
+**Depois:**
+- Backend: `PATCH /tags/{id}` (editar nome/cor), `GET /notas?tag_ids=1,2,3` (filtro AND), `GET /notas/{id}/tags`, `DELETE /notas/{id}/tags/{tag_id}`
+- Frontend: chips coloridos na sidebar e nota (bg da cor + texto auto contraste), color picker (12 presets + hex livre), filtro multi-select na sidebar com badge + limpar, `useDebounce(300ms)`
+
+### Módulo 15: Timer personalizado Pomodoro
+
+**Antes:** Timer fixo 25min, sem pausas, sem configuração.
+
+**Depois:**
+- Context: `config {focoMin, pausaCurtaMin, pausaLongaMin, ciclosAtePausaLonga}`, `cicloAtual`, `fase` — persistido em `localStorage`
+- UI: Seção colapsável com 4 inputs numéricos (1-120min), "Restaurar padrão", desabilitado se timer ativo, save debounce 500ms
+- Ciclo automático: Foco → Pausa curta → Foco → Pausa longa (a cada N ciclos), botões "Iniciar pausa?" / "Iniciar próximo foco?" (não automático), pausas não criam sessão backend
+
+### Módulo 16: Consultas — Views Lista, Galeria, Formulário
+
+**Antes:** Apenas Grid e Kanban.
+
+**Depois:**
+- **Lista:** Renderizador denso + drag-and-drop vertical (@dnd-kit) → `ordem` persistido
+- **Galeria:** `cover_url` extraído do markdown (regex) ou propriedades, grid responsivo, hover scale
+- **Formulário:** Gerador dinâmico baseado em `schema_campos` (text/number/date/url/select) → cria nota com propriedades
+- **Pré-requisito:** Migration + seed `schema_campos` (Tarefa, Nota, Ideia, Livro, Projeto) + campo `ordem` em Nota
+
+### Módulo 17: Consultas — Calendário e Gantt
+
+**Antes:** Não existiam.
+
+**Depois:**
+- **Calendário:** Matriz 7×5/6, navegação mensal, `?mes=YYYY-MM` filtra por `campo_agrupamento` (date), drag-and-drop entre dias → atualiza propriedade
+- **Gantt:** Barras horizontais, escala Dia/Semana/Mês, virtualização Y (@tanstack/react-virtual), limite hard 100 itens, drag barra (move ambas datas) + resize bordas (move individual), `total` no response
+- Backend: `?mes=` e `?gantt=true` no `/executar`, valida `campo_agrupamento` date, limite 100 + `total`
+
+### Módulo 18: CalendarioSemanal drag-and-drop (Rotina)
+
+**Antes:** Blocos estáticos, sem interação.
+
+**Depois:**
+- @dnd-kit: arrastar bloco entre células (dia × hora 30min) → `PATCH /rotina/blocos/{id}` com nova `hora_inicio`/`hora_fim` (duração preservada)
+- Validações: mínimo 30min, célula ocupada = não solta
+- Recorrentes: ConfirmModal "Só este dia (data_especifica) ou todos?"
+- Optimistic update + rollback se erro
+
+### Módulo 19: PWA (Progressive Web App)
+
+**Antes:** Não instalável, sem offline.
+
+**Depois:**
+- **Manifest:** `manifest.json` (name, icons, shortcuts Inbox/Pomodoro, theme_color)
+- **Service Worker:** `sw.js` — cache-first assets estáticos, **network-only `/api/`**, activate limpa caches antigos
+- **Vite:** Hash nos assets (`[name]-[hash]`) para cache busting, `publicDir: 'public'` copia `sw.js`
+- **Main:** Registro SW com error handling
+- **Ícones:** `icon-192.svg`, `icon-512.svg` (gradiente tema escuro + "MF")
+
+---
+
+## 12. Próximos Passos
 
 As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.
 
 ---
 
-## 12. Filosofia do Projeto
+## 13. Filosofia do Projeto
 
 MindFlow segue alguns princípios fundamentais:
 
@@ -773,4 +834,4 @@ MindFlow segue alguns princípios fundamentais:
 ---
 
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: 11 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0).*
+*Última atualização: 12 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA).*
