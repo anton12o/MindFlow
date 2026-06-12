@@ -107,7 +107,7 @@ mindflow/
 │       ├── store/theme.ts    # Context de tema com persistência localStorage
 │       ├── store/pomodoro.tsx # Context global do timer Pomodoro (minutos, segundos, ativo, sessaoId, resumo, mostrarResumo)
 │       ├── api/
-│       │   ├── client.ts     # fetch com AbortController, timeout 10s, inflight abort (cancela requests anteriores para mesma rota)
+│   │   ├── client.ts     # fetch com AbortController, timeout 10s, merge com signal do React Query
 │       │   ├── inbox.ts, habitos.ts, rotina.ts, pomodoro.ts
 │       │   ├── notas.ts, flashcards.ts, tipos.ts, queries.ts
 │   │   ├── conexoes.ts, grafo.ts, templates.ts
@@ -169,6 +169,7 @@ mindflow/
 ### Inbox (`/api/inbox`)
 - `GET /` — listar (opcional: `?arquivado=true`)
 - `POST /` — criar item
+- `PATCH /{id}` — editar item (conteudo, tipo_destino, destino_id, arquivado)
 - `DELETE /{id}` — remover item
 
 ### Hábitos (`/api/habitos`)
@@ -204,6 +205,8 @@ mindflow/
 - `GET /grafo` — dados do grafo (nodes + links)
 - `GET /templates` — listar templates
 - `POST /templates` — criar template
+- `DELETE /tags/{id}` — remover tag (+ limpar NotaTag)
+- `DELETE /pastas/{id}` — remover pasta (+ nulificar pasta_id nas notas)
 - `POST /templates/{id}/aplicar` — aplicar (+ processar wikilinks)
 - `GET /estatisticas` — heatmap (`?mes=&ano=`)
 - `GET /{id}` — obter nota
@@ -217,7 +220,7 @@ mindflow/
 - `GET /` — listar todos
 - `GET /review` — cards pendentes para revisão
 - `POST /` — criar
-- `POST /{id}/review` — revisar (qualidade 1-5, SM-2)
+- `POST /{id}/review` — revisar (body: `{"qualidade": 0-5}`, SM-2)
 - `PATCH /{id}` — editar
 - `DELETE /{id}` — remover
 
@@ -237,7 +240,9 @@ mindflow/
 - `PATCH /{id}/batch` — edição em lote
 
 ### Export (`/api/export`)
-- `GET /` — exportar todas as 15 tabelas como JSON + metadados
+- `GET /` — exportar até 5000 registros por tabela como JSON + metadados
+  - Resposta inclui `truncated: bool` indicando se alguma tabela excedeu o limite
+  - Retorna 15 tabelas + `exportado_em` + `versao`
 
 ### Import (`/api/import`)
 - `POST /` — importar JSON via `UploadFile` (multipart/form-data)
@@ -300,6 +305,75 @@ mindflow/
 - **Antes:** Schema gerenciado manualmente, SQLite sem PRAGMA foreign_keys
 - **Depois:** Alembic com autogenerate, migrations em `migrations/versions/`, `env.py` exclui `notas_fts` do autogenerate, `database.py` + `env.py` configuram `PRAGMA foreign_keys = ON`, startup executa `alembic upgrade head` automaticamente
 
+### Módulo 12: Sessão de Correção — 55 Issues (3 lotes)
+Auditoria completa do código (~50 issues) seguida de 3 lotes de correções + inflight abort + TDZ.
+
+**🔴 Lote 1 — Bloqueantes (10):**
+- `delete_nota`: limpa NotaTag, nulifica Flashcard.nota_id e SessaoPomodoro.resumo_nota_id
+- `delete_tipo`: retorna 409 se dependências existem
+- `delete_bloco`: nulifica Tarefa.bloco_id antes de deletar
+- FTS5 MATCH com try/except em notas.py + queries.py
+- Import: `.get()` em vez de `[]` nos dicts, 422 se chave faltando
+- Ideias: lê `?nota_id` dos searchParams para auto-selecionar nota
+- Consultas: ConfirmModal ao deletar query
+- PomodoroTimer: `createSessao()` antes de `setAtivo(true)` — evita sessão órfã
+- Dashboard: `calcStreak()` usa `formatDateLocal()` em vez de `toISOString()`
+- App.tsx: export no Ctrl+K envolto em try/catch
+
+**🛠️ Inflight + TDZ (2):**
+- `client.ts`: mapa inflight removido — causava race conditions em múltiplas páginas
+- `Ideias.tsx`: useEffect movido para depois do useQuery (TDZ: Cannot access 'notas' before initialization)
+
+**🟡 Lote 2 — Robustez (11):**
+- Rotina: weekday filter com LIKE `%,{n},%` evita substring match (ex: "1" casando "10")
+- `TarefaUpdate`/`BlocoRotinaUpdate`: campos faltantes adicionados
+- Export: `LIMITE_EXPORT = 5000` por tabela
+- Grafo: notas limit 500, conexões 2000
+- Estatísticas: streak limitada a 365 dias
+- Startup: `seed_db()` com try/except
+- CalendarioSemanal/TemplateModal: loading/error states
+- Habitos: ignore flag no useEffect (cleanup)
+- ImportModal/InboxModal: `useRef(onClose)` para evitar stale closure
+
+**🔴 Lote 3 — Polish (10):**
+- FTS5: `logger.warning()` em vez de silenciar
+- Import: `except Exception: pass` → `logger.warning`
+- `DELETE /tags/{id}` e `DELETE /pastas/{id}` endpoints
+- `PATCH /inbox/{id}` + `InboxItemUpdate`
+- `client.ts`: merge do signal do React Query (permite cancelamento no unmount)
+- GrafoNotas: loading/error/empty states separados
+- Consultas: stale closure no delete — `onSuccess` usa ID da mutation
+- Ideias: guard `if (!id) return` nos 3 `selectedIdRef.current!`
+- PomodoroTimer: `isCreating` ref previne duplo clique
+- ImportModal: `onSuccessRef` evita stale closure
+
+**🟡 Lote 4 — Polish Médio (13):**
+- `HabitoUpdate`: campos `ativo` e `unidade` adicionados
+- `Tag.nome`: `unique=True` (brecha de dados duplicados)
+- Rotina: data inválida retorna 422 em vez de 200 `[]`
+- Export: `truncated: bool` no response — usuário sabe se backup está completo
+- Wikilinks: tenta match exato (`==`) primeiro, `ilike` só como fallback
+- Notas: `startswith(data)` → range query `>= data AND < data~` (evita wildcard leak)
+- InboxModal: loading/error/empty states no carregamento
+- Consultas kanban: loading/error/empty states
+- TemplateModal: suporte a Escape
+- Tipos: "Novo tipo" escondido durante edição (evita criação duplicada)
+- Dashboard + PomodoroTimer: `isPending` guard nos botões
+- Habitos: valida nome vazio no `handleSaveEdit`
+- Pomodoro: histórico com loading/error/empty states
+
+**🟢 Lote 5 — Polish Baixo (10):**
+- Flashcards: `Field(ge=0, le=5)` valida qualidade (substitui `max(0, min(5, ...))`)
+- FTS5: rebuild só se tabela vazia (evita trabalho desnecessário no startup)
+- Tipos: remove `or_` não usado
+- Template aplicação: `propriedades=None` → `{}`
+- Flashcards: `timedelta(days=intervalo)` sem branch desnecessário
+- Habitos: `setTimeout` com cleanup no unmount
+- Consultas: `item: any` → `CardItem` interface
+- Sidebar/ImportModal: loading state no export/import
+- CommandPalette: `role="listbox"`, `aria-activedescendant`
+- ImportModal: `onSuccessRef` no `handleResultClose`
+
 ---
 
 ## Estado Atual (Build)
@@ -314,6 +388,24 @@ cd frontend && npm run build
 cd backend && python -c "from main import app; print('OK')"
 # OK — todos os imports, routers, e FTS5 setup funcionam
 ```
+
+### Resumo das Correções (55 no total)
+
+| Lote | Itens | Foco |
+|------|-------|------|
+| Lote 1 🔴 | 10 | Integridade FK, FTS5 exception-safe, validação de import |
+| Inflight + TDZ 🛠️ | 2 | Race condition client.ts + TDZ Ideias.tsx |
+| Lote 2 🟡 | 11 | Robustez: limites, estados loading/error, cleanup |
+| Lote 3 🔴 | 10 | Polish: logging, novos endpoints, signal merge |
+| Lote 4 🟡 | 13 | Input validation, wildcard leak, loading states |
+| Lote 5 🟢 | 10 | Baixa prioridade: Pydantic, acessibilidade, dead code |
+
+**Status:** Backend OK · Frontend 0 erros TypeScript
+
+### Bugs Pendentes (UX de notas — baixa prioridade)
+- **Bug 25:** UX de notas — melhorar feedback visual ao criar/editar notas
+- **Bug 26:** UX de notas — indicador de salvamento automático
+- **Bug 27:** UX de notas — confirmação ao sair com alterações não salvas
 
 ---
 
@@ -332,10 +424,6 @@ cd backend && python -c "from main import app; print('OK')"
 
 ---
 
-## Próximos Passos (sugeridos)
+## Próximos Passos
 
-1. Tags por cores + filtro combinado
-2. Arrastar blocos de tempo no calendário semanal
-3. Notificações nativas (navegador) para pomodoro
-4. PWA (service worker + manifest)
-5. App desktop com Tauri ou Electron
+As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.

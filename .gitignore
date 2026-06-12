@@ -6,3 +6,8 @@ __pycache__/
 *.db
 .env
 .vite/
+
+# Resíduos de script externo
+generate-spec.js
+/package.json
+/package-lock.json

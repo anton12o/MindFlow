@@ -12,3 +12,8 @@ export const finalizarSessao = (id: number, params: { conteudo_resumo?: string; 
     method: 'PATCH',
     body: JSON.stringify(params),
   })
+
+export const deleteSessoes = (antesDe?: string) => {
+  const params = antesDe ? `?antes_de=${encodeURIComponent(antesDe)}` : ''
+  return request<{ deletadas: number }>(`/pomodoro/sessoes${params}`, { method: 'DELETE' })
+}

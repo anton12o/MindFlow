@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select, or_
+from sqlmodel import Session, select
 from database import get_session
 from models import TipoObjeto, TipoObjetoCreate, TipoObjetoRead, TipoObjetoUpdate, Nota, Tarefa, QuerySalva
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
@@ -7,16 +7,17 @@ import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import ImportModal from './components/ImportModal'
-import Dashboard from './pages/Dashboard'
-import Rotina from './pages/Rotina'
-import Habitos from './pages/Habitos'
-import PomodoroPage from './pages/Pomodoro'
-import Ideias from './pages/Ideias'
-import Flashcards from './pages/Flashcards'
-import Tipos from './pages/Tipos'
-import Consultas from './pages/Consultas'
-import Insights from './pages/Insights'
 import { exportAll } from './api/export'
+
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Rotina = lazy(() => import('./pages/Rotina'))
+const Habitos = lazy(() => import('./pages/Habitos'))
+const PomodoroPage = lazy(() => import('./pages/Pomodoro'))
+const Ideias = lazy(() => import('./pages/Ideias'))
+const Flashcards = lazy(() => import('./pages/Flashcards'))
+const Tipos = lazy(() => import('./pages/Tipos'))
+const Consultas = lazy(() => import('./pages/Consultas'))
+const Insights = lazy(() => import('./pages/Insights'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -98,19 +99,21 @@ function Layout() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} onOpenImport={() => setImportOpen(true)} />
       <main className="flex-1 overflow-y-auto">
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/rotina" element={<Rotina />} />
-          <Route path="/habitos" element={<Habitos />} />
-          <Route path="/pomodoro" element={<PomodoroPage />} />
-          <Route path="/ideias" element={<Ideias />} />
-          <Route path="/flashcards" element={<Flashcards />} />
-          <Route path="/tipos" element={<Tipos />} />
-          <Route path="/consultas" element={<Consultas />} />
-          <Route path="/analise" element={<Insights />} />
-          <Route path="/insights" element={<Navigate to="/analise" replace />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+          <Suspense fallback={<div className="flex items-center justify-center h-full text-text-muted text-sm animate-pulse">Carregando...</div>}>
+            <Routes>
+              <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
+              <Route path="/rotina" element={<ErrorBoundary><Rotina /></ErrorBoundary>} />
+              <Route path="/habitos" element={<ErrorBoundary><Habitos /></ErrorBoundary>} />
+              <Route path="/pomodoro" element={<ErrorBoundary><PomodoroPage /></ErrorBoundary>} />
+              <Route path="/ideias" element={<ErrorBoundary><Ideias /></ErrorBoundary>} />
+              <Route path="/flashcards" element={<ErrorBoundary><Flashcards /></ErrorBoundary>} />
+              <Route path="/tipos" element={<ErrorBoundary><Tipos /></ErrorBoundary>} />
+              <Route path="/consultas" element={<ErrorBoundary><Consultas /></ErrorBoundary>} />
+              <Route path="/analise" element={<ErrorBoundary><Insights /></ErrorBoundary>} />
+              <Route path="/insights" element={<Navigate to="/analise" replace />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </Suspense>
       </main>
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSuccess={handleImportSuccess} />}
       {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}

@@ -1,8 +1,11 @@
 import re
+import logging
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, SQLModel
 from sqlalchemy import text
 from database import get_session
+
+logger = logging.getLogger(__name__)
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
     Pasta, PastaCreate, PastaRead,
@@ -62,16 +65,17 @@ def list_notas(q: str | None = None, data: str | None = None, session: Session =
                     {"q": fts_query},
                 ).all()
             ]
-        except Exception:
+        except Exception as e:
+            logger.warning("FTS5 query falhou (fallback para vazio): %s", e)
             ids = []
         notas_map = {n.id: n for n in session.exec(select(Nota).where(Nota.id.in_(ids))).all()}
         notas = [notas_map[i] for i in ids if i in notas_map]
         if data:
-            notas = [n for n in notas if n.criado_em.startswith(data)]
+            notas = [n for n in notas if n.criado_em >= data and n.criado_em < data + "~"]
         return notas
     stmt = select(Nota)
     if data:
-        stmt = stmt.where(Nota.criado_em.startswith(data))
+        stmt = stmt.where(Nota.criado_em >= data, Nota.criado_em < data + "~")
     return session.exec(stmt.order_by(Nota.atualizado_em.desc())).all()
 
 @router.post("", response_model=NotaRead)
@@ -87,8 +91,13 @@ def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
 # Rotas com caminho fixo — devem vir ANTES de /{nota_id} para evitar conflito
 @router.get("/grafo")
 def get_grafo(session: Session = Depends(get_session)):
-    notas = session.exec(select(Nota)).all()
-    conexoes = session.exec(select(ConexaoNota)).all()
+    notas = session.exec(select(Nota).limit(500)).all()
+    ids = {n.id for n in notas}
+    conexoes = session.exec(
+        select(ConexaoNota).where(
+            or_(ConexaoNota.nota_origem_id.in_(ids), ConexaoNota.nota_destino_id.in_(ids))
+        ).limit(2000)
+    ).all()
     tipos = {t.id: t for t in session.exec(select(TipoObjeto)).all()}
     return {
         "nodes": [{"id": n.id, "label": n.titulo, "tipo_id": n.tipo_id, "tipo_nome": tipos[n.tipo_id].nome if n.tipo_id and n.tipo_id in tipos else None} for n in notas],
@@ -114,7 +123,7 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Template não encontrado")
     conteudo = re.sub(r'\{\{data\}\}', date.today().isoformat(), t.conteudo)
     conteudo = re.sub(r'\{\{titulo\}\}', t.nome, conteudo)
-    nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=(t.propriedades.copy() if t.propriedades else None))
+    nota = Nota(titulo=t.nome, conteudo=conteudo, propriedades=t.propriedades.copy() if t.propriedades else {})
     session.add(nota)
     session.flush()
     if conteudo:
@@ -201,6 +210,31 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
     session.commit()
     session.refresh(nova)
     return nova
+
+@router.delete("/tags/{tag_id}")
+def delete_tag(tag_id: int, session: Session = Depends(get_session)):
+    tag = session.get(Tag, tag_id)
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag não encontrada")
+    nts = session.exec(select(NotaTag).where(NotaTag.tag_id == tag_id)).all()
+    for nt in nts:
+        session.delete(nt)
+    session.delete(tag)
+    session.commit()
+    return {"ok": True}
+
+@router.delete("/pastas/{pasta_id}")
+def delete_pasta(pasta_id: int, session: Session = Depends(get_session)):
+    pasta = session.get(Pasta, pasta_id)
+    if not pasta:
+        raise HTTPException(status_code=404, detail="Pasta não encontrada")
+    notas = session.exec(select(Nota).where(Nota.pasta_id == pasta_id)).all()
+    for n in notas:
+        n.pasta_id = None
+        session.add(n)
+    session.delete(pasta)
+    session.commit()
+    return {"ok": True}
 
 @router.post("/{nota_id}/tags/{tag_id}")
 def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):

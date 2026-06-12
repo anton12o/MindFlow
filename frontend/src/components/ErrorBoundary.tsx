@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <div className="h-screen flex items-center justify-center bg-bg-primary text-text-primary">
+        <div className="h-full min-h-[200px] flex items-center justify-center bg-bg-primary text-text-primary">
           <div className="text-center">
             <h1 className="text-xl font-bold mb-2">Algo deu errado</h1>
             <p className="text-sm text-text-muted mb-4">{this.state.error?.message}</p>

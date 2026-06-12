@@ -12,6 +12,10 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const onCloseRef = useRef(onClose)
+  const onSuccessRef = useRef(onSuccess)
+  onCloseRef.current = onClose
+  onSuccessRef.current = onSuccess
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -23,7 +27,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
 
   function handleClose() {
     reset()
-    onClose()
+    onCloseRef.current()
   }
 
   function handleFile(f: File) {
@@ -56,7 +60,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
 
   function handleResultClose() {
     if (resultado?.sucesso) {
-      onSuccess()
+      onSuccessRef.current()
     }
     handleClose()
   }
@@ -124,9 +128,9 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
                 Voltar
               </button>
-              <button onClick={handleImport}
-                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors">
-                Importar
+              <button onClick={handleImport} disabled={isLoading}
+                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50">
+                {isLoading ? 'Importando...' : 'Importar'}
               </button>
             </div>
           </>

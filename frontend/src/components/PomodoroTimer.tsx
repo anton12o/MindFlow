@@ -36,6 +36,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const interval = useRef<ReturnType<typeof setInterval>>(undefined)
   const timeRef = useRef({ minutos, segundos })
   timeRef.current = { minutos, segundos }
+  const isCreating = useRef(false)
   const queryClient = useQueryClient()
 
   const finalizarMut = useMutation({
@@ -73,14 +74,18 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         )
       }
     } else {
+      if (isCreating.current) return
+      isCreating.current = true
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
         contexto_id: contexto?.id || null,
         duracao_min: minutos,
       }).then(s => {
+        isCreating.current = false
         setSessaoId(s.id)
         setAtivo(true)
       }).catch(e => {
+        isCreating.current = false
         console.error('[Pomodoro] criar sessão', e)
       })
     }
@@ -136,18 +141,20 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
                 handleFinalizar(false)
                 setMostrarResumo(false)
               }}
-              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+              disabled={finalizarMut.isPending}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors disabled:opacity-50"
             >
-              Pular
+              {finalizarMut.isPending ? '...' : 'Pular'}
             </button>
             <button
               onClick={() => {
                 handleFinalizar(true)
                 setMostrarResumo(false)
               }}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+              disabled={finalizarMut.isPending}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50"
             >
-              Salvar resumo
+              {finalizarMut.isPending ? '...' : 'Salvar resumo'}
             </button>
           </div>
         </div>

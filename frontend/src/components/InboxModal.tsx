@@ -1,54 +1,58 @@
 import { useState, useEffect, useRef } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getInbox, createInbox, deleteInbox } from '../api/inbox'
 import ConfirmModal from './ConfirmModal'
 import type { InboxItem } from '../types'
 
 export default function InboxModal({ onClose }: { onClose: () => void }) {
+  const queryClient = useQueryClient()
   const [text, setText] = useState('')
   const [destino, setDestino] = useState('')
   const [saved, setSaved] = useState(false)
   const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [items, setItems] = useState<InboxItem[]>([])
   const [confirmDelete, setConfirmDelete] = useState<InboxItem | null>(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
-  const loadItems = () => {
-    getInbox(false).then(setItems).catch(e => console.error('[Inbox] carregar', e))
-  }
+  const { data: items, isLoading, isError } = useQuery({
+    queryKey: ['inbox', false],
+    queryFn: () => getInbox(false),
+  })
 
-  useEffect(() => { loadItems() }, [])
+  const createMut = useMutation({
+    mutationFn: () => createInbox(text.trim(), destino || null),
+    onSuccess: () => {
+      setText('')
+      setDestino('')
+      setSaved(true)
+      savedTimer.current = setTimeout(() => setSaved(false), 2000)
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number) => deleteInbox(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['inbox'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    },
+  })
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+  }, [])
 
   useEffect(() => {
     return () => { if (savedTimer.current) clearTimeout(savedTimer.current) }
   }, [])
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!text.trim()) return
-    try {
-      await createInbox(text.trim(), destino || null)
-      setText('')
-      setDestino('')
-      setSaved(true)
-      savedTimer.current = setTimeout(() => setSaved(false), 2000)
-      loadItems()
-    } catch (e) {
-      console.error('[Inbox] salvar', e)
-    }
-  }
-
-  async function handleDelete(id: number) {
-    try {
-      await deleteInbox(id)
-      setItems(prev => prev.filter(i => i.id !== id))
-    } catch (e) {
-      console.error('[Inbox] deletar', e)
-    }
+    createMut.mutate()
   }
 
   return (
@@ -84,7 +88,15 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
         </form>
-        {items.length > 0 && (
+        {isLoading ? (
+          <div className="flex-1 p-4">
+            <p className="text-sm text-text-muted text-center animate-pulse">Carregando...</p>
+          </div>
+        ) : isError ? (
+          <div className="flex-1 p-4">
+            <p className="text-sm text-danger text-center">Erro ao carregar itens</p>
+          </div>
+        ) : items && items.length > 0 ? (
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             <p className="text-xs text-text-muted uppercase tracking-wider">Pendentes ({items.length})</p>
             {items.map(item => (
@@ -100,6 +112,10 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
+        ) : (
+          <div className="flex-1 p-4">
+            <p className="text-sm text-text-muted text-center">Nenhum item pendente</p>
+          </div>
         )}
 
         {confirmDelete && (
@@ -108,7 +124,7 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             mensagem={`Tem certeza que deseja remover "${confirmDelete.conteudo}"?`}
             destructive
             confirmLabel="Remover"
-            onConfirm={() => { handleDelete(confirmDelete.id); setConfirmDelete(null) }}
+            onConfirm={() => { deleteMut.mutate(confirmDelete.id); setConfirmDelete(null) }}
             onCancel={() => setConfirmDelete(null)}
           />
         )}

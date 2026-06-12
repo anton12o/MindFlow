@@ -11,7 +11,7 @@ export default function Tipos() {
   const [form, setForm] = useState({ nome: '', icone: '📄' })
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
-  const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
+  const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
 
   const createMut = useMutation({
     mutationFn: () => createTipo({ nome: form.nome, icone: form.icone }),
@@ -38,6 +38,7 @@ export default function Tipos() {
     <div className="p-6 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Tipos de Objeto</h1>
 
+      {!editing && (
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Novo tipo</h2>
         <div className="flex items-center gap-2">
@@ -51,6 +52,7 @@ export default function Tipos() {
             className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar</button>
         </div>
       </div>
+      )}
 
       <div className="space-y-2">
         {isLoading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}

@@ -50,13 +50,6 @@ export default function Ideias() {
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
   const [searchParams] = useSearchParams()
-  useEffect(() => {
-    const notaId = searchParams.get('nota_id')
-    if (notaId && notas) {
-      const target = notas.find(n => n.id === Number(notaId))
-      if (target) selectNota(target)
-    }
-  }, [searchParams, notas])
   const searchDebounced = useDebounce(search, 300)
 
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
@@ -64,8 +57,16 @@ export default function Ideias() {
     queryFn: () => getNotas(searchDebounced || undefined),
   })
 
-  const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
-  const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas })
+  const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
+  const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas, staleTime: 300_000 })
+
+  useEffect(() => {
+    const notaId = searchParams.get('nota_id')
+    if (notaId && notas) {
+      const target = notas.find(n => n.id === Number(notaId))
+      if (target) selectNota(target)
+    }
+  }, [searchParams, notas])
 
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
@@ -242,8 +243,10 @@ export default function Ideias() {
                   <>
                     <label className="text-xs text-text-muted">Tipo:</label>
                     <select value={String(notaAtual.tipo_id || '')} onChange={e => {
+                      const id = selectedIdRef.current
+                      if (!id) return
                       const v = e.target.value
-                      updateMut.mutate({ id: selectedIdRef.current!, data: { tipo_id: v ? Number(v) : null } })
+                      updateMut.mutate({ id, data: { tipo_id: v ? Number(v) : null } })
                     }}
                       className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
                       <option value="">Sem tipo</option>
@@ -251,8 +254,10 @@ export default function Ideias() {
                     </select>
                     <label className="text-xs text-text-muted">Pasta:</label>
                     <select value={String(notaAtual.pasta_id || '')} onChange={e => {
+                      const id = selectedIdRef.current
+                      if (!id) return
                       const v = e.target.value
-                      updateMut.mutate({ id: selectedIdRef.current!, data: { pasta_id: v ? Number(v) : null } })
+                      updateMut.mutate({ id, data: { pasta_id: v ? Number(v) : null } })
                     }}
                       className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
                       <option value="">Sem pasta</option>
@@ -298,9 +303,11 @@ export default function Ideias() {
                         className="absolute left-0 bottom-full mb-1 bg-bg-secondary border border-border rounded-xl shadow-2xl py-1 min-w-[200px] z-50">
                         {slashCommands.map(cmd => (
                           <button key={cmd.label} onClick={() => {
+                            const id = selectedIdRef.current
+                            if (!id) return
                             const newContent = conteudo.replace(/\/(\w*)$/, cmd.insert)
                             setConteudo(newContent)
-                            updateMut.mutate({ id: selectedIdRef.current!, data: { conteudo: newContent } })
+                            updateMut.mutate({ id, data: { conteudo: newContent } })
                             setShowSlash(false)
                           }}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2">

@@ -16,7 +16,10 @@ def calcular_estatisticas(mes: int, ano: int, session: Session) -> dict:
         dia = n.criado_em[8:10]
         por_dia[dia] = por_dia.get(dia, 0) + 1
 
-    todas = session.exec(select(Nota.criado_em)).all()
+    limite = (date.today() - timedelta(days=365)).isoformat()
+    todas = session.exec(
+        select(Nota.criado_em).where(Nota.criado_em >= limite)
+    ).all()
     dias_com_nota: set[str] = set()
     for n in todas:
         dias_com_nota.add(n[:10])

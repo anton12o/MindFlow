@@ -76,10 +76,12 @@ export default function Dashboard() {
   })
 
   function handleToggleTarefa(t: Tarefa) {
+    if (toggleTarefaMut.isPending) return
     toggleTarefaMut.mutate({ id: t.id, status: t.status === 'feito' ? 'pendente' : 'feito' })
   }
 
   function handleCheckHabito(id: number) {
+    if (checkHabitoMut.isPending) return
     checkHabitoMut.mutate({ habitoId: id, data: hoje })
   }
 

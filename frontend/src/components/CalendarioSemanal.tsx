@@ -26,6 +26,8 @@ export default function CalendarioSemanal() {
     queries: weekDays.map(d => ({
       queryKey: ['rotina', 'blocos', d.date],
       queryFn: () => getBlocos(d.date),
+      staleTime: 60_000,
+      gcTime: 120_000,
     })),
   })
 
@@ -33,11 +35,25 @@ export default function CalendarioSemanal() {
     queries: weekDays.map(d => ({
       queryKey: ['rotina', 'tarefas', d.date],
       queryFn: () => getTarefas(d.date),
+      staleTime: 60_000,
+      gcTime: 120_000,
     })),
   })
 
+  const blocosLoading = blocosResults.some(r => r.isLoading)
+  const blocosError = blocosResults.some(r => r.isError)
+  const tarefasLoading = tarefasResults.some(r => r.isLoading)
+  const tarefasError = tarefasResults.some(r => r.isError)
+
   const blocosPorDia = weekDays.map((_, i) => blocosResults[i].data || [])
   const tarefasPorDia = weekDays.map((_, i) => tarefasResults[i].data || [])
+
+  if (blocosLoading || tarefasLoading) {
+    return <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando calendário...</p>
+  }
+  if (blocosError || tarefasError) {
+    return <p className="text-sm text-danger py-4 text-center">Erro ao carregar calendário</p>
+  }
 
   function formatShort(d: string) {
     const [, m, day] = d.split('-')

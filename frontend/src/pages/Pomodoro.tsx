@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
-import { getSessoes } from '../api/pomodoro'
+import { getSessoes, deleteSessoes } from '../api/pomodoro'
 import { getHabitos } from '../api/habitos'
 import { getTarefas } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
+import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal } from '../utils/date'
 
 export default function PomodoroPage() {
@@ -20,11 +21,27 @@ export default function PomodoroPage() {
     }
   }, [searchParams])
 
+  const [showCleanup, setShowCleanup] = useState(false)
+  const [cleanupDate, setCleanupDate] = useState('')
+  const [confirmCleanup, setConfirmCleanup] = useState(false)
+
+  const queryClient = useQueryClient()
+
   const hoje = hojeLocal()
 
-  const { data: sessoes } = useQuery({
+  const { data: sessoes, isLoading: sLoad, isError: sErr } = useQuery({
     queryKey: ['pomodoro', 'sessoes'],
     queryFn: getSessoes,
+  })
+
+  const cleanupMut = useMutation({
+    mutationFn: () => deleteSessoes(cleanupDate || undefined),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pomodoro', 'sessoes'] })
+      setShowCleanup(false)
+      setCleanupDate('')
+      setConfirmCleanup(false)
+    },
   })
 
   const { data: habitos, isLoading: hLoad, isError: hErr } = useQuery({
@@ -89,8 +106,15 @@ export default function PomodoroPage() {
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
           Sessões anteriores ({sessoes?.length || 0})
         </h2>
+        {sLoad ? (
+          <p className="text-sm text-text-muted text-center py-4 animate-pulse">Carregando...</p>
+        ) : sErr ? (
+          <p className="text-sm text-danger text-center py-4">Erro ao carregar sessões</p>
+        ) : !sessoes || sessoes.length === 0 ? (
+          <p className="text-sm text-text-muted text-center py-4">Nenhuma sessão registrada</p>
+        ) : (
         <div className="space-y-2">
-          {sessoes?.slice(0, 20).map(s => (
+          {sessoes.slice(0, 20).map(s => (
             <div key={s.id} className="bg-bg-secondary rounded-lg border border-border px-4 py-2 flex items-center justify-between text-sm">
               <div className="flex items-center gap-3">
                 <span>{s.contexto_tipo || 'Livre'} · {s.duracao_min}min</span>
@@ -102,7 +126,45 @@ export default function PomodoroPage() {
             </div>
           ))}
         </div>
+        )}
+        <div className="mt-4 flex items-center justify-between">
+          <button onClick={() => setShowCleanup(p => !p)}
+            className="text-sm text-danger hover:underline">
+            {showCleanup ? 'Cancelar' : 'Limpar histórico'}
+          </button>
+        </div>
+        {showCleanup && (
+          <div className="mt-2 bg-bg-secondary border border-border rounded-lg p-3 animate-fade-in">
+            <label className="block text-xs text-text-muted mb-1">
+              Deletar sessões antes de: <span className="text-text-muted/60">(deixe em branco para TODAS)</span>
+            </label>
+            <input type="date" value={cleanupDate} onChange={e => setCleanupDate(e.target.value)}
+              className="w-full bg-bg-primary rounded px-3 py-1.5 text-sm outline-none mb-3" />
+            <div className="flex justify-end gap-2">
+              <button onClick={() => { setShowCleanup(false); setCleanupDate('') }}
+                className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
+                Cancelar
+              </button>
+              <button onClick={() => setConfirmCleanup(true)}
+                className="px-4 py-1.5 text-sm rounded-lg bg-danger text-white transition-colors hover:bg-danger/80">
+                {cleanupDate ? 'Limpar anteriores' : 'Limpar tudo'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+      {confirmCleanup && (
+        <ConfirmModal
+          titulo="Limpar histórico de sessões"
+          mensagem={cleanupDate
+            ? `Isso vai deletar todas as sessões iniciadas antes de ${cleanupDate}. Esta ação não pode ser desfeita.`
+            : 'Isso vai deletar TODAS as sessões de pomodoro. Esta ação não pode ser desfeita.'}
+          confirmLabel={cleanupDate ? 'Sim, limpar anteriores' : 'Sim, limpar tudo'}
+          destructive
+          onConfirm={() => cleanupMut.mutate()}
+          onCancel={() => setConfirmCleanup(false)}
+        />
+      )}
     </div>
   )
 }

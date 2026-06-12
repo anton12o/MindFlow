@@ -30,8 +30,8 @@ TIPOS_PADRAO = [
 def seed_templates(session: Session):
     existing = session.exec(select(TemplateNota).limit(1)).first()
     if not existing:
-        for t in TEMPLATES_PADRAO:
-            session.add(TemplateNota(**t))
+        for t_data in TEMPLATES_PADRAO:
+            session.add(TemplateNota(**t_data))
         session.commit()
 
 
@@ -39,7 +39,7 @@ def seed_tipos(session: Session):
     existing = session.exec(select(TipoObjeto).limit(1)).first()
     if not existing:
         for t in TIPOS_PADRAO:
-            session.add(t)
+            session.add(TipoObjeto(nome=t.nome, icone=t.icone))
         session.commit()
 
 

@@ -21,6 +21,12 @@ class InboxItem(InboxItemBase, table=True):
 class InboxItemCreate(InboxItemBase):
     pass
 
+class InboxItemUpdate(SQLModel):
+    conteudo: Optional[str] = None
+    tipo_destino: Optional[str] = None
+    destino_id: Optional[int] = None
+    arquivado: Optional[bool] = None
+
 class InboxItemRead(InboxItemBase):
     id: int
     criado_em: str
@@ -50,6 +56,8 @@ class HabitoUpdate(SQLModel):
     meta: Optional[float] = None
     categoria: Optional[str] = None
     cor: Optional[str] = None
+    ativo: Optional[bool] = None
+    unidade: Optional[str] = None
 
 class HabitoRead(HabitoBase):
     id: int
@@ -95,6 +103,9 @@ class BlocoRotinaUpdate(SQLModel):
     hora_inicio: Optional[str] = None
     hora_fim: Optional[str] = None
     cor: Optional[str] = None
+    recorrente: Optional[bool] = None
+    dias_semana: Optional[str] = None
+    data_especifica: Optional[str] = None
 
 class BlocoRotinaRead(BlocoRotinaBase):
     id: int
@@ -128,6 +139,10 @@ class TarefaUpdate(SQLModel):
     prioridade: Optional[str] = None
     status: Optional[str] = None
     tempo_estimado: Optional[int] = None
+    data: Optional[str] = None
+    bloco_id: Optional[int] = None
+    tipo_id: Optional[int] = None
+    propriedades: Optional[dict[str, Any]] = None
 
 class TarefaRead(TarefaBase):
     id: int
@@ -174,6 +189,7 @@ class TagBase(SQLModel):
 class Tag(TagBase, table=True):
     __tablename__ = "tags"
     id: Optional[int] = Field(default=None, primary_key=True)
+    nome: str = Field(unique=True)
 
 class TagCreate(TagBase):
     pass

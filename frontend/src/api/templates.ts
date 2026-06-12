@@ -1,13 +1,5 @@
 import request from './client'
-import type { Nota } from '../types'
-
-export interface Template {
-  id: number
-  nome: string
-  descricao: string | null
-  conteudo: string
-  criado_em: string
-}
+import type { Nota, Template } from '../types'
 
 export const getTemplates = () =>
   request<Template[]>('/notas/templates')

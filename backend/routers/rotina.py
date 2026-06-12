@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select
+from sqlmodel import Session, select, or_, and_
 from database import get_session
 from models import BlocoRotina, BlocoRotinaCreate, BlocoRotinaUpdate, BlocoRotinaRead, Tarefa, TarefaCreate, TarefaUpdate, TarefaRead
 from datetime import datetime
@@ -14,12 +14,18 @@ def list_blocos(data: str | None = None, session: Session = Depends(get_session)
         try:
             datetime.strptime(data, "%Y-%m-%d")
         except ValueError:
-            return []
+            raise HTTPException(status_code=422, detail=f"Data inválida: {data}. Use YYYY-MM-DD.")
         dia_semana = str(datetime.strptime(data, "%Y-%m-%d").weekday())
         condicao_data = BlocoRotina.data_especifica == data
-        condicao_recorrente = BlocoRotina.recorrente == True
-        if dia_semana is not None:
-            condicao_recorrente = condicao_recorrente & BlocoRotina.dias_semana.contains(dia_semana)
+        condicao_recorrente = and_(
+            BlocoRotina.recorrente == True,
+            or_(
+                BlocoRotina.dias_semana == dia_semana,
+                BlocoRotina.dias_semana.like(f'{dia_semana},%'),
+                BlocoRotina.dias_semana.like(f'%,{dia_semana},%'),
+                BlocoRotina.dias_semana.like(f'%,{dia_semana}'),
+            )
+        )
         stmt = stmt.where(condicao_data | condicao_recorrente)
     return session.exec(stmt.order_by(BlocoRotina.hora_inicio)).all()
 

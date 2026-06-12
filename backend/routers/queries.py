@@ -1,8 +1,11 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select, or_, SQLModel
+from sqlmodel import Session, select, SQLModel
 from sqlalchemy import text
 from database import get_session
 from models import QuerySalva, QuerySalvaCreate, QuerySalvaRead, Nota, Tarefa, TipoObjeto
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -84,7 +87,8 @@ def executar_query(query_id: int, session: Session = Depends(get_session)):
                                 {"q": fts_query},
                             ).all()
                         ]
-                    except Exception:
+                    except Exception as e:
+                        logger.warning("FTS5 query falhou (fallback para vazio): %s", e)
                         ids = []
                     if ids:
                         stmt = stmt.where(Nota.id.in_(ids))

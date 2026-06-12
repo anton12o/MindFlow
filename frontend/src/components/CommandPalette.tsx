@@ -39,10 +39,13 @@ export default function CommandPalette({ commands, onClose }: { commands: Comman
           placeholder="Comandos..."
           className="w-full bg-transparent text-text-primary text-lg p-4 outline-none border-b border-border"
         />
-        <div className="max-h-64 overflow-y-auto">
+        <div className="max-h-64 overflow-y-auto" role="listbox" aria-label="Comandos disponíveis" aria-activedescendant={filtered[selected]?.id}>
           {filtered.map((cmd, i) => (
             <button
               key={cmd.id}
+              id={cmd.id}
+              role="option"
+              aria-selected={i === selected}
               onClick={() => { cmd.action(); onClose() }}
               className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${i === selected ? 'bg-accent/20 text-accent' : 'text-text-primary hover:bg-bg-hover'}`}
             >

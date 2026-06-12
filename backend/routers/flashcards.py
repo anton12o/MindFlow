@@ -1,9 +1,14 @@
 from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from database import get_session
 from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead, Nota
 from services import sm2_calculo
+
+
+class FlashcardReviewInput(BaseModel):
+    qualidade: int = Field(ge=0, le=5)
 
 router = APIRouter()
 
@@ -29,19 +34,18 @@ def create_flashcard(f: FlashcardCreate, session: Session = Depends(get_session)
     return db
 
 @router.post("/{flashcard_id}/review")
-def review_flashcard(flashcard_id: int, qualidade: int, session: Session = Depends(get_session)):
-    qualidade = max(0, min(5, qualidade))
+def review_flashcard(flashcard_id: int, body: FlashcardReviewInput, session: Session = Depends(get_session)):
     fc = session.get(Flashcard, flashcard_id)
     if not fc:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
     intervalo, facilidade, revisoes = sm2_calculo(
-        qualidade, fc.intervalo, fc.facilidade, fc.revisoes
+        body.qualidade, fc.intervalo, fc.facilidade, fc.revisoes
     )
     fc.intervalo = intervalo
     fc.facilidade = facilidade
     fc.revisoes = revisoes
     fc.ultima_revisao = datetime.now()
-    fc.proxima_revisao = date.today() + timedelta(days=intervalo) if intervalo > 0 else date.today()
+    fc.proxima_revisao = date.today() + timedelta(days=intervalo)
     session.add(fc)
     session.commit()
     session.refresh(fc)

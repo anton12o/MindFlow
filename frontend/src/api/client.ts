@@ -4,6 +4,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
 
+  const externalSignal = options?.signal
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      clearTimeout(timeout)
+      throw new DOMException('Aborted', 'AbortError')
+    }
+    externalSignal.addEventListener('abort', () => controller.abort(), { once: true })
+  }
+
   try {
     const res = await fetch(`${API}${path}`, {
       ...options,

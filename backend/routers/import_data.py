@@ -142,8 +142,8 @@ async def import_data(file: UploadFile):
                 try:
                     rows = session.exec(select(model_cls.id)).all()
                     existing_ids = set(rows)
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.warning("ID pre-fetch para %s falhou (prosseguindo sem): %s", nome_tabela, e)
 
                 inseridos = 0
                 atualizados = 0

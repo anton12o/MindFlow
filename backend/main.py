@@ -35,7 +35,10 @@ def on_startup():
     logger.info("Iniciando MindFlow API...")
     run_migrations()
     setup_fts()
-    seed_db()
+    try:
+        seed_db()
+    except Exception as e:
+        logger.warning("Seed não executado (banco já existente?): %s", e)
     logger.info("MindFlow API pronta")
 
 @app.get("/api/health")

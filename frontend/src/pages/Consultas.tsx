@@ -17,7 +17,7 @@ export default function Consultas() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
-  const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos })
+  const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
 
   const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr } = useQuery({
     queryKey: ['query-result', selectedQuery],
@@ -35,10 +35,9 @@ export default function Consultas() {
 
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteQuery(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['queries'] })
-      if (selectedQuery === null) return
-      setSelectedQuery(null)
+      setSelectedQuery(prev => prev === id ? null : prev)
     },
   })
 
@@ -61,7 +60,8 @@ export default function Consultas() {
     })
   }
 
-  function renderCard(item: any) {
+  interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; [key: string]: unknown }
+  function renderCard(item: CardItem) {
     return (
       <div key={item.id} onClick={() => toggleSelect(item.id)}
         className={`bg-bg-secondary rounded-xl border p-3 cursor-pointer transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'}`}>
@@ -157,7 +157,14 @@ export default function Consultas() {
               )}
             </div>
 
-            {queryAtual.visualizacao === 'kanban' && result?.dados ? (
+            {queryAtual.visualizacao === 'kanban' ? (
+              resLoad ? (
+                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+              ) : resErr ? (
+                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+              ) : !result?.dados || result.dados.length === 0 ? (
+                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+              ) : (
               <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
                 {(() => {
                   const grupos: Record<string, any[]> = {}
@@ -183,6 +190,7 @@ export default function Consultas() {
                   ))
                 })()}
               </div>
+              )
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {resLoad && <p className="text-text-muted text-sm col-span-full text-center py-8 animate-pulse">Carregando...</p>}

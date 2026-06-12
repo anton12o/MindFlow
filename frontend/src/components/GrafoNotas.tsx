@@ -45,7 +45,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
   const [simNodes, setSimNodes] = useState<SimNode[]>([])
   const [hoveredId, setHoveredId] = useState<number | null>(null)
 
-  const { data } = useQuery({ queryKey: ['grafo'], queryFn: getGrafo })
+  const { data, isLoading, isError } = useQuery({ queryKey: ['grafo'], queryFn: getGrafo })
 
   useEffect(() => {
     if (!data || data.nodes.length === 0) return
@@ -72,15 +72,23 @@ export default function GrafoNotas({ onSelectNota }: Props) {
     return () => { simulation.stop(); clearTimeout(timeoutId) }
   }, [data])
 
-  if (!data) {
+  if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64 text-text-muted text-sm">
+      <div className="flex items-center justify-center h-64 text-text-muted text-sm animate-pulse">
         Carregando grafo...
       </div>
     )
   }
 
-  if (data.nodes.length === 0) {
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-64 text-danger text-sm">
+        Erro ao carregar grafo
+      </div>
+    )
+  }
+
+  if (!data || data.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-text-muted text-sm">
         Crie notas com [[links]] para ver o grafo

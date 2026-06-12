@@ -69,7 +69,9 @@ def setup_fts():
                     INSERT INTO notas_fts(rowid, titulo, conteudo) VALUES (new.id, new.titulo, new.conteudo);
                 END
             """))
-            session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
+            count = session.execute(text("SELECT COUNT(*) FROM notas_fts")).scalar()
+            if count == 0:
+                session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
             session.commit()
             logger.info("FTS5 configurado com sucesso")
     except Exception as e:

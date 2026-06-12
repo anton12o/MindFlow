@@ -38,3 +38,14 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
     session.commit()
     session.refresh(s)
     return s
+
+@router.delete("/sessoes")
+def delete_sessoes(antes_de: str | None = None, session: Session = Depends(get_session)):
+    stmt = select(SessaoPomodoro)
+    if antes_de:
+        stmt = stmt.where(SessaoPomodoro.iniciado_em < antes_de)
+    sessoes = session.exec(stmt).all()
+    for s in sessoes:
+        session.delete(s)
+    session.commit()
+    return {"deletadas": len(sessoes)}

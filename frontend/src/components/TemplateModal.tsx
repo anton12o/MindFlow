@@ -1,3 +1,4 @@
+import { useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTemplates, aplicarTemplate } from '../api/templates'
 
@@ -8,8 +9,16 @@ interface Props {
 
 export default function TemplateModal({ onClose, onSelect }: Props) {
   const queryClient = useQueryClient()
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
-  const { data: templates } = useQuery({
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const { data: templates, isLoading, isError } = useQuery({
     queryKey: ['templates'],
     queryFn: getTemplates,
   })
@@ -31,7 +40,9 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
           <button onClick={onClose} className="text-text-muted hover:text-text-primary">✕</button>
         </div>
         <div className="p-4 space-y-2">
-          {templates?.map(t => (
+          {isLoading && <p className="text-sm text-text-muted text-center py-4 animate-pulse">Carregando...</p>}
+          {isError && <p className="text-sm text-danger text-center py-4">Erro ao carregar templates</p>}
+          {!isLoading && !isError && templates?.map(t => (
             <button
               key={t.id}
               onClick={() => aplicarMut.mutate(t.id)}
@@ -41,7 +52,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
               {t.descricao && <div className="text-xs text-text-muted mt-0.5">{t.descricao}</div>}
             </button>
           ))}
-          {(!templates || templates.length === 0) && (
+          {!isLoading && !isError && (!templates || templates.length === 0) && (
             <p className="text-sm text-text-muted text-center py-4">Nenhum template disponível</p>
           )}
         </div>

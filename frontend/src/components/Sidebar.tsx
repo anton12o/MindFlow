@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../store/theme'
 import InboxModal from './InboxModal'
@@ -21,6 +22,7 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
   const navigate = useNavigate()
   const location = useLocation()
   const { theme, toggleTheme } = useTheme()
+  const [exporting, setExporting] = useState(false)
   const currentPath = location.pathname
 
   return (
@@ -48,6 +50,8 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
         </button>
         <button
           onClick={async () => {
+            if (exporting) return
+            setExporting(true)
             try {
               const data = await exportAll()
               const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -60,11 +64,12 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
             } catch (e) {
               console.error('[Export]', e)
             }
+            setExporting(false)
           }}
           className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
           title="Exportar dados"
         >
-          ↓
+          {exporting ? '⌛' : '↓'}
         </button>
         <button
           onClick={toggleTheme}

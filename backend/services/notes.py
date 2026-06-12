@@ -30,8 +30,12 @@ def processar_wikilinks(nota_id: int, conteudo: str | None, session: Session):
 
     for title in extrair_wikilinks(conteudo):
         target = session.exec(
-            select(Nota).where(Nota.titulo.ilike(title))
+            select(Nota).where(Nota.titulo == title)
         ).first()
+        if not target:
+            target = session.exec(
+                select(Nota).where(Nota.titulo.ilike(title))
+            ).first()
         if target and target.id != nota_id:
             conn = ConexaoNota(
                 nota_origem_id=nota_id,

@@ -124,3 +124,17 @@ export interface Flashcard {
   proxima_revisao: string
   criado_em: string
 }
+
+export interface NotaTag {
+  nota_id: number
+  tag_id: number
+}
+
+export interface Template {
+  id: number
+  nome: string
+  descricao: string | null
+  conteudo: string
+  propriedades: Record<string, any>
+  criado_em: string
+}

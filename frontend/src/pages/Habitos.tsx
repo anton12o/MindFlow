@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getHabitos, createHabito, updateHabito, deleteHabito, createRegistro } from '../api/habitos'
 import ConfirmModal from '../components/ConfirmModal'
@@ -15,14 +15,17 @@ export default function Habitos() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ nome: '', tipo: 'binario' as 'binario' | 'quantitativo', categoria: '', meta: '' })
   const [feedback, setFeedback] = useState<{ id: number; texto: string } | null>(null)
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({ nome: '', tipo: '' as string, categoria: '', meta: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: number; nome: string } | null>(null)
 
   useEffect(() => {
+    let ignore = false
     setLoading(true)
     setError(false)
-    getHabitos().then(data => { setHabitos(data); setError(false); setLoading(false) }).catch(e => { console.error('[Habitos] listar', e); setError(true); setLoading(false) })
+    getHabitos().then(data => { if (!ignore) { setHabitos(data); setError(false); setLoading(false) } }).catch(e => { if (!ignore) { console.error('[Habitos] listar', e); setError(true); setLoading(false) } })
+    return () => { ignore = true; if (feedbackTimer.current) clearTimeout(feedbackTimer.current) }
   }, [])
 
   async function handleCreate(e: React.FormEvent) {
@@ -50,6 +53,7 @@ export default function Habitos() {
 
   async function handleSaveEdit() {
     if (!editId) return
+    if (!editForm.nome.trim()) return
     try {
       const updated = await updateHabito(editId, {
         nome: editForm.nome,
@@ -73,7 +77,8 @@ export default function Habitos() {
         valor: feito ? 1 : 0,
       })
       setFeedback({ id: habitoId, texto: 'Feito ✓' })
-      setTimeout(() => setFeedback(null), 1500)
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
+      feedbackTimer.current = setTimeout(() => setFeedback(null), 1500)
     } catch (e) {
       console.error('[Habitos] registrar', e)
     }
