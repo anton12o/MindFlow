@@ -18,7 +18,7 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const previewCache = useRef<Map<number, string>>(new Map())
-  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
 
   const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
@@ -59,7 +59,7 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
         if (!target) return <span key={i} className="text-danger/70">{alias}</span>
         return (
           <button key={i} onClick={() => onSelect(target)}
-            onMouseEnter={(e) => { hoverTimeout.current = setTimeout(() => showTooltip(target, e), 300) }}
+            onMouseEnter={(e) => { hoverTimeout.current = window.setTimeout(() => showTooltip(target, e), 300) }}
             onMouseLeave={hideTooltip}
             className="text-accent hover:underline cursor-pointer font-semibold">
             {alias}
@@ -312,14 +312,6 @@ export default function Ideias() {
   }
 
   // --- Tag helpers ---
-  function getLuminance(hex: string): number {
-    const h = hex.replace('#', '')
-    const r = parseInt(h.substring(0, 2), 16)
-    const g = parseInt(h.substring(2, 4), 16)
-    const b = parseInt(h.substring(4, 6), 16)
-    return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-  }
-
   function toggleTagFilter(tagId: number) {
     setTagFilter(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId])
   }
