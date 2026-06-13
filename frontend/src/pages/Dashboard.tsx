@@ -110,7 +110,7 @@ export default function Dashboard() {
         {/* Blocos do dia */}
         <Card titulo="⏰ Blocos do dia" loading={blocosLoad} erro={blocosErr} vazio={(!blocos || blocos.length === 0) && !blocosLoad && !blocosErr}>
           {blocos?.map(b => (
-            <div key={b.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+            <div key={b.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
               <span className="text-xs font-mono text-text-secondary w-20 shrink-0">{b.hora_inicio}–{b.hora_fim}</span>
               <span className="text-sm truncate" style={{ color: b.cor || undefined }}>{b.titulo}</span>
             </div>
@@ -120,14 +120,14 @@ export default function Dashboard() {
         {/* Tarefas de hoje */}
         <Card titulo="✅ Tarefas de hoje" loading={tarefasLoad} erro={tarefasErr} vazio={pending.length === 0 && !tarefasLoad && !tarefasErr}>
           {tarefas?.map(t => (
-            <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0">
+            <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
               <button onClick={() => handleToggleTarefa(t)}
                 className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
                   ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
                 {t.status === 'feito' ? '✓' : ''}
               </button>
               <span className={`text-sm flex-1 ${t.status === 'feito' ? 'line-through text-text-muted' : ''}`}>{t.titulo}</span>
-              <span className={`text-[10px] px-1.5 py-0.5 rounded ${t.prioridade === 'alta' ? 'bg-danger/20 text-danger' : t.prioridade === 'baixa' ? 'bg-text-muted/20 text-text-muted' : 'bg-warning/20 text-warning'}`}>
+              <span className={`text-xs px-1.5 py-0.5 rounded ${t.prioridade === 'alta' ? 'bg-danger/20 text-danger' : t.prioridade === 'baixa' ? 'bg-text-muted/20 text-text-muted' : 'bg-warning/20 text-warning'}`}>
                 {t.prioridade}
               </span>
             </div>
@@ -162,11 +162,11 @@ function HabitItem({ h, hoje, onCheck }: { h: Habito; hoje: string; onCheck: (id
   const feitoHoje = registros?.some(r => r.data === hoje)
 
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
+    <div className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
       <div className="flex items-center gap-2 min-w-0">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: h.cor || '#5B8DEF' }} />
         <span className="text-sm truncate">{h.nome}</span>
-        {streak > 0 && <span className="text-[10px] text-accent font-medium shrink-0">🔥{streak}</span>}
+        {streak > 0 && <span className="text-xs text-accent font-medium shrink-0">🔥{streak}</span>}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {feitoHoje ? (

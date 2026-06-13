@@ -241,6 +241,42 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
+@router.get("/{nota_id}/export/md")
+def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
+    n = session.get(Nota, nota_id)
+    if not n:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    frontmatter = {
+        "id": n.id,
+        "titulo": n.titulo,
+        "criado_em": n.criado_em,
+        "atualizado_em": n.atualizado_em,
+    }
+    if n.pasta_id:
+        pasta = session.get(Pasta, n.pasta_id)
+        frontmatter["pasta"] = pasta.nome if pasta else None
+    tags_rows = session.exec(
+        select(Tag).join(NotaTag).where(NotaTag.nota_id == nota_id)
+    ).all()
+    if tags_rows:
+        frontmatter["tags"] = [t.nome for t in tags_rows]
+    yaml_lines = ["---"]
+    for k, v in frontmatter.items():
+        if v is None:
+            continue
+        if isinstance(v, list):
+            yaml_lines.append(f"{k}:")
+            for item in v:
+                yaml_lines.append(f"  - {item}")
+        else:
+            yaml_lines.append(f"{k}: {v}")
+    yaml_lines.append("---")
+    body = n.conteudo or ""
+    result = "\n".join(yaml_lines) + "\n\n" + body
+    from fastapi import Response
+    headers = {"Content-Disposition": f"attachment; filename=\"{n.titulo}.md\""}
+    return Response(content=result, media_type="text/markdown", headers=headers)
+
 class ExtrairInput(SQLModel):
     trecho: str
     tipo_id: int | None = None
@@ -261,6 +297,18 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
     session.commit()
     session.refresh(nova)
     return nova
+
+@router.patch("/{nota_id}/favoritar", response_model=NotaRead)
+def favoritar_nota(nota_id: int, session: Session = Depends(get_session)):
+    nota = session.get(Nota, nota_id)
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    nota.favoritado = not nota.favoritado
+    nota.atualizado_em = datetime.now().isoformat()
+    session.add(nota)
+    session.commit()
+    session.refresh(nota)
+    return nota
 
 @router.delete("/tags/{tag_id}")
 def delete_tag(tag_id: int, session: Session = Depends(get_session)):

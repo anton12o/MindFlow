@@ -1,7 +1,8 @@
 import asyncio
 import json
 import logging
-from datetime import datetime
+import re
+from datetime import datetime, date
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from sqlmodel import Session, select, text
@@ -54,6 +55,18 @@ ORDEM_IMPORT = [
     "notas_tags",
 ]
 
+
+_ISO_RE = re.compile(r'^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})?')
+
+def _convert_datetimes(record: dict) -> dict:
+    for k, v in list(record.items()):
+        if isinstance(v, str) and _ISO_RE.match(v):
+            normalized = v.replace(' ', 'T')
+            if 'T' in normalized:
+                record[k] = datetime.fromisoformat(normalized)
+            else:
+                record[k] = date.fromisoformat(normalized)
+    return record
 
 def _topological_sort_pastas(pastas: list[dict]) -> list[dict]:
     ids = {p["id"] for p in pastas if p.get("id") is not None}
@@ -207,7 +220,7 @@ async def import_data(file: UploadFile):
                             {"nota_id": nt_nota_id, "tag_id": nt_tag_id}
                         )
                     else:
-                        instance = model_cls(**record)
+                        instance = model_cls(**_convert_datetimes(record))
                         session.merge(instance)
 
                 counts[nome_tabela] = {"inseridos": inseridos, "atualizados": atualizados}

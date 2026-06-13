@@ -101,7 +101,7 @@ function Layout() {
   return (
     <div className="h-screen flex overflow-hidden">
       <Sidebar inboxOpen={inboxOpen} onToggleInbox={() => setInboxOpen(p => !p)} onOpenImport={() => setImportOpen(true)} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-y-auto animate-fade-in">
           <Suspense fallback={<div className="flex items-center justify-center h-full text-text-muted text-sm animate-pulse">Carregando...</div>}>
             <Routes>
               <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
