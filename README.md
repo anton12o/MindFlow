@@ -166,6 +166,15 @@ MIT
 
 ---
 
+## 🛠️ Desenvolvimento
+
+```bash
+pip install pre-commit && pre-commit install  # hooks: ruff (lint) + pytest (testes)
+python start.py                                # sobe o app completo
+```
+
+---
+
 ## 🤝 Contribuindo
 
 Contribuições são bem-vindas! Sinta-se à vontade para abrir issues e pull requests.

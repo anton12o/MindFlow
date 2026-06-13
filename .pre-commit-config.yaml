@@ -1,0 +1,16 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      - id: ruff
+        args: [--fix]
+        files: ^backend/
+        stages: [pre-commit]
+  - repo: local
+    hooks:
+      - id: pytest
+        name: pytest
+        entry: bash -c 'cd backend && pytest tests/ -x -q'
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
