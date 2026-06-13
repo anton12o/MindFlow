@@ -41,11 +41,13 @@ def session():
 @pytest.fixture
 def client():
     import database as db_module
+    import routers.import_data as import_data_module
     from main import app
     from seed import seed_templates, seed_tipos
 
     original_engine = db_module.engine
     db_module.engine = TEST_ENGINE
+    import_data_module.engine = TEST_ENGINE
 
     def override_get_session():
         with Session(TEST_ENGINE) as s:
@@ -86,3 +88,4 @@ def client():
 
     app.dependency_overrides.pop(db_module.get_session, None)
     db_module.engine = original_engine
+    import_data_module.engine = original_engine
