@@ -1,3 +1,4 @@
 import '@testing-library/jest-dom'
+import { vi } from 'vitest'
 
-process.env.VITE_API_URL = 'http://localhost:8000/api'
+vi.stubEnv('VITE_API_URL', 'http://localhost:8000/api')

@@ -2,6 +2,14 @@
 title MindFlow Launcher
 setlocal
 
+:: Se ja estamos dentro do repositorio, pula setup (seguro para missclick)
+if exist "%~dp0start.py" (
+    cd /d "%~dp0"
+    python start.py
+    pause
+    exit /b
+)
+
 set "REPO_DIR=%~dp0MindFlow"
 
 echo [MindFlow] Verificando ambiente...

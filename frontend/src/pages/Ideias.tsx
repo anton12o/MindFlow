@@ -57,6 +57,38 @@ export default function Ideias() {
   const [novaPropVal, setNovaPropVal] = useState('')
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
+
+  // --- save state (Bugs 25/26/27) ---
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
+  const [dirty, setDirty] = useState(false)
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const tituloRef = useRef(titulo)
+  const conteudoRef = useRef(conteudo)
+  const propriedadesRef = useRef(propriedades)
+  useEffect(() => { tituloRef.current = titulo }, [titulo])
+  useEffect(() => { conteudoRef.current = conteudo }, [conteudo])
+  useEffect(() => { propriedadesRef.current = propriedades }, [propriedades])
+  const saveNoteRef = useRef<() => void>(() => {})
+  function saveNote() {
+    const id = selectedIdRef.current
+    if (!id) return
+    const props: Record<string, any> = {}
+    for (const [k, v] of Object.entries(propriedadesRef.current)) {
+      if (k.trim()) props[k.trim()] = v
+    }
+    setSaveStatus('saving')
+    updateMut.mutate({ id, data: { titulo: tituloRef.current, conteudo: conteudoRef.current, propriedades: props } })
+  }
+  saveNoteRef.current = saveNote
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+      if (successTimerRef.current) clearTimeout(successTimerRef.current)
+    }
+  }, [])
+
   const [searchParams] = useSearchParams()
   const searchDebounced = useDebounce(search, 300)
 
@@ -100,8 +132,16 @@ export default function Ideias() {
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Nota> }) => updateNota(id, data),
     onSuccess: () => {
+      setDirty(false)
+      setSaveStatus('success')
+      if (successTimerRef.current) clearTimeout(successTimerRef.current)
+      successTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
+    },
+    onError: () => {
+      setSaveStatus('error')
+      setTimeout(() => setSaveStatus('idle'), 3000)
     },
   })
 
@@ -151,26 +191,48 @@ export default function Ideias() {
   })
 
   function selectNota(n: Nota) {
+    if (dirty && editando && selectedId) {
+      saveNote()
+    }
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     setSelectedId(n.id)
     setTitulo(n.titulo)
     setConteudo(n.conteudo)
     setEditando(false)
     setPropriedades(n.propriedades ? Object.fromEntries(Object.entries(n.propriedades).map(([k, v]) => [k, String(v)])) : {})
+    setDirty(false)
+    setSaveStatus('idle')
   }
 
   async function handleSave() {
-    if (!selectedId) return
-    const props: Record<string, any> = {}
-    for (const [k, v] of Object.entries(propriedades)) {
-      if (k.trim()) props[k.trim()] = v
-    }
-    updateMut.mutate({ id: selectedId, data: { titulo, conteudo, propriedades: props } })
+    saveNote()
     setEditando(false)
   }
 
   async function handleCreate() {
     createMut.mutate({ titulo: 'Nova nota', conteudo: '' })
   }
+
+  // Auto-save debounce (Bug 26)
+  useEffect(() => {
+    if (!editando || !selectedId || !dirty) return
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = setTimeout(() => {
+      saveNoteRef.current()
+    }, 2000)
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
+  }, [titulo, conteudo, propriedades, editando, selectedId, dirty])
+
+  // beforeunload when dirty (Bug 27)
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
 
   async function handleDelete() {
     if (!selectedId) return
@@ -180,6 +242,7 @@ export default function Ideias() {
   function addPropriedade() {
     if (!novaPropKey.trim()) return
     setPropriedades(p => ({ ...p, [novaPropKey.trim()]: novaPropVal }))
+    setDirty(true)
     setNovaPropKey('')
     setNovaPropVal('')
   }
@@ -190,6 +253,7 @@ export default function Ideias() {
       delete next[key]
       return next
     })
+    setDirty(true)
   }
 
   // --- Tag helpers ---
@@ -221,6 +285,7 @@ export default function Ideias() {
 
   const handleContentChange = useCallback((val: string) => {
     setConteudo(val)
+    setDirty(true)
     const slashMatch = val.match(/\/(\w*)$/)
     if (slashMatch && editando) {
       setSlashQuery(slashMatch[1])
@@ -269,7 +334,7 @@ export default function Ideias() {
             placeholder="Buscar notas..."
             className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
           />
-          <button onClick={handleCreate} className="px-2 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover shrink-0" title="Nova nota em branco">+</button>
+          <button onClick={handleCreate} disabled={createMut.isPending} className="px-2 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover shrink-0 disabled:opacity-50" title="Nova nota em branco">{createMut.isPending ? '...' : '+'}</button>
           <button onClick={() => setShowTemplateModal(true)} className="px-2 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover shrink-0" title="Criar nota a partir de um modelo pré-definido (template)">📋</button>
           <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg shrink-0 ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`} title="Grafo de conexões entre notas">🔗</button>
         </div>
@@ -386,7 +451,7 @@ export default function Ideias() {
                       <option value="">Sem pasta</option>
                       {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
                     </select>
-                    <input value={titulo} onChange={e => setTitulo(e.target.value)}
+                    <input value={titulo} onChange={e => { setTitulo(e.target.value); setDirty(true) }}
                       className="flex-1 text-xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
                   </>
                 ) : (
@@ -403,16 +468,27 @@ export default function Ideias() {
                   </div>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 items-center">
                 {editando ? (
                   <>
                     <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Extrair trecho como nova nota">✂ Extrair</button>
-                    <button onClick={handleSave} className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg">Salvar</button>
+                    <div className="flex items-center gap-2">
+                      {saveStatus === 'saving' && <span className="text-xs text-text-muted animate-pulse">Salvando...</span>}
+                      {saveStatus === 'success' && <span className="text-xs text-success animate-fade-in">Salvo!</span>}
+                      {saveStatus === 'error' && <span className="text-xs text-danger animate-fade-in">Erro</span>}
+                      <button onClick={handleSave} disabled={saveStatus === 'saving'}
+                        className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">
+                        {saveStatus === 'saving' ? 'Salvando...' : 'Salvar'}
+                      </button>
+                    </div>
                   </>
                 ) : (
                   <button onClick={() => setEditando(true)} className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover">Editar</button>
                 )}
-                <button onClick={handleDelete} className="px-4 py-1.5 bg-danger/20 text-danger text-sm rounded-lg hover:bg-danger/30">Excluir</button>
+                <button onClick={handleDelete} disabled={deleteMut.isPending}
+                  className="px-4 py-1.5 bg-danger/20 text-danger text-sm rounded-lg hover:bg-danger/30 disabled:opacity-50">
+                  {deleteMut.isPending ? 'Excluindo...' : 'Excluir'}
+                </button>
               </div>
             </div>
 
@@ -483,7 +559,7 @@ export default function Ideias() {
                           )}
                         </div>
                         {editando ? (
-                          <input value={v} onChange={e => setPropriedades(p => ({ ...p, [k]: e.target.value }))}
+                          <input value={v} onChange={e => { setPropriedades(p => ({ ...p, [k]: e.target.value })); setDirty(true) }}
                             className="w-full bg-transparent text-sm outline-none mt-0.5" />
                         ) : (
                           <p className="text-sm mt-0.5">{v}</p>

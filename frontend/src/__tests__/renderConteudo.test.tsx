@@ -21,8 +21,8 @@ function renderConteudo(conteudo: string, notas: Nota[], onSelect: (n: Nota) => 
 }
 
 const mockNotas: Nota[] = [
-  { id: 1, titulo: 'Teste', conteudo: '', pasta_id: null, tipo_id: null, propriedades: null, criado_em: '2026-06-01', atualizado_em: '2026-06-01', cover_url: null, ordem: null },
-  { id: 2, titulo: 'Projeto X', conteudo: '', pasta_id: null, tipo_id: null, propriedades: null, criado_em: '2026-06-01', atualizado_em: '2026-06-01', cover_url: null, ordem: null },
+  { id: 1, titulo: 'Teste', conteudo: '', pasta_id: null, tipo_id: null, criado_em: '2026-06-01', atualizado_em: '2026-06-01', ordem: null },
+  { id: 2, titulo: 'Projeto X', conteudo: '', pasta_id: null, tipo_id: null, criado_em: '2026-06-01', atualizado_em: '2026-06-01', ordem: null },
 ]
 
 describe('renderConteudo', () => {

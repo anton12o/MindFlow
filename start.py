@@ -57,19 +57,26 @@ def precisa_rebuildar() -> bool:
     return False
 
 
+def _npm_cmd():
+    """Retorna 'npm.cmd' no Windows, 'npm' nos demais SOs."""
+    return "npm.cmd" if os.name == "nt" else "npm"
+
+
 def ensure_frontend():
     node_modules = os.path.join(FRONTEND, "node_modules")
+    npm = _npm_cmd()
+
+    # Verifica se npm existe (independente de node_modules)
+    try:
+        subprocess.run([npm, "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print("[ERROR] npm nao encontrado. Instale Node.js 18+ ou execute manualmente:")
+        print("  cd frontend && npm install && npm run build")
+        sys.exit(1)
 
     if not os.path.exists(node_modules):
         print("[Frontend] node_modules nao encontrado — executando npm install...")
-        try:
-            subprocess.run(["npm", "--version"], capture_output=True, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError):
-            print("[ERROR] npm nao encontrado. Instale Node.js 18+ ou execute manualmente:")
-            print("  cd frontend && npm install && npm run build")
-            sys.exit(1)
-
-        result = subprocess.run(["npm", "install"], cwd=FRONTEND, capture_output=True, text=True)
+        result = subprocess.run([npm, "install"], cwd=FRONTEND, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"[ERROR] npm install falhou:\n{result.stderr}")
             sys.exit(1)
@@ -77,7 +84,7 @@ def ensure_frontend():
 
     if precisa_rebuildar():
         print("[Frontend] Codigo fonte modificado — rebuildando...")
-        result = subprocess.run(["npm", "run", "build"], cwd=FRONTEND, capture_output=True, text=True)
+        result = subprocess.run([npm, "run", "build"], cwd=FRONTEND, capture_output=True, text=True)
         if result.returncode != 0:
             print(f"[ERROR] npm run build falhou:\n{result.stderr}")
             sys.exit(1)

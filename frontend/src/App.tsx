@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import ImportModal from './components/ImportModal'
+import LogsModal from './components/LogsModal'
 import { exportAll } from './api/export'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -33,6 +34,7 @@ function Layout() {
   const [showPalette, setShowPalette] = useState(false)
   const [inboxOpen, setInboxOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
+  const [logsOpen, setLogsOpen] = useState(false)
 
   const page = location.pathname.slice(1) || 'dashboard'
 
@@ -53,6 +55,7 @@ function Layout() {
     { id: 'analise', label: 'Ir para Análise', action: () => navigate('/analise') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
     { id: 'import', label: 'Importar dados (JSON)', action: () => setImportOpen(true) },
+    { id: 'logs', label: 'Ver logs de erro', action: () => setLogsOpen(true) },
     { id: 'export', label: 'Exportar dados (JSON)', action: async () => {
       try {
         const data = await exportAll()
@@ -117,6 +120,7 @@ function Layout() {
       </main>
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSuccess={handleImportSuccess} />}
       {showPalette && <CommandPalette commands={commands} onClose={() => setShowPalette(false)} />}
+      {logsOpen && <LogsModal onClose={() => setLogsOpen(false)} />}
     </div>
   )
 }
