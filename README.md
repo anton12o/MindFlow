@@ -30,6 +30,8 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 - **Tema claro/escuro**: toggle na sidebar
 - **Templates**: crie notas a partir de modelos pré-definidos
 - **Propriedades JSON**: dados estruturados dentro de notas e tarefas
+- **Sistema de logs**: erros do frontend capturados e persistidos no backend
+- **CI/CD integrado**: GitHub Actions (lint, testes, build, release automático)
 
 ---
 
@@ -117,7 +119,13 @@ mindflow/
 │   │   ├── notas.py         # Endpoints de Notas + wikilinks + grafo
 │   │   ├── flashcards.py    # Endpoints de Flashcards (SM-2)
 │   │   ├── tipos.py         # Endpoints de Tipos de Objeto
-│   │   └── queries.py       # Endpoints de Consultas Dinâmicas
+│   │   ├── queries.py       # Endpoints de Consultas Dinâmicas
+│   │   ├── logs.py          # Endpoints de Logs de Erro
+│   │   ├── export.py        # Export completo em JSON
+│   │   └── import_data.py   # Import de dados via upload
+│   ├── logging_config.py    # RotatingFileHandler para logs
+│   ├── pytest.ini           # Configuração de testes
+│   ├── requirements-dev.txt # Dependências de desenvolvimento
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
@@ -147,6 +155,8 @@ mindflow/
 | `GET` | `/api/tipos` | Lista tipos de objeto |
 | `POST` | `/api/queries/{id}/executar` | Executa uma consulta salva |
 | `PATCH` | `/api/queries/{id}/batch` | Edição em massa |
+| `GET` | `/api/logs` | Listar logs de erro |
+| `GET` | `/api/export` | Exportar todas as tabelas em JSON |
 
 ---
 

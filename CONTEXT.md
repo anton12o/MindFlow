@@ -86,10 +86,12 @@ mindflow/
 ├── docs/
 │   └── FUTURO.md           ← Futuras adições planejadas
 ├── backend/
-│   ├── main.py             # App FastAPI, CORS, logging, 10 routers + FTS5 startup
+│   ├── main.py             # App FastAPI, CORS, logging, 11 routers + FTS5 startup
 │   ├── database.py         # Engine SQLite + run_migrations + setup_fts
 │   ├── models.py           # 15+ entidades SQLModel
 │   ├── seed.py             # Seed templates + tipos
+│   ├── pytest.ini          # Config pytest (filtra StarletteDeprecationWarning)
+│   ├── requirements-dev.txt# Dependências de teste (pytest, httpx, ruff)
 │   ├── alembic.ini         # Config Alembic
 │   ├── migrations/
 │   │   ├── env.py          # Importa models, target_metadata = SQLModel.metadata
@@ -105,7 +107,9 @@ mindflow/
 │   │   ├── tipos.py        # CRUD tipos de objeto
 │   │   ├── queries.py      # CRUD + executar + batch edit
 │   │   ├── export.py       # GET /api/export (dump completo)
-│   │   └── import_data.py  # POST /api/import (upload + upsert + validação)
+│   │   ├── import_data.py  # POST /api/import (upload + upsert + validação)
+│   │   └── logs.py         # GET/POST/DELETE /api/logs (sistema de logs)
+│   ├── logging_config.py   # RotatingFileHandler 1MB × 3 backups
 │   └── services/
 │       ├── __init__.py
 │       ├── spaced_repetition.py  # Algoritmo SM-2
@@ -125,7 +129,8 @@ mindflow/
 │       │   ├── notas.ts, flashcards.ts, tipos.ts, queries.ts
 │   │   ├── conexoes.ts, grafo.ts, templates.ts
 │   │   ├── export.ts     # exportAll()
-│   │   └── import_export.ts  # importFile() + ImportResult type
+│   │   ├── import_export.ts  # importFile() + ImportResult type
+│   │   └── logs.ts       # logError() com throttle + batch
 │       ├── hooks/useDebounce.ts
 │       ├── hooks/useImport.ts  # useImport() — { mutate, isLoading, resultado, erro, reset }
 │       ├── utils/date.ts     # formatDateLocal, hojeLocal
@@ -139,8 +144,9 @@ mindflow/
 │       │   ├── CalendarioSemanal.tsx
 │       │   ├── GrafoNotas.tsx      # d3-force
 │       │   ├── TemplateModal.tsx   # Aplicar templates
-│       │   ├── PomodoroTimer.tsx   # Timer + resumo opcional + notificação sonora
-│       │   └── InboxModal.tsx      # Captura rápida + destino + lista pendentes + delete
+│   │   ├── PomodoroTimer.tsx   # Timer + resumo opcional + notificação sonora
+│   │   ├── LogsModal.tsx       # Visualizador de logs com filtro de nível
+│   │   └── InboxModal.tsx      # Captura rápida + destino + lista pendentes + delete
 │       └── pages/
 │           ├── Dashboard.tsx   # React Query, 5 cards (inbox/blocos/tarefas/habitos/pomodoro)
 │           ├── Rotina.tsx      # Blocos + tarefas + calendário semanal
@@ -268,6 +274,11 @@ mindflow/
   - `SessaoPomodoro.resumo_nota_id` inválido → setado como null
   - FTS5 rebuild no final
   - Retorna resumo: `{ sucesso, importado_em, tabelas: { nome: { inseridos, atualizados } } }`
+
+### Logs (`/api/logs`)
+- `GET /` — listar logs (opcional: `?nivel=WARNING` filtra por nível)
+- `POST /` — receber erro do frontend (body: `{ mensagem, nivel, stack }`)
+- `DELETE /` — limpar todos os logs
 
 ---
 
@@ -403,6 +414,11 @@ cd backend && python -c "from main import app; print('OK')"
 # OK — todos os imports, routers, e FTS5 setup funcionam
 ```
 
+```bash
+cd backend && python -m pytest -q
+# 60 passed in 2s — 0 warnings (StarletteDeprecationWarning filtrado)
+```
+
 ### Resumo das Correções
 
 | Fase | Itens | Foco |
@@ -411,8 +427,9 @@ cd backend && python -c "from main import app; print('OK')"
 | Módulo 12 🔴🟡🟢 | 55 issues | Integridade FK, robustez, polish, acessibilidade |
 | Módulo 20 ⚡ | 8 otimizações | PRAGMAs SQLite, índices, virtualização, memo |
 | Módulo 21 🛡️ | 5 bugs + 1 | SQL injection, cover_url, timer, timeout, SW |
+| Módulo 23 🪵 | Logging + CI/CD | Sistema de logs, GitHub Actions, 60 testes, 0 warnings |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript · 0 bugs conhecidos · Release v1.0.0
+**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · Release v1.1.0
 
 ### Módulo 13: Release v1.0.0 + Polimento
 
@@ -546,6 +563,22 @@ cd backend && python -c "from main import app; print('OK')"
 4. **Tags sidebar + overflow** — Chips com `background-color: cor + 20%` + borda, `max-h-20 overflow-y-auto`, botões `px-2 shrink-0`, containers `min-w-0 overflow-hidden`
 
 **Arquivos:** `EditorMarkdown.tsx`, `PomodoroTimer.tsx`, `store/pomodoro.tsx`, `HabitoCalendario.tsx` (novo), `habitos.py`, `habitos.ts`, `Ideias.tsx`, `sw.js`, `vite.config.ts`, `start.py`
+
+---
+
+### Módulo 23: Logging + CI/CD + v1.1.0
+
+**Antes:** Sem sistema de logs (erros silenciosos no frontend, sem rastreamento no backend). Sem CI/CD (zero automação). 3 warnings de depreciação nos testes.
+
+**Depois:**
+
+1. **Sistema de logs** — `RotatingFileHandler` (1MB × 3 backups) em `backend/data/mindflow.log`. Endpoint `GET/POST/DELETE /api/logs`. Frontend: `logError()` com throttle (10/60s) e batch (5s/10 itens), `window.onerror` + `unhandledrejection` capturados, `ErrorBoundary` integrado. `LogsModal.tsx` com filtro de nível e comando Ctrl+K "Ver logs de erro".
+2. **CI/CD** — `.github/workflows/ci.yml` (ruff, pytest 60, tsc, build), `.github/workflows/release.yml` (tag → zip → release). `requirements-dev.txt` com dependências de teste.
+3. **0 warnings** — `pytest.ini` filtra `StarletteDeprecationWarning`. `main.py` migrado de `@app.on_event("startup")` para `lifespan` async context manager.
+4. **MindFlow.bat seguro** — Detecção de repositório existente: se `start.py` está presente, pula clone + venv e executa `python start.py` direto (evita duplicata aninhada).
+5. **Bug fixes** — `start.py`: `npm.cmd` no Windows (execution policy). `queries.py`: `Any` import ausente. Testes: tipos corrigidos para React 19 e `vi.stubEnv`.
+
+**Arquivos:** `backend/logging_config.py`, `backend/routers/logs.py`, `backend/pytest.ini`, `backend/requirements-dev.txt`, `frontend/src/api/logs.ts`, `frontend/src/components/LogsModal.tsx`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `main.py`, `start.py`, `MindFlow.bat`, `conftest.py`
 
 ---
 

@@ -237,13 +237,15 @@
 ---
 
 ### UX de notas — 3 bugs pendentes
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (v1.1.0, Jun/2026)
 **Origem:** CONTEXT.md — Bugs Pendentes
 
 **Descrição:**
-- Bug 25: Feedback visual ao criar/editar notas
-- Bug 26: Indicador de salvamento automático
-- Bug 27: Confirmação ao sair com alterações não salvas
+- Bug 25: Feedback visual ao criar/editar notas — estados loading/erro/sucesso nos botões
+- Bug 26: Indicador de salvamento automático — auto-save com 2s debounce + status inline
+- Bug 27: Confirmação ao sair com alterações não salvas — `beforeunload` quando dirty
+
+**Arquivos:** `Ideias.tsx`
 
 ---
 
@@ -265,6 +267,36 @@
 **Origem:** Módulo 21
 
 **Descrição:** Service Worker tentava cachear URLs de extensões (`chrome-extension://`), gerando erro no console. Adicionado filtro `event.request.url.startsWith('http')` antes de `cache.put()`.
+
+---
+
+### Sistema de logs (RotatingFileHandler + endpoint)
+**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Origem:** Sessão de melhoria contínua
+
+**Descrição:** Sistema de logs com `RotatingFileHandler` (1MB × 3 backups) em `backend/data/mindflow.log`. Endpoint `GET/POST/DELETE /api/logs`. Frontend captura `window.onerror` + `unhandledrejection` + `ErrorBoundary`, envia para o backend com throttle (10/60s) e batch (5s/10 itens).
+
+**Arquivos:** `backend/logging_config.py`, `backend/routers/logs.py`, `frontend/src/api/logs.ts`, `frontend/src/components/LogsModal.tsx`
+
+---
+
+### CI/CD integrado (GitHub Actions)
+**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Origem:** Necessidade de qualidade contínua
+
+**Descrição:** Workflows `ci.yml` (ruff, pytest 60, tsc, build) e `release.yml` (tag → build → zip → GitHub Release). `requirements-dev.txt` com dependências de teste.
+
+**Arquivos:** `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `backend/requirements-dev.txt`
+
+---
+
+### Migrar on_event para lifespan (FastAPI)
+**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Origem:** Depreciação FastAPI
+
+**Descrição:** Substituir `@app.on_event("startup")` pelo context manager `lifespan` moderno. Removeu 2 warnings de depreciação. `pytest.ini` filtra `StarletteDeprecationWarning` restante (httpx2 ainda não estável).
+
+**Arquivos:** `backend/main.py`, `backend/pytest.ini`
 
 ---
 
