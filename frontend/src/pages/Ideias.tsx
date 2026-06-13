@@ -574,7 +574,7 @@ export default function Ideias() {
                   <h1 className="text-xl font-bold">{notaAtual.titulo}</h1>
                 )}
               </div>
-              <div className="flex gap-2 items-center shrink-0">
+              <div className="flex gap-1 items-center shrink-0">
                 {editando ? (
                   <>
                     <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Extrair trecho como nova nota">✂ Extrair</button>
@@ -591,20 +591,22 @@ export default function Ideias() {
                 ) : (
                   <button onClick={() => setEditando(true)} className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover">Editar</button>
                 )}
-                <button onClick={() => {
-                  if (!selectedId) return
-                  window.open(`/api/notas/${selectedId}/export/md`)
-                }}
-                  className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Exportar como Markdown">
-                  ↓ .md
-                </button>
-                <button onClick={() => { if (selectedId) favoritarMut.mutate(selectedId) }}
-                  className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover'}`}
-                  title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
-                  {notaAtual.favoritado ? '★' : '☆'}
-                </button>
+                <div className="flex gap-1 ml-1 items-center">
+                  <button onClick={() => {
+                    if (!selectedId) return
+                    window.open(`/api/notas/${selectedId}/export/md`)
+                  }}
+                    className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como Markdown">
+                    ↓.md
+                  </button>
+                  <button onClick={() => { if (selectedId) favoritarMut.mutate(selectedId) }}
+                    className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover hover:text-text-primary'}`}
+                    title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
+                    {notaAtual.favoritado ? '★' : '☆'}
+                  </button>
+                </div>
                 <button onClick={handleDelete} disabled={deleteMut.isPending}
-                  className="px-4 py-1.5 bg-danger hover:bg-danger/80 text-white text-sm rounded-lg disabled:opacity-50">
+                  className="ml-2 px-4 py-1.5 bg-danger hover:bg-danger/80 text-white text-sm rounded-lg disabled:opacity-50">
                   {deleteMut.isPending ? 'Excluindo...' : 'Excluir'}
                 </button>
               </div>
