@@ -44,13 +44,13 @@ def ensure_pre_commit():
     if git_hooks.exists():
         return
     try:
-        subprocess.run(["pre-commit", "--version"], capture_output=True, check=True)
+        subprocess.run([sys.executable, "-m", "pre_commit", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "pre-commit"],
             capture_output=True, check=True,
         )
-    subprocess.run(["pre-commit", "install"], cwd=ROOT, capture_output=True, check=True)
+    subprocess.run([sys.executable, "-m", "pre_commit", "install"], cwd=ROOT, capture_output=True, check=True)
     print("[OK] Pre-commit hooks configurados")
 
 

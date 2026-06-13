@@ -28,7 +28,7 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
   return (
     <>
       <aside className="w-16 bg-bg-secondary border-r border-border flex flex-col items-center py-4 gap-1 shrink-0">
-        <div className="text-accent text-xl font-bold mb-4" title="MindFlow">~</div>
+        <div className="text-accent text-lg font-bold mb-4 tracking-tight" title="MindFlow">MF</div>
         {navItems.map(item => (
           <button
             key={item.page}

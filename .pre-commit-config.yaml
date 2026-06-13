@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: pytest
         name: pytest
-        entry: bash -c 'cd backend && pytest tests/ -x -q'
+        entry: python -m pytest -x -q backend/tests/
         language: system
         pass_filenames: false
         stages: [pre-commit]

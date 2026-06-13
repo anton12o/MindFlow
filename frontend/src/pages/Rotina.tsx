@@ -148,7 +148,7 @@ export default function Rotina() {
 
             {showBlocoForm && (
               <form onSubmit={handleCreateBloco} className="flex flex-wrap gap-2 mb-4 p-3 bg-bg-tertiary rounded-lg">
-                <input value={blocoForm.titulo} onChange={e => setBlocoForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Título" maxLength={60} className="flex-1 min-w-[120px] bg-bg-primary rounded px-2 py-1.5 text-sm outline-none" />
+                <input value={blocoForm.titulo} onChange={e => setBlocoForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Título" maxLength={60} className="flex-1 min-w-[120px] bg-bg-primary rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent" />
                 <input type="time" value={blocoForm.hora_inicio} onChange={e => setBlocoForm(f => ({ ...f, hora_inicio: e.target.value }))} className="bg-bg-primary rounded px-2 py-1.5 text-sm outline-none" />
                 <input type="time" value={blocoForm.hora_fim} onChange={e => setBlocoForm(f => ({ ...f, hora_fim: e.target.value }))} className="bg-bg-primary rounded px-2 py-1.5 text-sm outline-none" />
                 <button type="submit" className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg">OK</button>

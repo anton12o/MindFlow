@@ -2,32 +2,80 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas, getTags, createTag, updateTag, getNotaTags } from '../api/notas'
+import { getNotas, createNota, updateNota, deleteNota, extrairBloco, getPastas, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
 import request from '../api/client'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
+import { favoritarNota } from '../api/notas'
 import EditorMarkdown from '../components/EditorMarkdown'
 import TemplateModal from '../components/TemplateModal'
 import GrafoNotas from '../components/GrafoNotas'
 import type { Nota, Tag } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 
-function renderConteudo(conteudo: string, notas: Nota[], onSelect: (n: Nota) => void) {
+function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: string; notas: Nota[]; onSelect: (n: Nota) => void; selectedId?: number | null }) {
+  const [tooltipContent, setTooltipContent] = useState('')
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
+  const [tooltipVisible, setTooltipVisible] = useState(false)
+  const previewCache = useRef<Map<number, string>>(new Map())
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout>>()
   const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
-  return parts.map((part, i) => {
-    const m = part.match(/^\[\[([^\]]+?)(?:\|([^\]]+))?\]\]$/)
-    if (!m) return <span key={i}>{part}</span>
-    const titulo = m[1].trim()
-    const alias = m[2]?.trim() || titulo
-    const target = notas.find(n => n.titulo.toLowerCase() === titulo.toLowerCase())
-    if (!target) return <span key={i} className="text-danger/70">{alias}</span>
-    return (
-      <button key={i} onClick={() => onSelect(target)}
-        className="text-accent hover:underline cursor-pointer font-semibold">
-        {alias}
-      </button>
-    )
-  })
+
+  const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
+    if (previewCache.current.has(target.id)) {
+      setTooltipContent(previewCache.current.get(target.id)!)
+    } else if (target.id !== selectedId) {
+      try {
+        const nota = await getNota(target.id)
+        const plain = (nota.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
+        previewCache.current.set(target.id, plain)
+        setTooltipContent(plain)
+      } catch { return }
+    } else {
+      const plain = (target.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
+      previewCache.current.set(target.id, plain)
+      setTooltipContent(plain)
+    }
+    setTooltipPos({ x: e.clientX, y: e.clientY })
+    setTooltipVisible(true)
+  }, [selectedId])
+
+  const hideTooltip = useCallback(() => {
+    clearTimeout(hoverTimeout.current)
+    setTooltipVisible(false)
+    setTooltipContent('')
+  }, [])
+
+  useEffect(() => () => clearTimeout(hoverTimeout.current), [])
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        const m = part.match(/^\[\[([^\]]+?)(?:\|([^\]]+))?\]\]$/)
+        if (!m) return <span key={i}>{part}</span>
+        const titulo = m[1].trim()
+        const alias = m[2]?.trim() || titulo
+        const target = notas.find(n => n.titulo.toLowerCase() === titulo.toLowerCase())
+        if (!target) return <span key={i} className="text-danger/70">{alias}</span>
+        return (
+          <button key={i} onClick={() => onSelect(target)}
+            onMouseEnter={(e) => { hoverTimeout.current = setTimeout(() => showTooltip(target, e), 300) }}
+            onMouseLeave={hideTooltip}
+            className="text-accent hover:underline cursor-pointer font-semibold">
+            {alias}
+          </button>
+        )
+      })}
+      {tooltipVisible && (
+        <div
+          style={{ left: tooltipPos.x + 12, top: tooltipPos.y + 12 }}
+          className="fixed z-50 bg-bg-secondary border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs text-text-primary pointer-events-none"
+        >
+          {tooltipContent || 'Carregando...'}
+        </div>
+      )}
+    </>
+  )
 }
 
 export default function Ideias() {
@@ -160,6 +208,13 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
       setSelectedId(null)
+    },
+  })
+
+  const favoritarMut = useMutation({
+    mutationFn: (id: number) => favoritarNota(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
   })
 
@@ -347,6 +402,25 @@ export default function Ideias() {
           </div>
         ) : (
           <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
+            {notas && notas.filter(n => n.favoritado).length > 0 && (
+              <div className="mb-3">
+                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">⭐ Favoritos</span>
+                <div className="flex flex-col gap-0.5 mt-1">
+                  {notas.filter(n => n.favoritado).map(n => {
+                    const tipo = tipos?.find(t => t.id === n.tipo_id)
+                    return (
+                      <button key={n.id} onClick={() => selectNota(n)}
+                        className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1 ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
+                        {tipo && <span className="text-xs">{tipo.icone}</span>}
+                        <span className="truncate flex-1">{n.titulo}</span>
+                        <button onClick={e => { e.stopPropagation(); favoritarMut.mutate(n.id) }}
+                          className="text-xs text-yellow-500 hover:scale-110 transition-transform">★</button>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {pastas && pastas.length > 0 && (
               <div className="flex flex-wrap gap-1 mb-2">
                 <button onClick={() => setPastaFilter(null)}
@@ -407,7 +481,8 @@ export default function Ideias() {
                       <button key={n.id} onClick={() => selectNota(n)}
                         style={{ height: virtual.size, transform: `translateY(${virtual.start}px)`, position: 'absolute', width: '100%', left: 0 }}
                         className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 w-full">
+                          <span className={`text-xs ${n.favoritado ? 'text-yellow-500' : 'text-text-muted'}`}>{n.favoritado ? '★' : '☆'}</span>
                           {tipo && <span className="text-xs">{tipo.icone}</span>}
                           <span className="font-medium truncate">{n.titulo}</span>
                         </div>
@@ -425,50 +500,81 @@ export default function Ideias() {
       <div className="flex-1 p-6 overflow-y-auto">
         {notaAtual ? (
           <div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-text-muted">
+              {editando ? (
+                <>
+                  <label className="text-text-muted">Tipo:</label>
+                  <select value={String(notaAtual.tipo_id || '')} onChange={e => {
+                    const id = selectedIdRef.current
+                    if (!id) return
+                    const v = e.target.value
+                    updateMut.mutate({ id, data: { tipo_id: v ? Number(v) : null } })
+                  }}
+                    className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
+                    <option value="">Sem tipo</option>
+                    {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
+                  </select>
+                  <label className="text-text-muted">Pasta:</label>
+                  <select value={String(notaAtual.pasta_id || '')} onChange={e => {
+                    const id = selectedIdRef.current
+                    if (!id) return
+                    const v = e.target.value
+                    updateMut.mutate({ id, data: { pasta_id: v ? Number(v) : null } })
+                  }}
+                    className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
+                    <option value="">Sem pasta</option>
+                    {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                  </select>
+                </>
+              ) : (
+                <>
+                  {notaAtual.tipo_id && tipos?.find(t => t.id === notaAtual.tipo_id) && (
+                    <span>{tipos.find(t => t.id === notaAtual.tipo_id)!.icone} {tipos.find(t => t.id === notaAtual.tipo_id)!.nome}</span>
+                  )}
+                  {notaAtual.pasta_id && pastas?.find(p => p.id === notaAtual.pasta_id) && (
+                    <span>📁 {pastas.find(p => p.id === notaAtual.pasta_id)!.nome}</span>
+                  )}
+                </>
+              )}
+              <span>Criado: {new Date(notaAtual.criado_em).toLocaleDateString('pt-BR')}</span>
+              <span>Modificado: {new Date(notaAtual.atualizado_em).toLocaleDateString('pt-BR')}</span>
+              {(notaTagsData && notaTagsData.length > 0) && (
+                <span className="flex gap-1">
+                  {notaTagsData.map(tag => {
+                    const bg = tag.cor || '#6B7280'
+                    return (
+                      <span key={tag.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium"
+                        style={{ backgroundColor: `${bg}33`, color: bg, border: `1px solid ${bg}66` }}>
+                        {tag.nome}
+                        {editando && (
+                          <button onClick={() => removeTagFromNotaMut.mutate({ notaId: selectedId!, tagId: tag.id })}
+                            className="ml-0.5 hover:opacity-70">✕</button>
+                        )}
+                      </span>
+                    )
+                  })}
+                  {editando && (
+                    <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
+                      className="px-1.5 py-0.5 text-xs text-accent hover:underline rounded-full border border-dashed border-accent/50">+ Tag</button>
+                  )}
+                </span>
+              )}
+              {editando && (!notaTagsData || notaTagsData.length === 0) && (
+                <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
+                  className="px-1.5 py-0.5 text-xs text-accent hover:underline rounded-full border border-dashed border-accent/50">+ Tag</button>
+              )}
+            </div>
+
             <div className="flex items-center justify-between mb-4">
               <div className="flex-1 flex items-center gap-3">
                 {editando ? (
-                  <>
-                    <label className="text-xs text-text-muted">Tipo:</label>
-                    <select value={String(notaAtual.tipo_id || '')} onChange={e => {
-                      const id = selectedIdRef.current
-                      if (!id) return
-                      const v = e.target.value
-                      updateMut.mutate({ id, data: { tipo_id: v ? Number(v) : null } })
-                    }}
-                      className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
-                      <option value="">Sem tipo</option>
-                      {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
-                    </select>
-                    <label className="text-xs text-text-muted">Pasta:</label>
-                    <select value={String(notaAtual.pasta_id || '')} onChange={e => {
-                      const id = selectedIdRef.current
-                      if (!id) return
-                      const v = e.target.value
-                      updateMut.mutate({ id, data: { pasta_id: v ? Number(v) : null } })
-                    }}
-                      className="bg-bg-tertiary rounded px-2 py-1 text-sm outline-none">
-                      <option value="">Sem pasta</option>
-                      {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                    </select>
-                    <input value={titulo} onChange={e => { setTitulo(e.target.value); setDirty(true) }}
-                      className="flex-1 text-xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
-                  </>
+                  <input value={titulo} onChange={e => { setTitulo(e.target.value); setDirty(true) }}
+                    className="flex-1 text-xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
                 ) : (
-                  <div>
-                    <h1 className="text-xl font-bold">
-                      {notaAtual.tipo_id && tipos?.find(t => t.id === notaAtual.tipo_id)?.icone}{' '}
-                      {notaAtual.titulo}
-                    </h1>
-                    {notaAtual.pasta_id && pastas?.find(p => p.id === notaAtual.pasta_id) && (
-                      <span className="text-xs text-text-muted">
-                        📁 {pastas.find(p => p.id === notaAtual.pasta_id)!.nome}
-                      </span>
-                    )}
-                  </div>
+                  <h1 className="text-xl font-bold">{notaAtual.titulo}</h1>
                 )}
               </div>
-              <div className="flex gap-2 items-center">
+              <div className="flex gap-1 items-center shrink-0">
                 {editando ? (
                   <>
                     <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Extrair trecho como nova nota">✂ Extrair</button>
@@ -485,8 +591,22 @@ export default function Ideias() {
                 ) : (
                   <button onClick={() => setEditando(true)} className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover">Editar</button>
                 )}
+                <div className="flex gap-1 ml-1 items-center">
+                  <button onClick={() => {
+                    if (!selectedId) return
+                    window.open(`/api/notas/${selectedId}/export/md`)
+                  }}
+                    className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como Markdown">
+                    ↓.md
+                  </button>
+                  <button onClick={() => { if (selectedId) favoritarMut.mutate(selectedId) }}
+                    className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover hover:text-text-primary'}`}
+                    title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
+                    {notaAtual.favoritado ? '★' : '☆'}
+                  </button>
+                </div>
                 <button onClick={handleDelete} disabled={deleteMut.isPending}
-                  className="px-4 py-1.5 bg-danger/20 text-danger text-sm rounded-lg hover:bg-danger/30 disabled:opacity-50">
+                  className="ml-2 px-4 py-1.5 bg-danger hover:bg-danger/80 text-white text-sm rounded-lg disabled:opacity-50">
                   {deleteMut.isPending ? 'Excluindo...' : 'Excluir'}
                 </button>
               </div>
@@ -496,7 +616,7 @@ export default function Ideias() {
               <div className="flex-1 min-w-0">
                 {editando ? (
                   <div ref={editorRef} className="relative">
-                    <EditorMarkdown value={conteudo} onChange={handleContentChange} />
+                    <EditorMarkdown value={conteudo} onChange={handleContentChange} notas={notas || []} />
                     {showSlash && editando && slashCommands.length > 0 && (
                       <div ref={slashRef}
                         className="absolute left-0 bottom-full mb-1 bg-bg-secondary border border-border rounded-xl shadow-2xl py-1 min-w-[200px] z-50">
@@ -518,8 +638,8 @@ export default function Ideias() {
                     )}
                   </div>
                 ) : (
-                  <div className="text-sm text-text-primary whitespace-pre-wrap font-mono leading-relaxed">
-                    {notaAtual.conteudo ? renderConteudo(notaAtual.conteudo, notas || [], selectNota) : 'Nenhum conteúdo'}
+                  <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                    {notaAtual.conteudo ? <RenderConteudo conteudo={notaAtual.conteudo} notas={notas || []} onSelect={selectNota} selectedId={selectedId} /> : 'Nenhum conteúdo'}
                   </div>
                 )}
               </div>
@@ -546,7 +666,7 @@ export default function Ideias() {
                 </div>
               )}
 
-              {(editando || Object.keys(propriedades).length > 0) && (
+              {(Object.keys(propriedades).length > 0 || editando) && (
                 <div className="w-56 shrink-0">
                   <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Propriedades</h3>
                   <div className="space-y-2">
@@ -574,32 +694,6 @@ export default function Ideias() {
                           placeholder="Valor" className="bg-bg-primary rounded px-2 py-1 text-xs outline-none" />
                         <button onClick={addPropriedade} className="text-xs text-accent hover:underline self-start">+ Adicionar</button>
                       </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {(editando || (notaTagsData && notaTagsData.length > 0)) && (
-                <div className="w-56 shrink-0">
-                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Tags</h3>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {(notaTagsData || []).map(tag => {
-                      const bg = tag.cor || '#6B7280'
-                      const textColor = getTextColor(tag.cor)
-                      return (
-                        <div key={tag.id} className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs transition-colors ${textColor === 'text-white' ? 'text-white' : 'text-black'}`}
-                          style={{ backgroundColor: bg }}>
-                          {tag.nome}
-                          {editando && (
-                            <button onClick={() => removeTagFromNotaMut.mutate({ notaId: selectedId!, tagId: tag.id })}
-                              className="ml-1 hover:opacity-70">✕</button>
-                          )}
-                        </div>
-                      )
-                    })}
-                    {editando && (
-                      <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                        className="px-2 py-1 text-xs text-accent hover:underline">+ Adicionar</button>
                     )}
                   </div>
                 </div>

@@ -35,3 +35,6 @@ export const updateTag = (id: number, data: Partial<Tag>) =>
   request<Tag>(`/notas/tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
 export const getNotaTags = (notaId: number) =>
   request<Tag[]>(`/notas/${notaId}/tags`)
+
+export const favoritarNota = (id: number) =>
+  request<Nota>(`/notas/${id}/favoritar`, { method: 'PATCH' })

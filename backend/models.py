@@ -215,6 +215,7 @@ class Nota(NotaBase, table=True):
     atualizado_em: str = Field(default_factory=now)
     ordem: int = Field(default=0)
     cover_url: Optional[str] = None
+    favoritado: bool = False
 
 class NotaCreate(NotaBase):
     pass
@@ -224,6 +225,7 @@ class NotaRead(NotaBase):
     criado_em: str
     atualizado_em: str
     cover_url: Optional[str] = None
+    favoritado: bool = False
 
 class NotaUpdate(SQLModel):
     titulo: Optional[str] = None
