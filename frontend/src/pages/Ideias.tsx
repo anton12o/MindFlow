@@ -18,7 +18,7 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const previewCache = useRef<Map<number, string>>(new Map())
-  const hoverTimeout = useRef<ReturnType<typeof setTimeout>>()
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
 
   const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
@@ -318,11 +318,6 @@ export default function Ideias() {
     const g = parseInt(h.substring(2, 4), 16)
     const b = parseInt(h.substring(4, 6), 16)
     return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255
-  }
-
-  function getTextColor(hex: string | null): string {
-    if (!hex) return 'text-white'
-    return getLuminance(hex) > 0.5 ? 'text-black' : 'text-white'
   }
 
   function toggleTagFilter(tagId: number) {
