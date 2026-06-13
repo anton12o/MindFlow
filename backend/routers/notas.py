@@ -6,6 +6,18 @@ from sqlalchemy import func
 from sqlalchemy import text
 from database import get_session
 from urllib.parse import urlparse
+from models import (
+    Nota, NotaCreate, NotaRead, NotaUpdate,
+    Pasta, PastaCreate, PastaRead,
+    Tag, TagCreate, TagRead, TagUpdate, NotaTag,
+    ConexaoNota, ConexaoNotaRead,
+    TemplateNota, TemplateRead, TemplateBase,
+    Flashcard, SessaoPomodoro,
+)
+from services import processar_wikilinks
+from services.estatisticas import calcular_estatisticas
+from datetime import datetime, date
+from models import TipoObjeto
 
 logger = logging.getLogger(__name__)
 
@@ -29,19 +41,6 @@ def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | 
         if is_valid_url(url):
             return url
     return None
-
-from models import (
-    Nota, NotaCreate, NotaRead, NotaUpdate,
-    Pasta, PastaCreate, PastaRead,
-    Tag, TagCreate, TagRead, TagUpdate, NotaTag,
-    ConexaoNota, ConexaoNotaRead,
-    TemplateNota, TemplateRead, TemplateBase,
-    Flashcard, SessaoPomodoro,
-)
-from services import processar_wikilinks
-from services.estatisticas import calcular_estatisticas
-from datetime import datetime, date
-from models import TipoObjeto
 
 router = APIRouter()
 

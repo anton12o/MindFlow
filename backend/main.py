@@ -1,6 +1,4 @@
-import os
 import logging
-import traceback
 from contextlib import asynccontextmanager
 from pathlib import Path
 from fastapi import FastAPI, Request

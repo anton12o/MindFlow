@@ -7,7 +7,7 @@ from alembic import context
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from sqlmodel import SQLModel
-import models
+import models  # noqa: F401
 from database import engine
 
 config = context.config

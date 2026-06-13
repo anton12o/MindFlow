@@ -1,7 +1,6 @@
 import logging
-from sqlmodel import SQLModel, create_engine, Session
+from sqlmodel import create_engine, Session
 from sqlalchemy import text, inspect, event
-from sqlalchemy.exc import OperationalError
 from pathlib import Path
 from alembic.config import Config
 from alembic import command

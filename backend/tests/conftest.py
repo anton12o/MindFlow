@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from fastapi.staticfiles import StaticFiles
 
 # Import models to register them in SQLModel.metadata before create_all
-from models import Nota, ConexaoNota, Tag, NotaTag, Flashcard, Tarefa, SessaoPomodoro, RegistroHabito
+from models import Nota, ConexaoNota, Tag, NotaTag, Flashcard, Tarefa, SessaoPomodoro, RegistroHabito  # noqa: F401
 
 TEST_ENGINE = create_engine(
     "sqlite://",

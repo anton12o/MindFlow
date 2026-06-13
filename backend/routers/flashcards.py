@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from database import get_session
-from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead, Nota
+from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead
 from services import sm2_calculo
 
 

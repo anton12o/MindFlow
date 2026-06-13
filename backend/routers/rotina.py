@@ -18,7 +18,7 @@ def list_blocos(data: str | None = None, session: Session = Depends(get_session)
         dia_semana = str(datetime.strptime(data, "%Y-%m-%d").weekday())
         condicao_data = BlocoRotina.data_especifica == data
         condicao_recorrente = and_(
-            BlocoRotina.recorrente == True,
+            BlocoRotina.recorrente,
             or_(
                 BlocoRotina.dias_semana == dia_semana,
                 BlocoRotina.dias_semana.like(f'{dia_semana},%'),

@@ -2,7 +2,6 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from sqlmodel import Session, select, text
