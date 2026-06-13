@@ -39,6 +39,21 @@ def install_backend_deps():
     print("[OK] Dependencias do backend instaladas")
 
 
+def ensure_pre_commit():
+    git_hooks = Path(ROOT) / ".git" / "hooks" / "pre-commit"
+    if git_hooks.exists():
+        return
+    try:
+        subprocess.run(["pre-commit", "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "pre-commit"],
+            capture_output=True, check=True,
+        )
+    subprocess.run(["pre-commit", "install"], cwd=ROOT, capture_output=True, check=True)
+    print("[OK] Pre-commit hooks configurados")
+
+
 def precisa_rebuildar() -> bool:
     dist_index = Path(FRONTEND_DIST) / "index.html"
     if not dist_index.exists():
@@ -124,6 +139,7 @@ def main():
 
     check_python()
     install_backend_deps()
+    ensure_pre_commit()
     ensure_frontend()
     proc = start_server()
     open_browser()
