@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
+import { useBroadcastSync } from '../hooks/useBroadcastSync'
 
 type Theme = 'dark' | 'light'
 type ThemeMode = Theme | 'system'
@@ -60,6 +61,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [mode])
+
+  useBroadcastSync('sync:theme', mode, (next) => {
+    if (next !== mode) {
+      setMode(next as typeof mode)
+      setTheme(resolveTheme(next as typeof mode))
+    }
+  })
 
   function cycleTheme() {
     setMode(m => {

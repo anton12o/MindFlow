@@ -86,7 +86,7 @@ mindflow/
 ├── docs/
 │   └── FUTURO.md           ← Futuras adições planejadas
 ├── backend/
-│   ├── main.py             # App FastAPI, CORS, logging, 11 routers + FTS5 startup
+│   ├── main.py             # App FastAPI, CORS, logging, 12 routers + FTS5 startup
 │   ├── database.py         # Engine SQLite + run_migrations + setup_fts
 │   ├── models.py           # 15+ entidades SQLModel
 │   ├── seed.py             # Seed templates + tipos
@@ -101,6 +101,7 @@ mindflow/
 │   │   ├── inbox.py        # CRUD inbox
 │   │   ├── habitos.py      # CRUD hábitos + registros
 │   │   ├── rotina.py       # Blocos + tarefas
+│   │   ├── stats.py        # GET /api/stats/weekly (agregados semanais)
 │   │   ├── pomodoro.py     # Sessões pomodoro + finalizar
 │   │   ├── notas.py        # Notas, pastas, tags, wikilinks, templates, grafo, estatísticas
 │   │   ├── flashcards.py   # CRUD + review SM-2
@@ -125,13 +126,14 @@ mindflow/
 │       ├── store/pomodoro.tsx # Context global do timer Pomodoro (minutos, segundos, ativo, sessaoId, resumo, mostrarResumo)
 │       ├── api/
 │   │   ├── client.ts     # fetch com AbortController, timeout 10s, merge com signal do React Query
-│       │   ├── inbox.ts, habitos.ts, rotina.ts, pomodoro.ts
+│       │   ├── inbox.ts, habitos.ts, rotina.ts, stats.ts, pomodoro.ts
 │       │   ├── notas.ts, flashcards.ts, tipos.ts, queries.ts
 │   │   ├── conexoes.ts, grafo.ts, templates.ts
 │   │   ├── export.ts     # exportAll()
 │   │   ├── import_export.ts  # importFile() + ImportResult type
 │   │   └── logs.ts       # logError() com throttle + batch
 │       ├── hooks/useDebounce.ts
+│       ├── hooks/useBroadcastSync.ts  # Sincroniza estado entre abas via BroadcastChannel
 │       ├── hooks/useImport.ts  # useImport() — { mutate, isLoading, resultado, erro, reset }
 │       ├── utils/date.ts     # formatDateLocal, hojeLocal
 │       ├── components/
@@ -154,6 +156,7 @@ mindflow/
 │           ├── Ideias.tsx      # Notas + editor MD + wikilinks clicáveis + grafo
 │           ├── Flashcards.tsx  # Review SM-2 + todos os cards + inline edit
 │           ├── Pomodoro.tsx    # Timer + contexto (hábito/tarefa/livre) + histórico
+│           ├── RevisaoSemanal.tsx  # Revisão semanal com comparativo, gráficos, reflexão
 │           ├── Tipos.tsx       # CRUD tipos de objeto
 │           ├── Consultas.tsx   # Queries salvas + kanban/grid + batch edit
 │           ├── Insights.tsx    # Heatmap calendário + streak + notas clicáveis (/analise, redirect de /insights)
@@ -231,6 +234,8 @@ mindflow/
 - `GET /estatisticas` — heatmap (`?mes=&ano=`)
 - `GET /{id}` — obter nota
 - `PATCH /{id}` — atualizar (+ reprocessar wikilinks se conteudo mudou)
+- `PATCH /{id}/favoritar` — alternar favorito da nota
+- `GET /{id}/export/md` — exportar nota como Markdown com frontmatter YAML
 - `DELETE /{id}` — remover (+ limpar conexoes)
 - `POST /{id}/extrair` — extrair trecho como nova nota
 - `POST /{id}/tags/{tag_id}` — adicionar tag
@@ -258,6 +263,9 @@ mindflow/
 - `DELETE /{id}` — remover
 - `POST /{id}/executar` — executar (filtros: `q` FTS5, `status`, `prioridade`, `tipo_id`)
 - `PATCH /{id}/batch` — edição em lote
+
+### Stats (`/api/stats`)
+- `GET /weekly` — agregados semanais (notas, tarefas, pomodoros, minutos foco, taxa hábitos). Suporta `?offset=` para navegar entre semanas. Retorna `streak_atual` + comparativo com semana anterior.
 
 ### Export (`/api/export`)
 - `GET /` — exportar até 5000 registros por tabela como JSON + metadados
@@ -419,6 +427,11 @@ cd backend && python -m pytest -q
 # 60 passed in 2s — 0 warnings (StarletteDeprecationWarning filtrado)
 ```
 
+```bash
+cd frontend && npx tsc --noEmit
+# 0 errors — useRef/undefined, getTextColor/getLuminance removidos
+```
+
 ### Resumo das Correções
 
 | Fase | Itens | Foco |
@@ -428,8 +441,11 @@ cd backend && python -m pytest -q
 | Módulo 20 ⚡ | 8 otimizações | PRAGMAs SQLite, índices, virtualização, memo |
 | Módulo 21 🛡️ | 5 bugs + 1 | SQL injection, cover_url, timer, timeout, SW |
 | Módulo 23 🪵 | Logging + CI/CD | Sistema de logs, GitHub Actions, 60 testes, 0 warnings |
+| Módulo 24 ⚡ | Quick wins + Design | Favoritos, export MD, tooltip, autocomplete, 8 polish visual, CI fix |
+| Módulo 25 ⚡ | 6 Quick Wins | Notificação, shutdown, backup, journaling, BroadcastChannel, bundle split |
+| Módulo 26 🟡 | Revisão Semanal | Endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · Release v1.1.0
+**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · CI verde · Release v1.1.2
 
 ### Módulo 13: Release v1.0.0 + Polimento
 
@@ -582,6 +598,62 @@ cd backend && python -m pytest -q
 
 ---
 
+### Módulo 24: Quick Wins + Polimento Visual + v1.1.2
+
+**Antes:** Sem favoritos, sem export individual de nota, sem tooltip preview, sem autocomplete `[[` no editor, CI TypeScript quebrava, import/export perdia datetime, design inconsistente (fonte monospace no modo leitura, logo `~`, badges `text-[10px]`, ações escondidas).
+
+**Depois:**
+
+1. **Favoritos** — Migration `0703dc203e19` adiciona `favoritado BOOLEAN` em `notas`. Endpoint `PATCH /{id}/favoritar`. Seção ⭐ na sidebar, estrela no card e no cabeçalho da nota.
+2. **Export Markdown individual** — `GET /{id}/export/md` com YAML frontmatter (id, titulo, criado_em, pasta, tags). Botão `↓ .md` no cabeçalho da nota.
+3. **Tooltip preview** — Componente `RenderConteudo` substitui `renderConteudo`, debounce 300ms no hover de wikilinks, busca `getNota`, strip markdown, tooltip posicionado via CSS.
+4. **Autocomplete `[[`** — Extensão `@codemirror/autocomplete` com `CompletionSource` trigger em `[[`, filtragem por prefixo, `apply: "Título]]"`.
+5. **Propriedades fixas no cabeçalho** — Tipo, pasta, datas, tags sempre visíveis acima do editor (independente de scroll).
+6. **8 itens de design:** hover nos cards do Dashboard, botão Excluir padronizado `bg-danger hover:bg-danger/80 text-white`, modo leitura sans-serif, fade-in nas páginas, logo `~` → `MF`, badges `text-[10px]` → `text-xs`, `focus:ring` no input de bloco, ações agrupadas na barra da nota.
+7. **CI fix** — `useRef<T | undefined>(undefined)` em vez de `null` (React 19). `getTextColor`/`getLuminance` removidos (não usados). `window.setTimeout` para tipagem DOM.
+8. **Import/Export round-trip** — `_convert_datetimes()` normaliza ISO strings com espaço para `T` antes de `fromisoformat`.
+9. **pre-commit Windows** — `start.py` usa `[sys.executable, "-m", "pre_commit"]` em vez de `["pre-commit"]`. `.pre-commit-config.yaml` usa `python -m pytest` em vez de `bash -c`.
+
+**Arquivos:** `backend/migrations/versions/0703dc203e19_add_favoritado_to_nota.py`, `backend/routers/notas.py`, `backend/routers/import_data.py`, `frontend/src/pages/Ideias.tsx`, `frontend/src/components/EditorMarkdown.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Rotina.tsx`, `frontend/src/api/notas.ts`, `frontend/src/types/index.ts`, `start.py`, `.pre-commit-config.yaml`, `README.md`
+
+---
+
+### Módulo 25: 6 Quick Wins — Notificação, Shutdown, Backup, Journaling, Sync, Bundle (Jun/2026)
+
+**Antes:** Sem notificação nativa, sem botão encerrar, sem backup automático, sem journaling, sem sync multi-aba, CodeMirror/d3 no bundle principal.
+
+**Depois:**
+
+1. **Notificação nativa Pomodoro** — `Notification API` ao fim do timer, fallback para som se sem permissão
+2. **Botão encerrar app** — `POST /api/shutdown` + sidebar + ConfirmModal
+3. **Backup automático** — `start.py` faz cold copy do `.db` antes de subir o servidor
+4. **Journaling diário** — Dashboard aplica template "Diário" se não há nota hoje
+5. **Sincronização multi-aba** — `useBroadcastSync` hook via `BroadcastChannel` (tema + pomodoro)
+6. **Bundle splitting** — `manualChunks` separa `@codemirror/*` (581 kB) e `d3-force` (12 kB) do chunk principal Ideias (627 kB → 33 kB)
+
+**Arquivos:** `frontend/src/components/PomodoroTimer.tsx`, `frontend/src/store/pomodoro.tsx`, `backend/routers/shutdown.py`, `frontend/src/components/Sidebar.tsx`, `frontend/src/App.tsx`, `start.py`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/hooks/useBroadcastSync.ts`, `frontend/src/store/theme.tsx`, `frontend/vite.config.ts`
+
+---
+
+### Módulo 26: Revisão Semanal + Polimentos (Jun/2026)
+
+**Antes:** Sem página de revisão, sem agregados semanais.
+
+**Depois:**
+- **Endpoint** `GET /api/stats/weekly` — agrega notas, tarefas, pomodoros, minutos foco, taxa hábitos, streak. Suporta `?offset=` para navegar entre semanas.
+- **Página** `/revisao` — 4 cards comparativos (vs semana passada) com percentual + barras visuais + detalhamento diário com mini-barras + gráfico de barras CSS empilhado (accent/success/warning)
+- **Navegação** entre semanas via setas ‹ › com futuro travado em `offset ≥ 0`
+- **Ações** — "Criar nota de revisão" (gera nota template preenchida) + "Exportar MD" (download relatório `.md`)
+- **Tooltips** nos cards com fonte dos dados (`criado_em`, `data`, `finalizado_em`)
+- **Hábitos** — se não há hábitos ativos, mostra "— (sem hábitos ativos)" em vez de 0%
+- **Divisão por zero** — `+∞` → `(novo)`, `0/0` → `—`
+- **Bug fixes:** streak sempre 0 (scalar vs Row em `session.exec()`), crash no filtro por tags (`notas.py:117`)
+- **Reflexão** — 4 prompts reflexivos ao final da página
+
+**Arquivos:** `backend/routers/stats.py`, `frontend/src/api/stats.ts`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `backend/routers/notas.py`
+
+---
+
 ## Convenções e Decisões Técnicas
 
 - **Erros:** Nunca engolidos — `console.error('[contexto]', e)` no frontend, `logging` no backend
@@ -595,6 +667,7 @@ cd backend && python -m pytest -q
 - **Optimistic updates:** Usados em Rotina (criação de tarefas) com rollback em `onError`
 - **Botões de deletar:** Sempre visíveis (nunca `opacity-0 hover:opacity-100`)
 - **`confirm()` nativo:** Completamente eliminado — substituído por `<ConfirmModal>`
+- **⚠️ WAL + cloud sync é corrupção:** NUNCA apontar o SQLite em WAL mode para pastas sincronizadas (OneDrive/Dropbox/Syncthing). Clientes de sync copiam arquivos individualmente — `.db`, `.db-wal` e `.db-shm` ficam inconsistentes, resultando em `Database Malformed`. Usar export JSON ou cold copy via `start.py` se precisar de backup na nuvem.
 
 ---
 

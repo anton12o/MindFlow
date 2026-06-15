@@ -108,6 +108,25 @@ def ensure_frontend():
         print("[OK] Frontend ja atualizado")
 
 
+def cold_backup():
+    """Copia mindflow.db para backups/ antes de iniciar o servidor."""
+    import glob, shutil
+    src = os.path.join(BACKEND, "data", "mindflow.db")
+    if not os.path.exists(src):
+        return
+    dst_dir = os.path.join(BACKEND, "data", "backups")
+    os.makedirs(dst_dir, exist_ok=True)
+    try:
+        backups = sorted(glob.glob(os.path.join(dst_dir, "mindflow-*.db")))
+        while len(backups) > 6:
+            os.remove(backups.pop(0))
+        now = time.strftime("%Y-%m-%d_%H-%M-%S")
+        shutil.copy2(src, os.path.join(dst_dir, f"mindflow-{now}.db"))
+        print(f"[Backup] Cópia salva em data/backups/mindflow-{now}.db")
+    except Exception as e:
+        print(f"[Backup] Aviso: não foi possível fazer backup ({e})")
+
+
 def start_server():
     print("[Server] Iniciando MindFlow em http://localhost:8000")
     print("[Server] Pressione Ctrl+C para parar...\n")
@@ -131,7 +150,43 @@ def open_browser():
     print("[Browser] Navegador aberto em http://localhost:8000")
 
 
+def do_backup():
+    """Exporta dados via API e salva como JSON."""
+    import json, urllib.request
+    print("[Backup] Exportando dados...")
+    try:
+        proc = start_server()
+        time.sleep(2)
+        if proc.poll() is not None:
+            print("[ERROR] Servidor nao iniciou para backup.")
+            return
+        req = urllib.request.Request("http://localhost:8000/api/export")
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            data = json.loads(resp.read().decode())
+        now = time.strftime("%Y-%m-%d_%H-%M-%S")
+        path = os.path.join(ROOT, f"mindflow-backup-{now}.json")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        print(f"[OK] Backup salvo em: {path}")
+        print(f"[OK] Total: {sum(len(v) for v in data.values() if isinstance(v, list))} registros em {sum(1 for v in data.values() if isinstance(v, list))} tabelas")
+    except Exception as e:
+        print(f"[ERROR] Backup falhou: {e}")
+    finally:
+        proc.terminate()
+        proc.wait()
+
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="MindFlow — Gerenciador de produtividade pessoal")
+    parser.add_argument("--backup", action="store_true", help="Exportar dados para JSON e sair (backup a frio)")
+    args = parser.parse_args()
+
+    if args.backup:
+        check_python()
+        install_backend_deps()
+        do_backup()
+        return
+
     print("=" * 50)
     print("  MindFlow — Inicializando...")
     print("=" * 50)
@@ -141,6 +196,7 @@ def main():
     install_backend_deps()
     ensure_pre_commit()
     ensure_frontend()
+    cold_backup()
     proc = start_server()
     open_browser()
 

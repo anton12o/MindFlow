@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getInbox, createInbox, deleteInbox } from '../api/inbox'
 import ConfirmModal from './ConfirmModal'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 import type { InboxItem } from '../types'
 
-export default function InboxModal({ onClose }: { onClose: () => void }) {
+export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
   const [text, setText] = useState('')
   const [destino, setDestino] = useState('')
@@ -13,11 +14,24 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
   const [confirmDelete, setConfirmDelete] = useState<InboxItem | null>(null)
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  const inputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, isOpen)
+
+  useEffect(() => {
+    const capture = (e: CustomEvent) => { if (e.detail?.text) setText(e.detail.text) }
+    window.addEventListener('inbox-capture', capture as EventListener)
+    return () => window.removeEventListener('inbox-capture', capture as EventListener)
+  }, [])
 
   const { data: items, isLoading, isError } = useQuery({
     queryKey: ['inbox', false],
     queryFn: () => getInbox(false),
   })
+
+  useEffect(() => {
+    if (isOpen) inputRef.current?.focus()
+  }, [isOpen])
 
   const createMut = useMutation({
     mutationFn: () => createInbox(text.trim(), destino || null),
@@ -56,14 +70,14 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-start justify-center pt-[10vh] z-50" onClick={onClose}>
-      <div className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
+    <div className={`fixed inset-0 bg-black/60 flex items-start justify-center pt-[10vh] z-50 ${isOpen ? '' : 'hidden'}`} onClick={onClose}>
+      <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-border">
           <span className="text-xs text-text-muted uppercase tracking-wider">Captura rápida</span>
         </div>
         <form onSubmit={handleSubmit} className="p-4 border-b border-border">
           <input
-            autoFocus
+            ref={inputRef}
             value={text}
             onChange={e => setText(e.target.value)}
             placeholder="O que você está pensando?"
@@ -82,8 +96,8 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             </div>
             <div className="flex gap-2">
               {saved && <span className="text-xs text-success">Salvo!</span>}
-              <button type="submit" className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">
-                Salvar
+              <button type="submit" disabled={createMut.isPending} className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50">
+                {createMut.isPending ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </div>
@@ -124,6 +138,7 @@ export default function InboxModal({ onClose }: { onClose: () => void }) {
             mensagem={`Tem certeza que deseja remover "${confirmDelete.conteudo}"?`}
             destructive
             confirmLabel="Remover"
+            disabled={deleteMut.isPending}
             onConfirm={() => { deleteMut.mutate(confirmDelete.id); setConfirmDelete(null) }}
             onCancel={() => setConfirmDelete(null)}
           />

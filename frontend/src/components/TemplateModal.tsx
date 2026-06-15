@@ -1,6 +1,7 @@
 import { useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTemplates, aplicarTemplate } from '../api/templates'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface Props {
   onClose: () => void
@@ -11,6 +12,8 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
   const queryClient = useQueryClient()
   const onCloseRef = useRef(onClose)
   onCloseRef.current = onClose
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onCloseRef.current() }
@@ -35,7 +38,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">Criar a partir de template</span>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary">✕</button>
@@ -47,9 +50,10 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
             <button
               key={t.id}
               onClick={() => aplicarMut.mutate(t.id)}
-              className="w-full text-left p-3 rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors"
+              disabled={aplicarMut.isPending}
+              className="w-full text-left p-3 rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors disabled:opacity-50"
             >
-              <div className="text-sm font-medium">{t.nome}</div>
+              <div className="text-sm font-medium">{aplicarMut.isPending ? 'Criando...' : t.nome}</div>
               {t.descricao && <div className="text-xs text-text-muted mt-0.5">{t.descricao}</div>}
             </button>
           ))}

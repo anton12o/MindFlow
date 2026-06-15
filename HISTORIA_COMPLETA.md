@@ -864,13 +864,86 @@ Os bugs 25, 26 e 27 foram adiados por serem de melhoria UX, não funcionais:
 
 ---
 
-## 15. Próximos Passos
+## 15. Módulo 23: Logging + CI/CD + v1.1.0
+
+**Antes:** Sem sistema de logs (erros silenciosos no frontend, sem rastreamento no backend). Sem CI/CD (zero automação). 3 warnings de depreciação nos testes.
+
+**Depois:**
+
+1. **Sistema de logs** — `RotatingFileHandler` (1MB × 3 backups) em `backend/data/mindflow.log`. Endpoint `GET/POST/DELETE /api/logs`. Frontend: `logError()` com throttle (10/60s) e batch (5s/10 itens), `window.onerror` + `unhandledrejection` capturados, `ErrorBoundary` integrado. `LogsModal.tsx` com filtro de nível e comando Ctrl+K "Ver logs de erro".
+2. **CI/CD** — `.github/workflows/ci.yml` (ruff, pytest 60, tsc, build), `.github/workflows/release.yml` (tag → zip → release). `requirements-dev.txt` com dependências de teste.
+3. **0 warnings** — `pytest.ini` filtra `StarletteDeprecationWarning`. `main.py` migrado de `@app.on_event("startup")` para `lifespan` async context manager.
+4. **MindFlow.bat seguro** — Detecção de repositório existente: se `start.py` está presente, pula clone + venv e executa `python start.py` direto (evita duplicata aninhada).
+5. **Bug fixes** — `start.py`: `npm.cmd` no Windows (execution policy). `queries.py`: `Any` import ausente. Testes: tipos corrigidos para React 19 e `vi.stubEnv`.
+
+**Arquivos:** `backend/logging_config.py`, `backend/routers/logs.py`, `backend/pytest.ini`, `backend/requirements-dev.txt`, `frontend/src/api/logs.ts`, `frontend/src/components/LogsModal.tsx`, `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `main.py`, `start.py`, `MindFlow.bat`, `conftest.py`
+
+---
+
+## 16. Módulo 24: Quick Wins + Polimento Visual + v1.1.2
+
+**Antes:** Sem favoritos, sem export individual de nota, sem tooltip preview, sem autocomplete `[[` no editor, CI TypeScript quebrava, import/export perdia datetime, design inconsistente (fonte monospace no modo leitura, logo `~`, badges `text-[10px]`, ações escondidas).
+
+**Depois:**
+
+1. **Favoritos** — Migration `0703dc203e19` adiciona `favoritado BOOLEAN` em `notas`. Endpoint `PATCH /{id}/favoritar`. Seção ⭐ na sidebar, estrela no card e no cabeçalho da nota.
+2. **Export Markdown individual** — `GET /{id}/export/md` com YAML frontmatter (id, titulo, criado_em, pasta, tags). Botão `↓ .md` no cabeçalho da nota.
+3. **Tooltip preview** — Componente `RenderConteudo` substitui `renderConteudo`, debounce 300ms no hover de wikilinks, busca `getNota`, strip markdown, tooltip posicionado via CSS.
+4. **Autocomplete `[[`** — Extensão `@codemirror/autocomplete` com `CompletionSource` trigger em `[[`, filtragem por prefixo, `apply: "Título]]"`.
+5. **Propriedades fixas no cabeçalho** — Tipo, pasta, datas, tags sempre visíveis acima do editor.
+6. **8 itens de design:** hover nos cards do Dashboard, botão Excluir padronizado `bg-danger hover:bg-danger/80 text-white`, modo leitura sans-serif, fade-in nas páginas, logo `~` → `MF`, badges `text-[10px]` → `text-xs`, `focus:ring` no input de bloco, ações agrupadas na barra da nota.
+7. **CI fix** — `useRef<T | undefined>(undefined)` em vez de `null` (React 19). `getTextColor`/`getLuminance` removidos (não usados). `window.setTimeout` para tipagem DOM.
+8. **Import/Export round-trip** — `_convert_datetimes()` normaliza ISO strings com espaço para `T` antes de `fromisoformat`.
+9. **pre-commit Windows** — `start.py` usa `[sys.executable, "-m", "pre_commit"]` em vez de `["pre-commit"]`. `.pre-commit-config.yaml` usa `python -m pytest` em vez de `bash -c`.
+
+**Arquivos:** `backend/migrations/versions/0703dc203e19_add_favoritado_to_nota.py`, `backend/routers/notas.py`, `backend/routers/import_data.py`, `frontend/src/pages/Ideias.tsx`, `frontend/src/components/EditorMarkdown.tsx`, `frontend/src/components/Sidebar.tsx`, `frontend/src/App.tsx`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/pages/Rotina.tsx`, `frontend/src/api/notas.ts`, `frontend/src/types/index.ts`, `start.py`, `.pre-commit-config.yaml`, `README.md`
+
+---
+
+## 17. Módulo 25: 6 Quick Wins (Jun/2026)
+
+**Antes:** Sem notificação nativa, sem botão encerrar, sem backup automático, sem journaling, sem sync multi-aba, CodeMirror/d3 no bundle principal.
+
+**Depois:**
+
+1. **Notificação nativa Pomodoro** — `Notification API` ao fim do timer, fallback para som se sem permissão
+2. **Botão encerrar app** — `POST /api/shutdown` + sidebar + ConfirmModal
+3. **Backup automático** — `start.py` faz cold copy do `.db` antes de subir o servidor
+4. **Journaling diário** — Dashboard aplica template "Diário" se não há nota hoje
+5. **Sincronização multi-aba** — `useBroadcastSync` hook via `BroadcastChannel` (tema + pomodoro)
+6. **Bundle splitting** — `manualChunks` separa `@codemirror/*` (581 kB) e `d3-force` (12 kB) do chunk principal Ideias (627 kB → 33 kB)
+
+**Arquivos:** `frontend/src/components/PomodoroTimer.tsx`, `frontend/src/store/pomodoro.tsx`, `backend/routers/shutdown.py`, `frontend/src/components/Sidebar.tsx`, `frontend/src/App.tsx`, `start.py`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/hooks/useBroadcastSync.ts`, `frontend/src/store/theme.tsx`, `frontend/vite.config.ts`
+
+---
+
+## 18. Módulo 26: Revisão Semanal + Polimentos (Jun/2026)
+
+**Antes:** Sem página de revisão, sem agregados semanais.
+
+**Depois:**
+
+- **Endpoint** `GET /api/stats/weekly` — agrega notas, tarefas, pomodoros, minutos foco, taxa hábitos, streak. Suporta `?offset=` para navegar entre semanas.
+- **Página** `/revisao` — 4 cards comparativos (vs semana passada) com percentual + barras visuais + detalhamento diário com mini-barras + gráfico de barras CSS empilhado
+- **Navegação** entre semanas via setas ‹ › com futuro travado em `offset ≥ 0`
+- **Ações** — "Criar nota de revisão" (gera nota template preenchida) + "Exportar MD" (download relatório `.md`)
+- **Tooltips** nos cards com fonte dos dados (`criado_em`, `data`, `finalizado_em`)
+- **Hábitos** — se não há hábitos ativos, mostra "— (sem hábitos ativos)" em vez de 0%
+- **Divisão por zero** — `+∞` → `(novo)`, `0/0` → `—`
+- **Bug fixes:** streak sempre 0 (scalar vs Row em `session.exec()`), crash no filtro por tags (`notas.py:117`)
+- **Reflexão** — 4 prompts reflexivos ao final da página
+
+**Arquivos:** `backend/routers/stats.py`, `frontend/src/api/stats.ts`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `backend/routers/notas.py`
+
+---
+
+## 19. Próximos Passos
 
 As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.
 
 ---
 
-## 15. Filosofia do Projeto
+## 20. Filosofia do Projeto
 
 MindFlow segue alguns princípios fundamentais:
 
@@ -885,4 +958,4 @@ MindFlow segue alguns princípios fundamentais:
 ---
 
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: 12 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow).*
+*Última atualização: 15 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow) + Módulo 23 (Logging + CI/CD) + Módulo 24 (Quick Wins: favoritos, export MD, tooltip, autocomplete, design, CI fix, pre-commit Windows) + Módulo 25 (6 Quick Wins: notificação, shutdown, backup, journaling, BroadcastChannel, bundle split) + Módulo 26 (Revisão Semanal: endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags).*

@@ -4,10 +4,11 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from database import run_migrations, setup_fts
-from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data, logs
+from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data, logs, shutdown, stats
 from seed import seed_db
 from logging_config import setup_logging
 
@@ -51,10 +52,8 @@ app.include_router(queries.router, prefix="/api/queries", tags=["Queries"])
 app.include_router(export.router, prefix="/api/export", tags=["Export"])
 app.include_router(import_data.router, prefix="/api/import", tags=["Import"])
 app.include_router(logs.router, prefix="/api/logs", tags=["Logs"])
-
-FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
-    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+app.include_router(shutdown.router, prefix="/api", tags=["Shutdown"])
+app.include_router(stats.router, prefix="/api", tags=["Stats"])
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
@@ -64,3 +63,21 @@ async def global_exception_handler(request: Request, exc: Exception):
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
+
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+
+class SPAStaticFiles(StaticFiles):
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as e:
+            if e.status_code == 404:
+                if Path(path).suffix:
+                    raise
+                index = Path(self.directory) / "index.html"
+                if index.exists():
+                    return FileResponse(str(index), media_type="text/html")
+            raise
+
+if FRONTEND_DIST.exists():
+    app.mount("/", SPAStaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
