@@ -73,6 +73,8 @@ export interface Nota {
   atualizado_em: string
   propriedades?: Record<string, any>
   favoritado?: boolean
+  acessos?: number
+  ultimo_acesso?: string | null
 }
 
 export interface TipoObjeto {

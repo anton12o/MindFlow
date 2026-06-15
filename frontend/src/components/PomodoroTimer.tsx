@@ -8,7 +8,7 @@ interface Props {
   onFinalizar?: () => void
 }
 
-function playBeep() {
+function playBeep(fase: string) {
   try {
     const ctx = new AudioContext()
     const osc = ctx.createOscillator()
@@ -23,6 +23,14 @@ function playBeep() {
     osc.stop(ctx.currentTime + 0.5)
     setTimeout(() => ctx.close(), 1000)
   } catch { /* audio not available */ }
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('MindFlow', {
+      body: fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!',
+      icon: '/icon-192.svg',
+    })
+  } else if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission()
+  }
 }
 
 export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
@@ -124,7 +132,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
     if (initialElapsed >= phaseMs) {
       setAtivo(false)
-      playBeep()
+      playBeep(fase)
       if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
       else setShowPhaseTransition({ type: 'pausa_end' })
       return
@@ -143,7 +151,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
       if (elapsed >= phaseMs) {
         setAtivo(false)
-        playBeep()
+        playBeep(fase)
         if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
         else setShowPhaseTransition({ type: 'pausa_end' })
         return

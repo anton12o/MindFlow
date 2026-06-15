@@ -1,14 +1,17 @@
 import request from './client'
 import type { Nota, Pasta, Tag } from '../types'
 
-export const getNotas = (q?: string, data?: string, tagIds?: number[]) => {
+export const getNotas = (q?: string, data?: string, tagIds?: number[], sort?: string) => {
   const params = new URLSearchParams()
   if (q) params.set('q', q)
   if (data) params.set('data', data)
   if (tagIds && tagIds.length > 0) params.set('tag_ids', tagIds.join(','))
+  if (sort) params.set('sort', sort)
   const qs = params.toString()
   return request<Nota[]>(`/notas${qs ? `?${qs}` : ''}`)
 }
+
+export const getNotasRecentes = () => request<Nota[]>('/notas/recentes')
 
 export const getEstatisticas = (mes: number, ano: number) =>
   request<{ por_dia: Record<string, number>; total_mes: number; streak: number; ultimo_dia: number }>(
@@ -38,3 +41,6 @@ export const getNotaTags = (notaId: number) =>
 
 export const favoritarNota = (id: number) =>
   request<Nota>(`/notas/${id}/favoritar`, { method: 'PATCH' })
+
+export const batchDeleteNotas = (ids: number[]) =>
+  request<{ ok: boolean; deleted: number }>('/notas/batch/delete', { method: 'POST', body: JSON.stringify({ ids }) })

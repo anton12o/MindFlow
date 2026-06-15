@@ -404,6 +404,8 @@ export default function Consultas() {
   const [newTipoId, setNewTipoId] = useState(1)
   const [newView, setNewView] = useState('grid')
   const [newGroup, setNewGroup] = useState('')
+  const [queryFormError, setQueryFormError] = useState('')
+  const [queryGroupError, setQueryGroupError] = useState('')
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
@@ -521,14 +523,19 @@ export default function Consultas() {
       <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6">Consultas</h1>
 
-        <form onSubmit={e => { e.preventDefault(); createMut.mutate() }} className="mb-4 flex flex-col gap-2">
-          <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="Nome da consulta"
-            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none" />
+        <form onSubmit={e => { e.preventDefault(); setQueryFormError(''); setQueryGroupError('')
+          if (!newName.trim()) { setQueryFormError('Informe o nome'); return }
+          if (newView === 'kanban' && !newGroup) { setQueryGroupError('Selecione um campo de agrupamento'); return }
+          createMut.mutate()
+        }} className="mb-4 flex flex-col gap-2">
+          <input value={newName} onChange={e => { setNewName(e.target.value); if (queryFormError) setQueryFormError('') }} placeholder="Nome da consulta"
+            className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none ${queryFormError ? 'ring-1 ring-danger border-danger' : ''}`} />
+          {queryFormError && <p className="text-xs text-danger">{queryFormError}</p>}
           <select value={newTipoId} onChange={e => setNewTipoId(Number(e.target.value))}
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
           </select>
-          <select value={newView} onChange={e => setNewView(e.target.value)}
+          <select value={newView} onChange={e => { setNewView(e.target.value); if (queryGroupError) setQueryGroupError('') }}
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             <option value="grid">Grid (cards)</option>
             <option value="kanban">Kanban (colunas)</option>
@@ -539,17 +546,20 @@ export default function Consultas() {
             <option value="gantt">Gantt (cronograma)</option>
           </select>
           {newView === 'kanban' && (
-            <select value={newGroup} onChange={e => setNewGroup(e.target.value)}
-              className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
-              <option value="">Campo para agrupar...</option>
-              <option value="status">Status</option>
-              <option value="prioridade">Prioridade</option>
-              <option value="tipo_id">Tipo</option>
-              <option value="data">Data</option>
-            </select>
+            <div>
+              <select value={newGroup} onChange={e => { setNewGroup(e.target.value); if (queryGroupError) setQueryGroupError('') }}
+                className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none ${queryGroupError ? 'ring-1 ring-danger border-danger' : ''}`}>
+                <option value="">Campo para agrupar...</option>
+                <option value="status">Status</option>
+                <option value="prioridade">Prioridade</option>
+                <option value="tipo_id">Tipo</option>
+                <option value="data">Data</option>
+              </select>
+              {queryGroupError && <p className="text-xs text-danger">{queryGroupError}</p>}
+            </div>
           )}
-          <button type="submit" disabled={!newName.trim() || (newView === 'kanban' && !newGroup)}
-            className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar</button>
+          <button type="submit" disabled={createMut.isPending}
+            className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
         </form>
 
         <div className="space-y-1">
@@ -588,8 +598,9 @@ export default function Consultas() {
                   <input value={batchValue} onChange={e => setBatchValue(e.target.value)}
                     placeholder="Valor" className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none w-24" />
                   <button onClick={() => batchMut.mutate()}
-                    className="px-3 py-1 bg-accent text-white text-xs rounded-lg">
-                    Aplicar ({selectedIds.size})
+                    disabled={batchMut.isPending}
+                    className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">
+                    {batchMut.isPending ? 'Aplicando...' : `Aplicar (${selectedIds.size})`}
                   </button>
                 </div>
               )}
@@ -731,6 +742,7 @@ export default function Consultas() {
           mensagem={`Tem certeza que deseja remover esta consulta?`}
           destructive
           confirmLabel="Remover"
+          disabled={deleteMut.isPending}
           onConfirm={() => {
             deleteMut.mutate(confirmDeleteId)
             setConfirmDeleteId(null)

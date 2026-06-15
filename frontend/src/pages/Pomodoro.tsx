@@ -161,6 +161,7 @@ export default function PomodoroPage() {
             : 'Isso vai deletar TODAS as sessões de pomodoro. Esta ação não pode ser desfeita.'}
           confirmLabel={cleanupDate ? 'Sim, limpar anteriores' : 'Sim, limpar tudo'}
           destructive
+          disabled={cleanupMut.isPending}
           onConfirm={() => cleanupMut.mutate()}
           onCancel={() => setConfirmCleanup(false)}
         />

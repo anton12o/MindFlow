@@ -62,6 +62,22 @@
 
 ---
 
+### Quick Switcher (Ctrl+P) — Nota Finder
+**Status:** ⏳ Planejado
+**Origem:** Conversa de análise DeepSeek + Gemini (Jun/2026)
+
+**Descrição:** Modal de busca rápida de notas ativado por `Ctrl+P`, reutilizando o componente `CommandPalette.tsx` existente com `mode="nota"`. Filtra notas já carregadas no cache do React Query (`useNotas()`) usando `filter` simples por título. Mesma acessibilidade, navegação por setas e Enter do Ctrl+K, mas sem contaminar o namespace de comandos.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/CommandPalette.tsx` — adicionar `mode="nota"`, injetar `useNotas()`
+- `frontend/src/App.tsx` — registrar atalho `Ctrl+P` (prevenir conflito com print do navegador)
+
+**Dependências:** Nenhuma (cache do React Query já carrega as notas para a sidebar).
+
+**Observações:** MVP em ~10min reaproveitando o que já existe. Próximo passo (pós-MVP): buffer local de 5 notas recentes antes do campo de busca (Opção C da conversa com Gemini). Evolução futura: Omnibar com comandos `>tarefa` e `/pomodoro`.
+
+---
+
 ## 🟡 Média Prioridade — Discutidos, precisam de refinamento
 
 ### 5 novas views nas Consultas
@@ -175,25 +191,25 @@
 ---
 
 ### Autocomplete de wikilinks no editor
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (v1.1.2, Jun/2026)
 **Origem:** Revisão UX
 
-**Descrição:** Ao digitar `[[`, o editor mostra dropdown com títulos de notas existentes. CM6 tem suporte nativo a autocomplete.
+**Descrição:** Ao digitar `[[`, o editor mostra dropdown com títulos de notas existentes via `@codemirror/autocomplete`. Filtragem por prefixo, `apply: "Título]]"`.
 
-**Arquivos:** `EditorMarkdown.tsx`
+**Arquivos:** `EditorMarkdown.tsx`, `Ideias.tsx`
 
 ---
 
 ### Export Markdown (nota = .md + frontmatter YAML)
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (v1.1.2, Jun/2026)
 **Origem:** Revisão portabilidade
 
-**Descrição:** Uma nota = um `.md` com frontmatter YAML para propriedades. Download como zip contendo todas as notas.
+**Descrição:** `GET /api/notas/{id}/export/md` com YAML frontmatter (id, titulo, criado_em, pasta, tags). Botão "↓ .md" no cabeçalho da nota.
 
 ---
 
 ### Journaling diário automático
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão produtividade
 
 **Descrição:** Template "Diário" aplicado automaticamente ao abrir o Dashboard se não houver nota na data de hoje.
@@ -202,21 +218,23 @@
 
 ---
 
-### GET /api/stats/usage (diário de bordo)
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+### GET /api/stats/weekly (diário de bordo)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Provocação de arquitetura
 
-**Descrição:** Endpoint que agrega: dias ativos nos últimos 30 dias, média de notas/dia, total de pomodoros, streak atual. Alimenta Dashboard e Revisão Semanal.
+**Descrição:** Endpoint que agrega: dados da semana (notas, tarefas, pomodoros, minutos foco, taxa hábitos), comparativo com semana anterior, streak atual. Suporta `?offset=` para navegar entre semanas.
 
 ---
 
 ### Revisão Semanal
-**Status:** 🟡 Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão produtividade
 
-**Descrição:** Página de agregação: taxa de conclusão de hábitos, tarefas concluídas, minutos de foco, notas criadas, prompt reflexivo.
+**Descrição:** Página de agregação: taxa de conclusão de hábitos, tarefas concluídas, minutos de foco, notas criadas, prompt reflexivo. Navegação entre semanas via setas (‹ ›). Botão "Criar nota de revisão" gera nota com dados preenchidos. Comparativo percentual com semana anterior.
 
-**Dependências:** `GET /api/stats/usage`
+**Arquivos:** `backend/routers/stats.py`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/api/stats.ts`, `App.tsx`, `Sidebar.tsx`
+
+**Dependências:** `GET /api/stats/weekly`
 
 ---
 
@@ -225,6 +243,40 @@
 **Origem:** Revisão robustez
 
 **Descrição:** Tabela `versoes_nota` com diff simples + botão "Restaurar". Backend é trivial (~3h). UI de navegação dobra o esforço (~5h).
+
+---
+
+### Contador de acessos nas notas
+**Status:** 🟡 Planejado
+**Origem:** Conversa de análise DeepSeek + Gemini (Jun/2026)
+
+**Descrição:** Adicionar campo `acessos` (INTEGER, default 0) e `ultimo_acesso` (DATETIME, nullable) na tabela `notas`. Incrementar no `GET /api/notas/{id}`. Ordenar resultados do Ctrl+P por frequência de acesso.
+
+**Arquivos:**
+- `backend/models.py` — campos `acessos` e `ultimo_acesso`
+- Migration Alembic
+- `backend/routers/notas.py` — incrementar no GET
+- `frontend/src/components/CommandPalette.tsx` — ordenar por acessos no Ctrl+P
+
+**Dependências:** Ctrl+P implementado (para usar a ordenação).
+
+**Observações:** Sem essa métrica, toda decisão de ordenação/relevância é chute. Com ela, Ctrl+P pode mostrar notas mais acessadas primeiro. 30min de implementação.
+
+---
+
+### Notas recentes no Ctrl+P (buffer local)
+**Status:** 🟡 Planejado
+**Origem:** Conversa de análise Gemini (Jun/2026)
+
+**Descrição:** Mostrar 5 notas mais recentemente acessadas antes do campo de busca no Ctrl+P quando o termo estiver vazio. Buffer mantido no frontend (localStorage ou Context), sem backend novo. Regra: `if (termo.length === 0) return recentes; else return notas.filter(...)`.
+
+**Arquivos:**
+- `frontend/src/components/CommandPalette.tsx` — seção de recentes antes do campo de busca
+- `frontend/src/App.tsx` ou `frontend/src/store/` — buffer de histórico de navegação
+
+**Dependências:** Ctrl+P implementado.
+
+**Observações:** Reduz necessidade de digitar em ~80% dos usos (você quer a nota que estava editando há 5 minutos). Zero backend, zero schema novo. 30min.
 
 ---
 
@@ -301,22 +353,12 @@
 ---
 
 ### Botão encerrar app / shutdown
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão do usuário
 
-**Descrição:** Permitir encerrar o servidor sem precisar de terminal (Ctrl+C). Três abordagens possíveis:
-- **Opção A (mais simples):** Botão "Encerrar app" na sidebar que chama `POST /api/shutdown` → FastAPI encerra processo com `os.kill(os.getpid(), signal.SIGTERM)`
-- **Opção B (mais elegante):** Ícone na bandeja do Windows via `pystray` com menu "Abrir" / "Encerrar"
-- **Opção C:** Capturar fechamento da janela do terminal via `start.py` para encerrar uvicorn junto
+**Descrição:** `POST /api/shutdown` encerra o servidor. Botão ⏻ na sidebar com ConfirmModal.
 
-**Recomendação:** A + C juntos cobrem usuário técnico (fecha terminal) e não técnico (botão na UI). Opção B para V2.
-
-**Arquivos envolvidos:**
-- `backend/routers/shutdown.py` (novo) — endpoint POST /api/shutdown
-- `frontend/src/components/Sidebar.tsx` — botão encerrar
-- `start.py` — capturar fechamento do terminal
-
-**Dependências:** Nenhuma.
+**Arquivos:** `backend/routers/shutdown.py`, `frontend/src/components/Sidebar.tsx`, `frontend/src/App.tsx`
 
 ---
 
@@ -335,16 +377,28 @@
 **Descrição:** Permitir criar/alternar workspaces (ex: "Pessoal", "Trabalho"). Cada workspace = um `.db` separado. Exige refatoração do `database.py` (engine singleton).
 
 ### Preview de nota ao hover
-**Status:** ⏳ Ideia
-**Descrição:** Tooltip com conteúdo resumido da nota ao pairar em wikilinks. Tecnicamente simples, mas precisa definir gatilho e quantidade de conteúdo.
+**Status:** ✅ Implementado (v1.1.2, Jun/2026)
+**Descrição:** Tooltip com conteúdo resumido (strip markdown) ao pairar em wikilinks. Debounce 300ms, fetch via `getNota`, posicionamento CSS. Componente `RenderConteudo` em `Ideias.tsx`.
+
+### Backup a frio automatizado (cold copy via start.py)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Conversa de análise Gemini (Jun/2026)
+
+**Descrição:** `start.py` faz `shutil.copy2` do `.db` antes de subir o servidor. Cópia fria (arquivo fechado) — sem risco de corrupção de WAL.
+
+**Arquivos:** `start.py`
 
 ### Sincronização multi-aba
-**Status:** ⏳ Ideia
-**Descrição:** Timer e tema sincronizam via `BroadcastChannel` entre abas. Precisa definir comportamento: sincronizar display ou estado completo?
+**Status:** ✅ Implementado (Jun/2026)
+**Descrição:** `useBroadcastSync` hook sincroniza tema e estado do Pomodoro entre abas via `BroadcastChannel`.
+
+**Arquivos:** `frontend/src/hooks/useBroadcastSync.ts`, `frontend/src/store/theme.tsx`, `frontend/src/store/pomodoro.tsx`
 
 ### Bundle splitting (CodeMirror + d3-force)
-**Status:** ⏳ Ideia
-**Descrição:** Separar CodeMirror e d3-force em chunks independentes via `manualChunks` do Vite. Ganho pequeno (~200kB só na página Ideias) pra 30min de configuração.
+**Status:** ✅ Implementado (Jun/2026)
+**Descrição:** `manualChunks` no Vite separa `@codemirror/*` (582 kB) e `d3-force` (13 kB) do chunk Ideias (627 kB → 33 kB).
+
+**Arquivos:** `frontend/vite.config.ts`
 
 ### Suporte mobile refinado
 **Status:** ⏳ Ideia

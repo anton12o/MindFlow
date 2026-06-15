@@ -9,6 +9,8 @@ export default function Tipos() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<number | null>(null)
   const [form, setForm] = useState({ nome: '', icone: '📄' })
+  const [formError, setFormError] = useState('')
+  const [editError, setEditError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
 
   const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
@@ -46,10 +48,11 @@ export default function Tipos() {
             className="bg-bg-primary rounded px-2 py-1.5 text-lg">
             {ICONES.map(ic => <option key={ic} value={ic}>{ic}</option>)}
           </select>
-          <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
-            placeholder="Nome do tipo" className="flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none" />
-          <button onClick={() => createMut.mutate()} disabled={!form.nome.trim()}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar</button>
+          <input value={form.nome} onChange={e => { setForm(f => ({ ...f, nome: e.target.value })); if (formError) setFormError('') }}
+            placeholder="Nome do tipo" className={`flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none ${formError ? 'ring-1 ring-danger border-danger' : ''}`} />
+          {formError && <p className="text-xs text-danger">{formError}</p>}
+          <button onClick={() => { if (!form.nome.trim()) { setFormError('Informe o nome do tipo'); return }; setFormError(''); createMut.mutate() }} disabled={createMut.isPending}
+            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
         </div>
       </div>
       )}
@@ -68,10 +71,11 @@ export default function Tipos() {
                   className="bg-bg-primary rounded px-2 py-1.5 text-lg">
                   {ICONES.map(ic => <option key={ic} value={ic}>{ic}</option>)}
                 </select>
-                <input value={form.nome} onChange={e => setForm(f => ({ ...f, nome: e.target.value }))}
-                  className="flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none" />
-                <button onClick={() => updateMut.mutate({ id: t.id, data: form })}
-                  className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg">Salvar</button>
+                <input value={form.nome} onChange={e => { setForm(f => ({ ...f, nome: e.target.value })); if (editError) setEditError('') }}
+                  className={`flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none ${editError ? 'ring-1 ring-danger border-danger' : ''}`} />
+                {editError && <p className="text-xs text-danger">{editError}</p>}
+                <button onClick={() => { if (!form.nome.trim()) { setEditError('Informe o nome do tipo'); return }; setEditError(''); updateMut.mutate({ id: t.id, data: form }) }}
+                  disabled={updateMut.isPending} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{updateMut.isPending ? 'Salvando...' : 'Salvar'}</button>
                 <button onClick={() => setEditing(null)}
                   className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg">Cancelar</button>
               </div>
@@ -101,6 +105,7 @@ export default function Tipos() {
           titulo="Excluir tipo"
           mensagem="Tem certeza que deseja excluir este tipo? Esta ação não pode ser desfeita."
           destructive
+          disabled={deleteMut.isPending}
           onConfirm={() => { deleteMut.mutate(confirmDelete); setConfirmDelete(null) }}
           onCancel={() => setConfirmDelete(null)}
         />

@@ -52,6 +52,7 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
   }
 
   function handleDayClick(dia: number) {
+    if (createMut.isPending || deleteMut.isPending) return
     const dataStr = `${safeAno}-${String(safeMes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
     // Future: no-op
     if (safeAno > hoje.getFullYear() || (safeAno === hoje.getFullYear() && safeMes > hoje.getMonth()) || (safeAno === hoje.getFullYear() && safeMes === hoje.getMonth() && dia > hoje.getDate())) {
