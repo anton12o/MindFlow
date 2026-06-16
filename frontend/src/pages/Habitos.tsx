@@ -210,6 +210,7 @@ export default function Habitos() {
                       className="text-xs text-text-muted hover:text-accent" title="Ver calendário">📅</button>
                     <button onClick={() => navigate(`/pomodoro?contexto_tipo=habito&contexto_id=${h.id}&nome=${encodeURIComponent(h.nome)}`)}
                       className="text-xs text-text-muted hover:text-accent" title="Iniciar Pomodoro">▶</button>
+                    <span className="w-px h-4 bg-border mx-0.5" />
                     <button onClick={() => handleEdit(h)} className="text-xs text-text-muted hover:text-accent">✎</button>
                     <button onClick={() => setConfirmDeleteId({ id: h.id, nome: h.nome })}
                       className="text-xs text-text-muted hover:text-danger ml-1">✕</button>

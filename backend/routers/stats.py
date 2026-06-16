@@ -1,9 +1,9 @@
 import logging
 from datetime import date, timedelta, datetime
 from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 from database import get_session
-from models import Nota, Tarefa, SessaoPomodoro, RegistroHabito, Habito
+from models import Nota, Tarefa, SessaoPomodoro, RegistroHabito, Habito, InboxItem, BlocoRotina
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,6 +42,101 @@ def _calcular_streak(session: Session) -> int:
         else:
             break
     return streak
+
+
+@router.get("/stats/dashboard")
+def dashboard_stats(session: Session = Depends(get_session)):
+    hoje = date.today().isoformat()
+
+    # Inbox count
+    inbox_count = session.exec(
+        select(func.count(InboxItem.id)).where(InboxItem.arquivado.is_(False))
+    ).one()
+
+    # Blocos do dia
+    blocos = session.exec(
+        select(BlocoRotina).where(
+            BlocoRotina.data_especifica == hoje
+        )
+    ).all()
+
+    # Tarefas do dia
+    tarefas = session.exec(
+        select(Tarefa).where(Tarefa.data == hoje)
+    ).all()
+
+    # Habitos ativos + registros de hoje + streak
+    habitos_ativos = session.exec(
+        select(Habito).where(Habito.ativo.is_(True))
+    ).all()
+    habito_ids = [h.id for h in habitos_ativos]
+
+    registros_hoje: set[int] = set()
+    streak_por_habito: dict[int, int] = {}
+    if habito_ids:
+        # Today's registries
+        rows_hoje = session.exec(
+            select(RegistroHabito.habito_id).where(
+                RegistroHabito.data == hoje,
+                RegistroHabito.habito_id.in_(habito_ids),
+            )
+        ).all()
+        registros_hoje = set(rows_hoje)
+
+        # Streak: last 365 days
+        desde = (date.today() - timedelta(days=365)).isoformat()
+        all_rows = session.exec(
+            select(RegistroHabito.habito_id, RegistroHabito.data).where(
+                RegistroHabito.habito_id.in_(habito_ids),
+                RegistroHabito.data >= desde,
+            )
+        ).all()
+        dias_por_habito: dict[int, set[str]] = {}
+        for hid, d in all_rows:
+            if hid not in dias_por_habito:
+                dias_por_habito[hid] = set()
+            dias_por_habito[hid].add(d)
+
+        for hid in habito_ids:
+            streak = 0
+            d = date.today()
+            dias = dias_por_habito.get(hid, set())
+            while d.isoformat() in dias:
+                streak += 1
+                d -= timedelta(days=1)
+            streak_por_habito[hid] = streak
+
+    # Notas de hoje (for journal check)
+    notas_hoje = session.exec(
+        select(Nota.id, Nota.titulo).where(Nota.criado_em >= hoje)
+    ).all()
+
+    return {
+        "inbox_count": inbox_count,
+        "blocos": [{
+            "id": b.id,
+            "titulo": b.titulo,
+            "hora_inicio": b.hora_inicio,
+            "hora_fim": b.hora_fim,
+            "cor": b.cor,
+        } for b in blocos],
+        "tarefas": [{
+            "id": t.id,
+            "titulo": t.titulo,
+            "status": t.status,
+            "prioridade": t.prioridade,
+        } for t in tarefas],
+        "habitos": [{
+            "id": h.id,
+            "nome": h.nome,
+            "cor": h.cor,
+            "ativo": h.ativo,
+            "feito_hoje": h.id in registros_hoje,
+            "streak": streak_por_habito.get(h.id, 0),
+        } for h in habitos_ativos],
+        "notas_hoje": [{"id": n.id, "titulo": n.titulo} for n in notas_hoje],
+        "data": hoje,
+    }
 
 
 @router.get("/stats/weekly")
@@ -136,11 +231,25 @@ def weekly_stats(
     semana_passada = _stats_periodo(inicio_semana_passada, fim_semana_passada)
     streak = _calcular_streak(session)
 
+    # Score composto (0-100)
+    score_foco = min(25, round(semana["total_minutos_foco"] / 300 * 25))  # 5h = 25
+    score_tarefas = min(25, round(semana["total_tarefas"] / 20 * 25))  # 20 = 25
+    score_habitos = round(semana["taxa_habitos"] * 25)  # 100% = 25
+    score_notas = min(25, round(semana["total_notas"] / 10 * 25))  # 10 = 25
+    score_total = score_foco + score_tarefas + score_habitos + score_notas
+
     return {
         "offset": offset,
         "semana": semana,
         "semana_passada": semana_passada,
         "streak_atual": streak,
         "total_habitos_ativos": total_habitos,
+        "score": {
+            "total": score_total,
+            "foco": score_foco,
+            "tarefas": score_tarefas,
+            "habitos": score_habitos,
+            "notas": score_notas,
+        },
         "gerado_em": datetime.now().isoformat(),
     }

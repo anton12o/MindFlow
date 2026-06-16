@@ -3,12 +3,14 @@ import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
 import { PomodoroProvider } from './store/pomodoro'
+import { useBackendOnline } from './hooks/useBackendOnline'
 import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import InboxModal from './components/InboxModal'
 import ImportModal from './components/ImportModal'
 import LogsModal from './components/LogsModal'
+import SwUpdateBanner from './components/SwUpdateBanner'
 import { exportAll } from './api/export'
 import { getNotasRecentes } from './api/notas'
 
@@ -48,6 +50,8 @@ function Layout() {
   })
 
   const page = location.pathname.slice(1) || 'dashboard'
+
+  const online = useBackendOnline()
 
   function handleImportSuccess() {
     queryClient.invalidateQueries()
@@ -124,6 +128,11 @@ function Layout() {
     <div className="h-screen flex overflow-hidden">
       <Sidebar onToggleInbox={() => setInboxOpen(p => !p)} onOpenImport={() => setImportOpen(true)} />
       <main className="flex-1 overflow-y-auto animate-fade-in">
+          {!online && (
+            <div className="sticky top-0 z-40 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
+              Servidor offline — alguns dados podem não estar disponíveis
+            </div>
+          )}
           <Suspense fallback={<div className="flex items-center justify-center h-full text-text-muted text-sm animate-pulse">Carregando...</div>}>
             <Routes>
               <Route path="/" element={<ErrorBoundary><Dashboard /></ErrorBoundary>} />
@@ -153,6 +162,7 @@ function Layout() {
       )}
       {logsOpen && <LogsModal onClose={() => setLogsOpen(false)} />}
       <InboxModal isOpen={inboxOpen} onClose={() => setInboxOpen(false)} />
+      <SwUpdateBanner />
     </div>
   )
 }

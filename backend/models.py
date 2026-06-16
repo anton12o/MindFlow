@@ -8,7 +8,7 @@ def now():
 
 # ─── Inbox ───
 class InboxItemBase(SQLModel):
-    conteudo: str
+    conteudo: str = Field(min_length=1)
     tipo_destino: Optional[str] = None
     destino_id: Optional[int] = None
     arquivado: bool = False
@@ -33,7 +33,7 @@ class InboxItemRead(InboxItemBase):
 
 # ─── Hábitos ───
 class HabitoBase(SQLModel):
-    nome: str
+    nome: str = Field(min_length=1)
     tipo: str = "binario"  # binario | quantitativo
     meta: Optional[float] = None
     unidade: Optional[str] = None
@@ -83,7 +83,7 @@ class RegistroHabitoRead(RegistroHabitoBase):
 
 # ─── Rotina ───
 class BlocoRotinaBase(SQLModel):
-    titulo: str
+    titulo: str = Field(min_length=1)
     hora_inicio: str
     hora_fim: str
     cor: Optional[str] = None
@@ -111,10 +111,10 @@ class BlocoRotinaRead(BlocoRotinaBase):
     id: int
 
 class TarefaBase(SQLModel):
-    titulo: str
-    prioridade: str = "normal"
+    titulo: str = Field(min_length=1)
+    prioridade: str = "normal"  # baixa | normal | alta | urgente
     tempo_estimado: Optional[int] = None
-    status: str = "pendente"
+    status: str = "pendente"  # pendente | em_andamento | feito
     bloco_id: Optional[int] = Field(default=None, foreign_key="blocos_rotina.id")
     data: str
     tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
@@ -126,7 +126,7 @@ class Tarefa(TarefaBase, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
 
 class TarefaCreate(SQLModel):
-    titulo: str
+    titulo: str = Field(min_length=1)
     prioridade: str = "normal"
     tempo_estimado: Optional[int] = None
     bloco_id: Optional[int] = None
@@ -202,7 +202,7 @@ class TagUpdate(SQLModel):
     cor: Optional[str] = None
 
 class NotaBase(SQLModel):
-    titulo: str
+    titulo: str = Field(min_length=1, max_length=500)
     conteudo: str = ""
     pasta_id: Optional[int] = Field(default=None, foreign_key="pastas.id")
     tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
@@ -264,8 +264,8 @@ class ConexaoNotaRead(SQLModel):
 # ─── Flashcards ───
 class FlashcardBase(SQLModel):
     nota_id: Optional[int] = Field(default=None, foreign_key="notas.id")
-    pergunta: str
-    resposta: str
+    pergunta: str = Field(min_length=1)
+    resposta: str = Field(min_length=1)
     intervalo: float = 0.0
     facilidade: float = 2.5
     revisoes: int = 0
@@ -279,8 +279,8 @@ class Flashcard(FlashcardBase, table=True):
 
 class FlashcardCreate(SQLModel):
     nota_id: Optional[int] = None
-    pergunta: str
-    resposta: str
+    pergunta: str = Field(min_length=1)
+    resposta: str = Field(min_length=1)
 
 class FlashcardUpdate(SQLModel):
     pergunta: Optional[str] = None

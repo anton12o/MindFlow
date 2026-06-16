@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme, MODE_ICON } from '../store/theme'
 import { exportAll } from '../api/export'
@@ -26,7 +26,30 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
   const [exporting, setExporting] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [showShutdown, setShowShutdown] = useState(false)
+  const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null)
+  const shutdownTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const currentPath = location.pathname
+
+  function handleShutdown() {
+    setShowShutdown(false)
+    setShutdownCountdown(3)
+    fetch('/api/shutdown', { method: 'POST' })
+    const timer = (count: number) => {
+      if (count <= 0) return
+      setShutdownCountdown(count)
+      shutdownTimerRef.current = setTimeout(() => timer(count - 1), 1000)
+    }
+    timer(3)
+  }
+
+  function cancelShutdown() {
+    clearTimeout(shutdownTimerRef.current)
+    setShutdownCountdown(null)
+  }
+
+  useEffect(() => {
+    return () => clearTimeout(shutdownTimerRef.current)
+  }, [])
 
   return (
     <>
@@ -110,9 +133,23 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
           mensagem="Tem certeza que deseja encerrar o servidor? Você precisará reiniciá-lo pelo terminal."
           destructive
           confirmLabel="Encerrar"
-          onConfirm={async () => { setShowShutdown(false); await fetch('/api/shutdown', { method: 'POST' }) }}
+          onConfirm={handleShutdown}
           onCancel={() => setShowShutdown(false)}
         />
+      )}
+      {shutdownCountdown !== null && shutdownCountdown > 0 && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-fade-in">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
+            <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
+            <p className="text-sm text-text-muted">Encerrando servidor...</p>
+            <button
+              onClick={cancelShutdown}
+              className="px-6 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
       )}
     </>
   )

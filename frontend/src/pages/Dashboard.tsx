@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-import { getTarefas, getBlocos, updateTarefa } from '../api/rotina'
-import { getHabitos, getRegistros, createRegistro } from '../api/habitos'
-import { getInbox } from '../api/inbox'
+import { updateTarefa } from '../api/rotina'
+import { createRegistro } from '../api/habitos'
 import { getNotas, createNota } from '../api/notas'
+import { getDashboardStats } from '../api/stats'
+import type { DashboardStats } from '../api/stats'
 import PomodoroTimer from '../components/PomodoroTimer'
 import { formatDateLocal, hojeLocal } from '../utils/date'
-import type { Habito, Tarefa } from '../types'
+import type { Tarefa } from '../types'
 
 function calcStreak(registros: { data: string }[]): number {
   const dias = new Set(registros.map(r => r.data))
@@ -48,41 +49,21 @@ export default function Dashboard() {
     const done = localStorage.getItem('mindflow_onboarding_done')
     if (!done) setOnboardingOpen(true)
   }, [])
-  const { data: blocos, isLoading: blocosLoad, isError: blocosErr } = useQuery({
-    queryKey: ['rotina', 'blocos', hoje],
-    queryFn: () => getBlocos(hoje),
+
+  const { data: dash, isLoading, isError } = useQuery({
+    queryKey: ['dashboard'],
+    queryFn: getDashboardStats,
+    staleTime: 30_000,
   })
 
-  const { data: tarefas, isLoading: tarefasLoad, isError: tarefasErr } = useQuery({
-    queryKey: ['rotina', 'tarefas', hoje],
-    queryFn: () => getTarefas(hoje),
-  })
-
-  const { data: habitos, isLoading: habLoad, isError: habErr } = useQuery({
-    queryKey: ['habitos'],
-    queryFn: () => getHabitos(true),
-  })
-
-  const { data: inbox, isLoading: inbLoad, isError: inbErr } = useQuery({
-    queryKey: ['inbox'],
-    queryFn: () => getInbox(false),
-  })
-
-  const { data: notasHoje } = useQuery({
-    queryKey: ['notas', hoje],
-    queryFn: () => getNotas(undefined, hoje),
-  })
   const [diarioId, setDiarioId] = useState<number | null>(null)
   useEffect(() => {
-    if (!notasHoje || diarioId) return
-    const d = notasHoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
+    if (!dash || diarioId) return
+    const d = dash.notas_hoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
     if (d) { setDiarioId(d.id); return }
     const dataBR = new Date().toLocaleDateString('pt-BR')
     createNota({ titulo: `Diário — ${dataBR}`, conteudo: '' }).then(n => setDiarioId(n.id)).catch(() => {})
-  }, [notasHoje, diarioId])
-
-  const pending = tarefas?.filter(t => t.status !== 'feito') || []
-  const pendentes = inbox?.length || 0
+  }, [dash, diarioId])
 
   const toggleTarefaMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),
@@ -128,7 +109,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Inbox */}
-        <Card titulo="📥 Inbox" loading={inbLoad} erro={inbErr} vazio={pendentes === 0 && !inbLoad && !inbErr}
+        <Card titulo="📥 Inbox" loading={isLoading} erro={isError} vazio={pendentes === 0 && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum item pendente</p><button onClick={() => window.dispatchEvent(new Event('open-inbox'))} className="text-sm text-accent hover:underline">Abrir inbox →</button></div>}>
           <div className="flex items-center justify-between py-2">
             <span className="text-sm">{pendentes} {pendentes === 1 ? 'item pendente' : 'itens pendentes'}</span>
@@ -140,9 +121,9 @@ export default function Dashboard() {
         </Card>
 
         {/* Blocos do dia */}
-        <Card titulo="⏰ Blocos do dia" loading={blocosLoad} erro={blocosErr} vazio={(!blocos || blocos.length === 0) && !blocosLoad && !blocosErr}
+        <Card titulo="⏰ Blocos do dia" loading={isLoading} erro={isError} vazio={(!dash?.blocos || dash.blocos.length === 0) && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum bloco hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar bloco →</button></div>}>
-          {blocos?.map(b => (
+          {dash?.blocos?.map(b => (
             <div key={b.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
               <span className="text-xs font-mono text-text-secondary w-20 shrink-0">{b.hora_inicio}–{b.hora_fim}</span>
               <span className="text-sm truncate" style={{ color: b.cor || undefined }}>{b.titulo}</span>
@@ -151,9 +132,9 @@ export default function Dashboard() {
         </Card>
 
         {/* Tarefas de hoje */}
-        <Card titulo="✅ Tarefas de hoje" loading={tarefasLoad} erro={tarefasErr} vazio={pending.length === 0 && !tarefasLoad && !tarefasErr}
+        <Card titulo="✅ Tarefas de hoje" loading={isLoading} erro={isError} vazio={pending.length === 0 && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhuma tarefa hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar tarefa →</button></div>}>
-          {tarefas?.map(t => (
+          {dash?.tarefas?.map(t => (
             <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
               <button onClick={() => handleToggleTarefa(t)}
                 className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
@@ -166,20 +147,20 @@ export default function Dashboard() {
               </span>
             </div>
           ))}
-          {tarefas && tarefas.length > 0 && pending.length === 0 && (
+          {dash?.tarefas && dash?.tarefas.length > 0 && pending.length === 0 && (
             <p className="text-xs text-success mt-2">Todas as tarefas concluídas ✓</p>
           )}
         </Card>
 
         {/* Hábitos */}
-        <Card titulo="🎯 Hábitos" loading={habLoad} erro={habErr} vazio={(!habitos || habitos.filter(h => h.ativo).length === 0) && !habLoad && !habErr}
+        <Card titulo="🎯 Hábitos" loading={isLoading} erro={isError} vazio={(!dash?.habitos || dash?.habitos?.filter(h => h.ativo).length === 0) && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum hábito ativo</p><button onClick={() => navigate('/habitos')} className="text-sm text-accent hover:underline">Criar hábito →</button></div>}>
-          {habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} hoje={hoje} onCheck={handleCheckHabito} />)}
+          {dash?.habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} hoje={hoje} onCheck={handleCheckHabito} />)}
         </Card>
 
         {/* Foco */}
-        <div className="bg-bg-secondary rounded-xl border border-border p-4 md:col-span-2">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">🎯 Foco</h2>
+        <div className="bg-accent/[0.06] border-accent/20 rounded-xl border p-4 md:col-span-2">
+          <h2 className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">🎯 Foco</h2>
           <PomodoroTimer />
         </div>
 
@@ -220,23 +201,16 @@ export default function Dashboard() {
   )
 }
 
-function HabitItem({ h, hoje, onCheck }: { h: Habito; hoje: string; onCheck: (id: number) => void }) {
-  const { data: registros } = useQuery({
-    queryKey: ['dashboard', 'registros', h.id],
-    queryFn: () => getRegistros(h.id),
-  })
-  const streak = registros ? calcStreak(registros) : 0
-  const feitoHoje = registros?.some(r => r.data === hoje)
-
+function HabitItem({ h, hoje, onCheck }: { h: DashboardStats['habitos'][number]; hoje: string; onCheck: (id: number) => void }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
       <div className="flex items-center gap-2 min-w-0">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: h.cor || '#5B8DEF' }} />
         <span className="text-sm truncate">{h.nome}</span>
-        {streak > 0 && <span className="text-xs text-accent font-medium shrink-0">🔥{streak}</span>}
+        {h.streak > 0 && <span className="text-xs text-accent font-medium shrink-0">🔥{h.streak}</span>}
       </div>
       <div className="flex items-center gap-1 shrink-0">
-        {feitoHoje ? (
+        {h.feito_hoje ? (
           <span className="text-xs text-success">✓</span>
         ) : (
           <button onClick={() => onCheck(h.id)}

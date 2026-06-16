@@ -7,7 +7,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
-from database import run_migrations, setup_fts
+from database import run_migrations, setup_fts, check_db_integrity
 from routers import inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries, export, import_data, logs, shutdown, stats
 from seed import seed_db
 from logging_config import setup_logging
@@ -15,12 +15,15 @@ from logging_config import setup_logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
+VERSION = "1.2.0"
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
-    logger.info("Iniciando MindFlow API...")
+    logger.info("MindFlow v%s iniciando", VERSION)
     run_migrations()
+    check_db_integrity()
     setup_fts()
     try:
         seed_db()

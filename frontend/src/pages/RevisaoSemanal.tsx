@@ -34,29 +34,16 @@ function barWidth(valor: number, max: number) {
   return max > 0 ? `${Math.min(100, Math.round((valor / max) * 100))}%` : '0%'
 }
 
-function WeeklyBar({ label, atual, passada, suffix = '' }: { label: string; atual: number; passada: number; suffix?: string }) {
-  const max = Math.max(atual, passada, 1)
+function ComparativoMetrica({ label, atual, passada, suffix = '' }: { label: string; atual: number; passada: number; suffix?: string }) {
+  const v = passada === 0 && atual === 0 ? null : passada === 0 ? 9999 : Math.round(((atual - passada) / passada) * 100)
+  const seta = atual > passada ? '↑' : atual < passada ? '↓' : '→'
+  const cor = atual > passada ? 'text-success' : atual < passada ? 'text-danger' : 'text-text-muted'
+  const labelVariacao = v === null ? '—' : v === 9999 ? '(novo)' : v >= 0 ? `+${v}%` : `${v}%`
   return (
-    <div className="flex items-center gap-3 text-sm">
+    <div className="flex items-center gap-3 text-sm" title={`Semana passada: ${passada}${suffix}`}>
       <span className="w-28 shrink-0 text-text-muted">{label}</span>
-      <div className="flex-1 space-y-1">
-        <div className="flex items-center gap-2">
-          <span className="w-8 text-right text-text-primary font-medium tabular-nums">{atual}{suffix}</span>
-          <div className="flex-1 h-3 bg-accent/20 rounded-full overflow-hidden">
-            <div className="h-full bg-accent rounded-full transition-all" style={{ width: barWidth(atual, max) }} />
-          </div>
-          <span className="text-xs text-text-muted w-20 text-right tabular-nums">
-            {arrow(atual, passada)} {pct(atual, passada)}
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="w-8 text-right text-text-muted tabular-nums">{passada}{suffix}</span>
-          <div className="flex-1 h-2 bg-bg-hover rounded-full overflow-hidden">
-            <div className="h-full bg-text-muted/40 rounded-full transition-all" style={{ width: barWidth(passada, max) }} />
-          </div>
-          <span className="text-xs text-text-muted w-20 text-right">semana passada</span>
-        </div>
-      </div>
+      <span className="text-text-primary font-bold tabular-nums text-lg w-12">{atual}{suffix}</span>
+      <span className={`text-xs font-medium tabular-nums ${cor}`}>{seta} {labelVariacao}</span>
     </div>
   )
 }
@@ -194,6 +181,29 @@ export default function RevisaoSemanal() {
     },
   })
 
+  const [respostas, setRespostas] = useState(['', '', '', ''])
+  const perguntasReflexao = [
+    'O que funcionou bem esta semana?',
+    'O que poderia ter sido melhor?',
+    'Qual foi o aprendizado mais importante?',
+    'O que você quer focar na próxima semana?',
+  ]
+
+  const salvarReflexao = useMutation({
+    mutationFn: () => {
+      const linhas = [`# Reflexão Semanal`, '', `> ${formatRange(semana.inicio, semana.fim)}`, '']
+      respostas.forEach((r, i) => {
+        if (r.trim()) {
+          linhas.push(`## ${perguntasReflexao[i]}`, '', r, '')
+        }
+      })
+      return createNota({ titulo: `Reflexão Semanal — ${semana.inicio}`, conteudo: linhas.join('\n') })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+    },
+  })
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
@@ -216,12 +226,28 @@ export default function RevisaoSemanal() {
     )
   }
 
-  const { semana, semana_passada, streak_atual, total_habitos_ativos } = data
+  const { semana, semana_passada, streak_atual, total_habitos_ativos, score } = data
   const maxDia = {
     notas: Math.max(...semana.dias.map(d => d.notas), 1),
     tarefas: Math.max(...semana.dias.map(d => d.tarefas), 1),
     pomodoros: Math.max(...semana.dias.map(d => d.pomodoros), 1),
   }
+
+  const scoreColor = score.total >= 70 ? 'text-success' : score.total >= 40 ? 'text-warning' : 'text-danger'
+
+  // Celebration
+  const celebration = score.total >= 70
+  const scoreMessages: Record<string, string> = {
+    foco: 'Minutos de foco',
+    tarefas: 'Tarefas concluídas',
+    habitos: 'Taxa de hábitos',
+    notas: 'Notas criadas',
+  }
+  const maxScores = { foco: 25, tarefas: 25, habitos: 25, notas: 25 } as const
+  type ScoreKey = keyof typeof maxScores
+  const lacunas = (Object.keys(maxScores) as ScoreKey[])
+    .filter(k => score[k] < maxScores[k] * 0.6)
+    .map(k => ({ key: k, label: scoreMessages[k], atual: score[k], max: maxScores[k] }))
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
@@ -284,17 +310,17 @@ export default function RevisaoSemanal() {
 
       <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Comparativo com a semana passada</h2>
-        <WeeklyBar label="Notas criadas" atual={semana.total_notas} passada={semana_passada.total_notas} />
-        <WeeklyBar label="Tarefas concluídas" atual={semana.total_tarefas} passada={semana_passada.total_tarefas} />
-        <WeeklyBar label="Pomodoros" atual={semana.total_pomodoros} passada={semana_passada.total_pomodoros} />
-        <WeeklyBar label="Minutos de foco" atual={semana.total_minutos_foco} passada={semana_passada.total_minutos_foco} />
+        <ComparativoMetrica label="Notas criadas" atual={semana.total_notas} passada={semana_passada.total_notas} />
+        <ComparativoMetrica label="Tarefas concluídas" atual={semana.total_tarefas} passada={semana_passada.total_tarefas} />
+        <ComparativoMetrica label="Pomodoros" atual={semana.total_pomodoros} passada={semana_passada.total_pomodoros} />
+        <ComparativoMetrica label="Minutos de foco" atual={semana.total_minutos_foco} passada={semana_passada.total_minutos_foco} />
         {total_habitos_ativos === 0 ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="w-28 shrink-0 text-text-muted">Taxa de hábitos</span>
             <span className="text-text-muted italic">— (sem hábitos ativos)</span>
           </div>
         ) : (
-          <WeeklyBar
+          <ComparativoMetrica
             label="Taxa de hábitos"
             atual={Math.round(semana.taxa_habitos * 100)}
             passada={Math.round(semana_passada.taxa_habitos * 100)}
@@ -302,6 +328,43 @@ export default function RevisaoSemanal() {
           />
         )}
       </section>
+
+      {/* Score composto */}
+      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Score da Semana</h2>
+          <span className={`text-3xl font-bold tabular-nums ${scoreColor}`}>{score.total}/100</span>
+        </div>
+        <div className="w-full h-2 bg-bg-hover rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all ${scoreColor.replace('text-', 'bg-')}`} style={{ width: `${score.total}%` }} />
+        </div>
+        <div className="grid grid-cols-4 gap-2 text-xs">
+          {(['foco', 'tarefas', 'habitos', 'notas'] as ScoreKey[]).map(k => (
+            <div key={k} className="text-center">
+              <div className="text-text-muted capitalize">{k}</div>
+              <div className="font-bold tabular-nums">{score[k]}/25</div>
+            </div>
+          ))}
+        </div>
+        {celebration && (
+          <p className="text-sm text-success font-medium">Semana produtiva! Continue assim 🎉</p>
+        )}
+      </section>
+
+      {/* Lacunas */}
+      {lacunas.length > 0 && (
+        <section className="bg-danger/5 border border-danger/10 rounded-xl p-4 space-y-3">
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Oportunidades de melhoria</h2>
+          <div className="space-y-2">
+            {lacunas.map(l => (
+              <div key={l.key} className="flex items-center justify-between text-sm">
+                <span className="text-text-primary">{l.label}</span>
+                <span className="text-text-muted">{l.atual}/{l.max} pts</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Atividade por dia</h2>
@@ -314,9 +377,9 @@ export default function RevisaoSemanal() {
             return (
               <div key={d.data} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
                 <div className="flex flex-col items-center gap-px w-full" style={{ height: `${Math.max(h, total > 0 ? 8 : 0)}%` }}>
-                  {d.notas > 0 && <div className="w-full flex-1 bg-accent rounded-t-sm min-h-[4px]" title={`${d.notas} notas`} />}
-                  {d.tarefas > 0 && <div className="w-full flex-1 bg-success rounded-sm min-h-[4px]" title={`${d.tarefas} tarefas`} />}
-                  {d.pomodoros > 0 && <div className="w-full flex-1 bg-warning rounded-sm min-h-[4px]" title={`${d.pomodoros} pomodoros`} />}
+                  {d.notas > 0 && <div className="w-full bg-accent rounded-t-sm" style={{ height: `${(d.notas / total) * 100}%`, minHeight: '4px' }} title={`${d.notas} notas`} />}
+                  {d.tarefas > 0 && <div className="w-full bg-success rounded-sm" style={{ height: `${(d.tarefas / total) * 100}%`, minHeight: '4px' }} title={`${d.tarefas} tarefas`} />}
+                  {d.pomodoros > 0 && <div className="w-full bg-warning rounded-sm" style={{ height: `${(d.pomodoros / total) * 100}%`, minHeight: '4px' }} title={`${d.pomodoros} pomodoros`} />}
                 </div>
                 <span className="text-[10px] text-text-muted leading-none">{label}</span>
               </div>
@@ -345,24 +408,31 @@ export default function RevisaoSemanal() {
 
       <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Reflexão</h2>
-        <ul className="space-y-2 text-sm text-text-primary">
-          <li className="flex items-start gap-2">
-            <span className="text-accent mt-0.5">◈</span>
-            <span>O que funcionou bem esta semana?</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-warning mt-0.5">◈</span>
-            <span>O que poderia ter sido melhor?</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-success mt-0.5">◈</span>
-            <span>Qual foi o aprendizado mais importante?</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-danger mt-0.5">◈</span>
-            <span>O que você quer focar na próxima semana?</span>
-          </li>
-        </ul>
+        <div className="space-y-3">
+          {perguntasReflexao.map((p, i) => (
+            <div key={i}>
+              <p className="text-xs text-text-muted mb-1">{p}</p>
+              <textarea
+                value={respostas[i]}
+                onChange={e => setRespostas(prev => { const next = [...prev]; next[i] = e.target.value; return next })}
+                className="w-full bg-bg-primary border border-border rounded-lg p-2 text-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-accent/50 min-h-[60px]"
+                placeholder="Digite sua reflexão..."
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center gap-3 pt-1">
+          <button
+            onClick={() => salvarReflexao.mutate()}
+            disabled={salvarReflexao.isPending || respostas.every(r => !r.trim())}
+            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
+          >
+            {salvarReflexao.isPending ? 'Salvando...' : 'Salvar reflexão'}
+          </button>
+          {salvarReflexao.isSuccess && (
+            <span className="text-xs text-success animate-fade-in">✓ Nota criada!</span>
+          )}
+        </div>
       </section>
     </div>
   )

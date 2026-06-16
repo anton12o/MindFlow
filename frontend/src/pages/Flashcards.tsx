@@ -30,7 +30,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
   }
 
   return (
-    <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4">
+    <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4 cursor-pointer hover:scale-[1.02] transition-transform">
       {editing ? (
         <div className="flex-1 space-y-2">
           <input value={editForm.pergunta} onChange={e => setEditForm(f => ({ ...f, pergunta: e.target.value }))}
@@ -197,10 +197,12 @@ export default function Flashcards() {
           <div
             onClick={() => setVirado(!virado)}
             className="bg-bg-secondary rounded-xl border border-border p-8 min-h-[200px] cursor-pointer flex items-center justify-center text-center hover:border-accent/50 transition-colors"
+            title="Clique para ver a resposta"
           >
             <div>
               <p className="text-xs text-text-muted mb-4">{virado ? 'Resposta' : 'Pergunta'}</p>
               <p className="text-lg whitespace-pre-wrap">{virado ? currentCard.resposta : currentCard.pergunta}</p>
+              {!virado && <p className="text-xs text-text-muted mt-4">Clique no card para ver a resposta</p>}
             </div>
           </div>
 

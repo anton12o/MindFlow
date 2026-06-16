@@ -47,6 +47,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const rafRef = useRef(0)
   const lastDisplaySecRef = useRef(-1)
   const isCreating = useRef(false)
+  const cancelledRef = useRef(false)
   const queryClient = useQueryClient()
   const [showConfig, setShowConfig] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -90,6 +91,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     if (ativo) {
       cancelAnimationFrame(rafRef.current)
       setAtivo(false)
+      cancelledRef.current = true
       if (sessaoId) {
         finalizarMut.mutate(
           { id: sessaoId, body: { contexto_nome: contexto?.nome } },
@@ -99,12 +101,17 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     } else {
       if (isCreating.current) return
       isCreating.current = true
+      cancelledRef.current = false
       createSessao({
         contexto_tipo: contexto?.tipo || 'livre',
         contexto_id: contexto?.id || null,
         duracao_min: minutos,
       }).then(s => {
         isCreating.current = false
+        if (cancelledRef.current) {
+          finalizarSessao(s.id, {})
+          return
+        }
         setSessaoId(s.id)
         startedAtRef.current = Date.now()
         setAtivo(true)
@@ -132,6 +139,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
     if (initialElapsed >= phaseMs) {
       setAtivo(false)
+      cancelledRef.current = false
       playBeep(fase)
       if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
       else setShowPhaseTransition({ type: 'pausa_end' })
@@ -150,6 +158,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       }
 
       if (elapsed >= phaseMs) {
+        cancelledRef.current = false
         setAtivo(false)
         playBeep(fase)
         if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
@@ -181,7 +190,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         <span className={`text-4xl font-mono font-bold tabular-nums ${ativo ? 'text-accent' : 'text-text-primary'}`}>{display}</span>
         <button
           onClick={toggle}
-          className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${ativo ? 'bg-danger text-white' : 'bg-accent text-white hover:bg-accent-hover'}`}
+          className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${ativo ? 'bg-danger text-white' : 'bg-accent text-white font-semibold hover:bg-accent-hover'}`}
         >
           {ativo ? 'Parar' : 'Iniciar'}
         </button>

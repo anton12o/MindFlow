@@ -319,7 +319,8 @@ def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
     body = n.conteudo or ""
     result = "\n".join(yaml_lines) + "\n\n" + body
     from fastapi import Response
-    headers = {"Content-Disposition": f"attachment; filename=\"{n.titulo}.md\""}
+    safe_filename = n.titulo.replace('"', "'").replace('\n', '')
+    headers = {"Content-Disposition": f"attachment; filename=\"{safe_filename}.md\""}
     return Response(content=result, media_type="text/markdown", headers=headers)
 
 class ExtrairInput(SQLModel):

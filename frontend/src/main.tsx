@@ -4,11 +4,38 @@ import './index.css'
 import App from './App.tsx'
 import { logError } from './api/logs'
 
+// ─── Service Worker — update notification ───
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
-    .catch((e) => console.error('[SW]', e))
+  let swRegistration: ServiceWorkerRegistration | null = null
+
+  const checkSWUpdate = (reg: ServiceWorkerRegistration) => {
+    if (reg.waiting) {
+      window.dispatchEvent(new CustomEvent('sw-update', { detail: reg }))
+    }
+  }
+
+  navigator.serviceWorker.register('/sw.js').then((reg) => {
+    swRegistration = reg
+    checkSWUpdate(reg)
+
+    reg.addEventListener('updatefound', () => {
+      const installing = reg.installing
+      if (!installing) return
+      installing.addEventListener('statechange', () => {
+        if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+          window.dispatchEvent(new CustomEvent('sw-update', { detail: swRegistration }))
+        }
+      })
+    })
+  }).catch((e) => console.error('[SW]', e))
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    // SW has taken over — reload to ensure fresh assets
+    window.location.reload()
+  })
 }
 
+// ─── Chunk error recovery ───
 function isChunkError(msg: string, url?: string): boolean {
   return (
     msg.includes('imported module') ||

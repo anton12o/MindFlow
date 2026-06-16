@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
+import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, createPasta, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
 import request from '../api/client'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
@@ -11,7 +11,7 @@ import EditorMarkdown from '../components/EditorMarkdown'
 import TemplateModal from '../components/TemplateModal'
 import GrafoNotas from '../components/GrafoNotas'
 import ConfirmModal from '../components/ConfirmModal'
-import type { Nota, Tag } from '../types'
+import type { Nota, Tag, Pasta } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 
@@ -112,6 +112,11 @@ export default function Ideias() {
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [expandedFolders, setExpandedFolders] = useState<Set<number>>(new Set())
+  const [creatingFolder, setCreatingFolder] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [creatingSubIn, setCreatingSubIn] = useState<number | null>(null)
+  const [subFolderName, setSubFolderName] = useState('')
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
 
@@ -254,6 +259,13 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['tags'] })
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       setEditingTag(null)
+    },
+  })
+
+  const createPastaMut = useMutation({
+    mutationFn: (data: Partial<Pasta>) => createPasta(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pastas'] })
     },
   })
 
@@ -405,6 +417,27 @@ export default function Ideias() {
     conexoes?.some(c => c.nota_destino_id === selectedId && c.nota_origem_id === n.id)
   ) || []
 
+  const flatTree = useMemo(() => {
+    const result: { pasta: Pasta; depth: number }[] = []
+    function walk(parentId: number | null, depth: number) {
+      const children = pastas?.filter(p => p.pai_id === parentId).sort((a, b) => a.nome.localeCompare(b.nome)) || []
+      for (const p of children) {
+        result.push({ pasta: p, depth })
+        if (expandedFolders.has(p.id)) walk(p.id, depth + 1)
+      }
+    }
+    walk(null, 0)
+    return result
+  }, [pastas, expandedFolders])
+
+  function toggleExpanded(id: number) {
+    setExpandedFolders(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-x-hidden">
@@ -481,18 +514,70 @@ export default function Ideias() {
                 </div>
               </div>
             )}
-            {pastas && pastas.length > 0 && (
-              <div className="flex flex-wrap gap-1 mb-2">
-                <button onClick={() => setPastaFilter(null)}
-                  className={`text-xs px-2 py-0.5 rounded-full transition-colors ${pastaFilter === null ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
-                  Todas
-                </button>
-                {pastas.map(p => (
-                  <button key={p.id} onClick={() => setPastaFilter(p.id)}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${pastaFilter === p.id ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
-                    📁 {p.nome}
-                  </button>
-                ))}
+            {pastas && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Pastas</span>
+                  <button onClick={() => { setCreatingFolder(true) }} className="text-xs text-accent hover:underline">+ Nova</button>
+                </div>
+                {creatingFolder && (
+                  <div className="flex items-center gap-1 mb-1 pl-2">
+                    <span className="text-xs">📁</span>
+                    <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' && newFolderName.trim()) {
+                          createPastaMut.mutate({ nome: newFolderName.trim(), pai_id: null })
+                          setNewFolderName(''); setCreatingFolder(false)
+                        }
+                        if (e.key === 'Escape') { setNewFolderName(''); setCreatingFolder(false) }
+                      }}
+                      placeholder="Nome da pasta..."
+                      className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                    />
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {flatTree.length === 0 ? (
+                    <p className="text-xs text-text-muted italic px-2">Nenhuma pasta</p>
+                  ) : flatTree.map(({ pasta: p, depth }) => {
+                    const hasChildren = pastas?.some(c => c.pai_id === p.id)
+                    const count = notas?.filter(n => n.pasta_id === p.id).length || 0
+                    return (
+                      <div key={p.id}>
+                        <div className="flex items-center group" style={{ paddingLeft: `${depth * 16}px` }}>
+                          <button onClick={() => hasChildren && toggleExpanded(p.id)} className="w-4 shrink-0 text-[10px] text-text-muted">
+                            {hasChildren ? (expandedFolders.has(p.id) ? '▼' : '▶') : ''}
+                          </button>
+                          <button onClick={() => setPastaFilter(pastaFilter === p.id ? null : p.id)}
+                            className={`flex-1 text-left px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 min-w-0 ${pastaFilter === p.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-muted hover:text-text-primary'}`}>
+                            <span className="truncate flex-1">📁 {p.nome}</span>
+                            {count > 0 && <span className="text-[10px] text-text-muted tabular-nums shrink-0">{count}</span>}
+                          </button>
+                          <button onClick={() => { setCreatingSubIn(p.id); setSubFolderName('') }}
+                            className="opacity-0 group-hover:opacity-100 text-xs text-text-muted hover:text-accent shrink-0 px-1 transition-opacity"
+                            title="Nova subpasta">+</button>
+                        </div>
+                        {creatingSubIn === p.id && (
+                          <div className="flex items-center gap-1 mt-0.5 mb-0.5" style={{ paddingLeft: `${(depth + 1) * 16 + 16}px` }}>
+                            <span className="text-xs">📁</span>
+                            <input autoFocus value={subFolderName} onChange={e => setSubFolderName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter' && subFolderName.trim()) {
+                                  createPastaMut.mutate({ nome: subFolderName.trim(), pai_id: p.id })
+                                  setSubFolderName(''); setCreatingSubIn(null)
+                                  if (!expandedFolders.has(p.id)) toggleExpanded(p.id)
+                                }
+                                if (e.key === 'Escape') { setSubFolderName(''); setCreatingSubIn(null) }
+                              }}
+                              placeholder="Nome da subpasta..."
+                              className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             )}
 

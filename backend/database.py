@@ -47,6 +47,17 @@ def run_migrations():
         logger.error("Erro ao executar migrations: %s", e)
         raise
 
+def check_db_integrity():
+    try:
+        with Session(engine) as session:
+            result = session.execute(text("PRAGMA quick_check")).scalar()
+            if result and result != "ok":
+                logger.warning("Integrity check do banco: %s", result)
+            else:
+                logger.info("Integrity check: OK")
+    except Exception as e:
+        logger.warning("Não foi possível verificar integridade do banco: %s", e)
+
 def setup_fts():
     try:
         with Session(engine) as session:
