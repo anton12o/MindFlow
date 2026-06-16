@@ -48,6 +48,31 @@ def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | 
 
 router = APIRouter()
 
+
+def _yaml_quote(value: str) -> str:
+    if any(c in value for c in ':#{}[]&*!|>%@`"\''):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return value
+
+
+def _cleanup_nota_relations(nota_id: int, session: Session) -> None:
+    for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
+        session.delete(tag)
+    for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
+        fc.nota_id = None
+        session.add(fc)
+    for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
+        s.resumo_nota_id = None
+        session.add(s)
+    conns = session.exec(
+        select(ConexaoNota).where(
+            or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
+        )
+    ).all()
+    for c in conns:
+        session.delete(c)
+
 # ─── Pastas ───
 @router.get("/pastas", response_model=list[PastaRead])
 def list_pastas(session: Session = Depends(get_session)):
@@ -240,47 +265,37 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
     n = session.get(Nota, nota_id)
     if not n:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
-    for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
-        session.delete(tag)
-    for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
-        fc.nota_id = None
-        session.add(fc)
-    for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
-        s.resumo_nota_id = None
-        session.add(s)
-    conns = session.exec(
-        select(ConexaoNota).where(
-            or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
-        )
-    ).all()
-    for c in conns:
-        session.delete(c)
+    _cleanup_nota_relations(nota_id, session)
     session.delete(n)
     session.commit()
     return {"ok": True}
 
 @router.post("/batch/delete")
 def batch_delete_notas(body: BatchDeleteRequest, session: Session = Depends(get_session)):
+    ids = body.ids
+    all_tags = session.exec(select(NotaTag).where(NotaTag.nota_id.in_(ids))).all()
+    for tag in all_tags:
+        session.delete(tag)
+    all_fc = session.exec(select(Flashcard).where(Flashcard.nota_id.in_(ids))).all()
+    for fc in all_fc:
+        fc.nota_id = None
+        session.add(fc)
+    all_sessoes = session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id.in_(ids))).all()
+    for s in all_sessoes:
+        s.resumo_nota_id = None
+        session.add(s)
+    all_conns = session.exec(
+        select(ConexaoNota).where(
+            or_(ConexaoNota.nota_origem_id.in_(ids), ConexaoNota.nota_destino_id.in_(ids))
+        )
+    ).all()
+    for c in all_conns:
+        session.delete(c)
     deleted = 0
-    for nota_id in body.ids:
+    for nota_id in ids:
         n = session.get(Nota, nota_id)
         if not n:
             continue
-        for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
-            session.delete(tag)
-        for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
-            fc.nota_id = None
-            session.add(fc)
-        for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
-            s.resumo_nota_id = None
-            session.add(s)
-        conns = session.exec(
-            select(ConexaoNota).where(
-                or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
-            )
-        ).all()
-        for c in conns:
-            session.delete(c)
         session.delete(n)
         deleted += 1
     session.commit()
@@ -312,7 +327,9 @@ def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
         if isinstance(v, list):
             yaml_lines.append(f"{k}:")
             for item in v:
-                yaml_lines.append(f"  - {item}")
+                yaml_lines.append(f"  - {_yaml_quote(str(item))}")
+        elif isinstance(v, str):
+            yaml_lines.append(f"{k}: {_yaml_quote(v)}")
         else:
             yaml_lines.append(f"{k}: {v}")
     yaml_lines.append("---")
