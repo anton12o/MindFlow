@@ -1,4 +1,5 @@
 @echo off
 title MindFlow
-python start.py
+if not exist "venv" python -m venv venv
+.\venv\Scripts\python start.py
 pause

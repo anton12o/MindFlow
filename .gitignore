@@ -10,6 +10,8 @@ backend/data/
 .env
 .vite/
 venv/
+opencode.json
+AGENTS.md
 
 # Resíduos de script externo
 generate-spec.js
