@@ -21,10 +21,11 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 | ◇ **Ideias** | Editor Markdown, [[wikilinks]], backlinks, autocomplete, tooltip preview, grafo interativo |
 | ⚡ **Flashcards** | Repetição espaçada (SM-2) para revisão ativa |
 | ◇ **Análise** | Calendário heatmap com streak de notas |
+| 📊 **Revisão Semanal** | Score composto, comparativo com semana anterior, gráficos de atividade, celebrações, lacunas, reflexão textual |
 | ⚙ **Tipos** | Sistema de tipos customizável (inspirado no Anytype) |
 | ⊞ **Consultas** | Visualizações dinâmicas (grid, kanban, lista, galeria, formulário, calendário, gantt) |
 | ⇆ **Import/Export** | Export completo em JSON com todas as tabelas + import com upsert e rollback |
-| 📦 **PWA** | Instalável como aplicativo nativo, atalhos na tela inicial, cache offline de assets |
+| 📦 **PWA** | Instalável como aplicativo nativo, atalhos na tela inicial, cache offline de assets, notificação de atualização do Service Worker |
 
 ### Diferenciais
 
@@ -38,6 +39,7 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 - **Templates**: crie notas a partir de modelos pré-definidos
 - **Propriedades JSON**: dados estruturados dentro de notas e tarefas
 - **Sistema de logs**: erros do frontend capturados e persistidos no backend
+- **Detecção de offline**: banner global quando o backend está indisponível
 - **CI/CD integrado**: GitHub Actions (lint, testes, build, release automático)
 
 ---
@@ -75,7 +77,7 @@ cd mindflow
 python start.py
 ```
 
-O script instala as dependências do backend, builda o frontend (se necessário),
+O script cria um ambiente virtual Python isolado (venv), instala as dependências do backend, builda o frontend (se necessário),
 sobe o servidor em **http://localhost:8000** e abre o navegador automaticamente.
 
 > Após o primeiro build, Node.js não é mais necessário para rodar o app.
