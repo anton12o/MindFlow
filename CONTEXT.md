@@ -444,8 +444,9 @@ cd frontend && npx tsc --noEmit
 | Módulo 24 ⚡ | Quick wins + Design | Favoritos, export MD, tooltip, autocomplete, 8 polish visual, CI fix |
 | Módulo 25 ⚡ | 6 Quick Wins | Notificação, shutdown, backup, journaling, BroadcastChannel, bundle split |
 | Módulo 26 🟡 | Revisão Semanal | Endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags |
+| Módulo 27 🛡️ | v1.2.0 | Security fixes, Pomodoro race, PWA, N+1 Dashboard, offline banner, SW update, Score, venv, WAL integrity |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · CI verde · Release v1.1.2
+**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · CI verde · Release v1.2.0
 
 ### Módulo 13: Release v1.0.0 + Polimento
 
@@ -651,6 +652,41 @@ cd frontend && npx tsc --noEmit
 - **Reflexão** — 4 prompts reflexivos ao final da página
 
 **Arquivos:** `backend/routers/stats.py`, `frontend/src/api/stats.ts`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/App.tsx`, `frontend/src/components/Sidebar.tsx`, `backend/routers/notas.py`
+
+---
+
+### Módulo 27: v1.2.0 — Security, UX Hardening, Revisão Score, Polish (Jun/2026)
+
+**Antes:** Header injection via título de nota, race condition no Pomodoro, N+1 no Dashboard, sem offline banner, sem validação de comprimento, SW sem update notification, Revisão Semanal sem score.
+
+**Depois:**
+
+| # | Item | Categoria | Arquivos |
+|---|------|-----------|----------|
+| 1 | Header injection fix | Segurança | `notas.py` — sanitizar título no Content-Disposition |
+| 2 | Race condition Pomodoro | Dados | `PomodoroTimer.tsx` — `cancelledRef` guarda createSessao |
+| 3 | PNG icons PWA Android | Instalação | `manifest.json`, 2 PNGs |
+| 4 | N+1 Dashboard | Performance | `GET /api/stats/dashboard`, `DashboardStats` type |
+| 5 | Backend offline banner | UX | `useBackendOnline.ts`, banner global em App.tsx |
+| 6 | Pydantic validators | Hardening | `models.py` — `min_length=1` em campos críticos |
+| 7 | SW update notification | UX | `SwUpdateBanner.tsx`, `sw.js` event listeners |
+| 8 | Score composto + breakdown | Feature | `RevisaoSemanal.tsx` — score 0-100 + 4 sub-scores |
+| 9 | Celebração automática | Feature | Score ≥ 70 → banner 🎉 |
+| 10 | Lacunas + botões ação | Feature | Áreas < 60% do max destacadas |
+| 11 | Spellcheck no editor | UX | `EditorView.contentAttributes.of({ spellcheck: 'true' })` |
+| 12 | WAL checkpoint no shutdown | Dados | `PRAGMA wal_checkpoint(TRUNCATE)` no shutdown |
+| 13 | WAL + cloud sync detection | Segurança | `check_cloud_sync()` no start.py |
+| 14 | Gráfico "Atividade por dia" | Design | Altura proporcional por segmento |
+| 15 | Cursor + hover Flashcard | UX | `cursor-pointer hover:scale-[1.02]` |
+| 16 | Destacar botão Iniciar | UX | `font-semibold` no toggle do Pomodoro |
+| 17 | Limpar tipos de teste | Dados | `seed.py` deleta orphans |
+| 18 | Cold backup no shutdown | Dados | `shutdown.py` — copy do .db + WAL checkpoint |
+| 19 | Grace period shutdown | UX | Contagem 3-2-1 com Cancelar |
+| 20 | Port detection | UX | `check_port()` no start.py |
+| 21 | DB integrity check | Robustez | `PRAGMA quick_check` no startup |
+| 22 | Venv auto-setup | Infra | `ensure_venv()` no start.py |
+| 23 | Árvore de pastas | Feature | Hierarquia pai_id com ▶/▼ toggle |
+| 24 | Reflexão textual na Revisão | Feature | 4 textareas + salvar como nota |
 
 ---
 
