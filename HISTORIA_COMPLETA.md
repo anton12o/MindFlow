@@ -1013,5 +1013,57 @@ MindFlow segue alguns princípios fundamentais:
 
 ---
 
+---
+
+## 28. v1.2.1-v1.2.3 — Hotfixes + CodeQL + Shutdown (Jun/2026)
+
+### v1.2.1 (8 correções)
+
+Após o release v1.2.0, um bug crítico foi descoberto no cálculo de produtividade: a query de tarefas concluídas usava `"concluida"` mas o status real no banco é `"feito"`. Outros 7 bugs foram corrigidos no mesmo ciclo:
+
+**Lista de correções:**
+1. `stats.py` `_calcular_produtividade()`: `status == "concluida"` → `status == "feito"`
+2. `start.py`: adicionar `ensure_venv()` no caminho `--backup` (estava chamando python do sistema)
+3. `start.py`: substituir `pip-selfcheck.json` por `.mindflow_installed` (estável entre versões do pip)
+4. `RevisaoSemanal.tsx`: `barColor` explícito por categoria (cores diferentes pra hábitos, tarefas, pomodoro)
+5. `notas.py`: `_cleanup_nota_relations()` — helper que remove registros órfãos das tabelas associativas antes de deletar uma nota
+6. `notas.py`: `_yaml_quote()` — escapa caracteres especiais no YAML frontmatter do export MD
+7. `stats.py`: `_calcular_streak()` — adiciona DISTINCT na query pra evitar duplicação por múltiplas tags no mesmo dia
+8. `notas.py`: batch delete com `IN (?, ?, ...)` — executa 1 query em vez de N queries individuais
+
+### v1.2.2 — CodeQL + ReDoS
+
+CodeQL foi ativado pela primeira vez no projeto (PR #50), analisando Python + JS/TS em todo push/PR.
+
+**Alerta crítico:** ReDoS (Regular expression Denial of Service) em `extrair_wikilinks()` — regex polinomial `r'\[\[([^\[\]]*\|[^\[\]]*|[^\[\]]*?)\]\]'` podia travar o servidor com inputs longos.
+
+**Correção:** Substituída por `re.findall(r'\[\[([^\]]+)\]\]', conteudo)` simples + `split('|')` manual — complexidade O(n).
+
+### v1.2.3 — Shutdown Flow
+
+Após análise aprofundada do fluxo de shutdown, 5 problemas foram encontrados e corrigidos:
+
+**Backend (`shutdown.py`):**
+- `os.kill(os.getpid(), signal.SIGTERM)` → `sys.exit(0)`. No Windows, `os.kill()` chama `TerminateProcess()` da API Win32, que mata o processo imediatamente **sem enviar a resposta HTTP** (status 200 nunca chega ao frontend). `sys.exit()` levanta `SystemExit`, que o uvicorn captura e trata como shutdown graceful — response enviado antes de finalizar.
+
+**Frontend (`Sidebar.tsx`):**
+- AbortController: antes o cancelamento só limpava o timer visual; agora `controller.abort()` aborta a requisição de verdade
+- `.catch(() => {})`: fetch não tratava rejeição (erro de rede ou abort) — adicionado `.catch()` silencioso
+- `window.location.reload()`: após o countdown, recarrega a página — se o servidor realmente morreu, o PWA mostra estado offline (via `useBackendOnline`); se falhou, reconecta
+
+### Release (fluxo autônomo)
+
+O processo de release foi formalizado no `AGENTS.md`: 9 passos (stash → branch → bump → edições → checks → commit → PR → merge → tag → release) com 3 exceções. Usado pela primeira vez nos PRs #49–#52.
+
+### GitHub Issues + Templates
+
+`docs/FUTURO.md` foi migrado para GitHub Issues: 7 labels (alta/média/baixa/bug/feat/chore/discussao), 2 templates (feature.yml, bug.yml), 29 issues criadas (#20–#48) em 3 grupos de prioridade. O arquivo `.md` foi mantido como registro local histórico.
+
+### Arquivos modificados
+
+`backend/routers/stats.py`, `backend/routers/notas.py`, `backend/routers/shutdown.py`, `backend/services/notes.py`, `start.py`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/components/Sidebar.tsx`, `.github/workflows/codeql.yml`, `.github/ISSUE_TEMPLATE/feature.yml`, `.github/ISSUE_TEMPLATE/bug.yml`, `docs/FUTURO.md`, `AGENTS.md`, `opencode.json`
+
+---
+
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: 16 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow) + Módulo 23 (Logging + CI/CD) + Módulo 24 (Quick Wins: favoritos, export MD, tooltip, autocomplete, design, CI fix, pre-commit Windows) + Módulo 25 (6 Quick Wins: notificação, shutdown, backup, journaling, BroadcastChannel, bundle split) + Módulo 26 (Revisão Semanal: endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags) + Módulo 27 (v1.2.0: security, UX hardening, Revisão Score, venv, offline banner, SW update, N+1 Dashboard fix).*
+*Última atualização: 16 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow) + Módulo 23 (Logging + CI/CD) + Módulo 24 (Quick Wins: favoritos, export MD, tooltip, autocomplete, design, CI fix, pre-commit Windows) + Módulo 25 (6 Quick Wins: notificação, shutdown, backup, journaling, BroadcastChannel, bundle split) + Módulo 26 (Revisão Semanal: endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags) + Módulo 27 (v1.2.0: security, UX hardening, Revisão Score, venv, offline banner, SW update, N+1 Dashboard fix) + Módulo 28 (v1.2.1-v1.2.3: 8 hotfixes, ReDoS fix, shutdown graceful, GitHub Issues migration, CodeQL).*
