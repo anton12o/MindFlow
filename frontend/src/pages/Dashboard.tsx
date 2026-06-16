@@ -4,24 +4,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { updateTarefa } from '../api/rotina'
 import { createRegistro } from '../api/habitos'
-import { getNotas, createNota } from '../api/notas'
+import { createNota } from '../api/notas'
 import { getDashboardStats } from '../api/stats'
 import type { DashboardStats } from '../api/stats'
 import PomodoroTimer from '../components/PomodoroTimer'
-import { formatDateLocal, hojeLocal } from '../utils/date'
-import type { Tarefa } from '../types'
-
-function calcStreak(registros: { data: string }[]): number {
-  const dias = new Set(registros.map(r => r.data))
-  let streak = 0
-  const d = new Date()
-  while (true) {
-    const chave = formatDateLocal(d)
-    if (dias.has(chave)) { streak++; d.setDate(d.getDate() - 1) }
-    else break
-  }
-  return streak
-}
+import { hojeLocal } from '../utils/date'
 
 const Card = React.memo(function Card({ titulo, children, loading, erro, vazio, vazioChildren }: {
   titulo: string; children: React.ReactNode; loading?: boolean; erro?: boolean; vazio?: boolean; vazioChildren?: React.ReactNode
@@ -56,6 +43,8 @@ export default function Dashboard() {
     staleTime: 30_000,
   })
 
+  const pending = dash?.tarefas?.filter(t => t.status !== 'feito') || []
+
   const [diarioId, setDiarioId] = useState<number | null>(null)
   useEffect(() => {
     if (!dash || diarioId) return
@@ -79,7 +68,7 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['habitos'] }),
   })
 
-  function handleToggleTarefa(t: Tarefa) {
+  function handleToggleTarefa(t: DashboardStats['tarefas'][number]) {
     if (toggleTarefaMut.isPending) return
     toggleTarefaMut.mutate({ id: t.id, status: t.status === 'feito' ? 'pendente' : 'feito' })
   }
@@ -109,10 +98,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
         {/* Inbox */}
-        <Card titulo="📥 Inbox" loading={isLoading} erro={isError} vazio={pendentes === 0 && !isLoading && !isError}
+        <Card titulo="📥 Inbox" loading={isLoading} erro={isError} vazio={(dash?.inbox_count ?? 0) === 0 && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum item pendente</p><button onClick={() => window.dispatchEvent(new Event('open-inbox'))} className="text-sm text-accent hover:underline">Abrir inbox →</button></div>}>
           <div className="flex items-center justify-between py-2">
-            <span className="text-sm">{pendentes} {pendentes === 1 ? 'item pendente' : 'itens pendentes'}</span>
+            <span className="text-sm">{dash?.inbox_count ?? 0} {(dash?.inbox_count ?? 0) === 1 ? 'item pendente' : 'itens pendentes'}</span>
             <button onClick={() => window.dispatchEvent(new Event('open-inbox'))}
               className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">
               Abrir inbox
@@ -155,7 +144,7 @@ export default function Dashboard() {
         {/* Hábitos */}
         <Card titulo="🎯 Hábitos" loading={isLoading} erro={isError} vazio={(!dash?.habitos || dash?.habitos?.filter(h => h.ativo).length === 0) && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum hábito ativo</p><button onClick={() => navigate('/habitos')} className="text-sm text-accent hover:underline">Criar hábito →</button></div>}>
-          {dash?.habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} hoje={hoje} onCheck={handleCheckHabito} />)}
+          {dash?.habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} onCheck={handleCheckHabito} />)}
         </Card>
 
         {/* Foco */}
@@ -201,7 +190,7 @@ export default function Dashboard() {
   )
 }
 
-function HabitItem({ h, hoje, onCheck }: { h: DashboardStats['habitos'][number]; hoje: string; onCheck: (id: number) => void }) {
+function HabitItem({ h, onCheck }: { h: DashboardStats['habitos'][number]; onCheck: (id: number) => void }) {
   return (
     <div className="flex items-center justify-between py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
       <div className="flex items-center gap-2 min-w-0">
