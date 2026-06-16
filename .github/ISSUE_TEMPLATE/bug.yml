@@ -1,0 +1,32 @@
+name: Bug
+description: Reportar erro de comportamento
+labels: [bug]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descrição
+      description: O que acontece? O que deveria acontecer?
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passo a passo
+      description: Como reproduzir o bug?
+      placeholder: |
+        1. Vá para...
+        2. Clique em...
+        3. Veja o erro
+  - type: input
+    id: severidade
+    attributes:
+      label: Severidade
+      description: Crítico, Alto, Médio, Baixo
+    validations:
+      required: true
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Logs, screenshots, versão
