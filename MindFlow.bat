@@ -5,7 +5,8 @@ setlocal
 :: Se ja estamos dentro do repositorio, pula setup (seguro para missclick)
 if exist "%~dp0start.py" (
     cd /d "%~dp0"
-    python start.py
+    if not exist "venv" python -m venv venv
+    .\venv\Scripts\python start.py
     pause
     exit /b
 )
