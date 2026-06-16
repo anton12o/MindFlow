@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface Props {
   titulo: string
@@ -8,10 +9,13 @@ interface Props {
   confirmLabel?: string
   cancelLabel?: string
   destructive?: boolean
+  disabled?: boolean
 }
 
-export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive }: Props) {
+export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, confirmLabel = 'Confirmar', cancelLabel = 'Cancelar', destructive, disabled }: Props) {
   const confirmRef = useRef<HTMLButtonElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -24,7 +28,7 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onCancel}>
-      <div
+      <div ref={modalRef}
         className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-sm mx-4 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
@@ -38,8 +42,9 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
             {cancelLabel}
           </button>
           <button ref={confirmRef} onClick={onConfirm}
-            className={`px-4 py-1.5 text-sm rounded-lg text-white transition-colors ${destructive ? 'bg-danger hover:bg-danger/80' : 'bg-accent hover:bg-accent-hover'}`}>
-            {confirmLabel}
+            disabled={disabled}
+            className={`px-4 py-1.5 text-sm rounded-lg text-white transition-colors disabled:opacity-50 ${destructive ? 'bg-danger hover:bg-danger/80' : 'bg-accent hover:bg-accent-hover'}`}>
+            {disabled ? 'Aguarde...' : confirmLabel}
           </button>
         </div>
       </div>

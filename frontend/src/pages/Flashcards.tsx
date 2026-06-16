@@ -13,9 +13,10 @@ interface FlashcardItemProps {
   notas: Array<{ id: number; titulo: string }> | undefined
   onSave: (id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => void
   onDelete: (id: number, pergunta: string) => void
+  saving?: boolean
 }
 
-const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete }: FlashcardItemProps) {
+const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete, saving }: FlashcardItemProps) {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
 
@@ -29,7 +30,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete 
   }
 
   return (
-    <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4">
+    <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4 cursor-pointer hover:scale-[1.02] transition-transform">
       {editing ? (
         <div className="flex-1 space-y-2">
           <input value={editForm.pergunta} onChange={e => setEditForm(f => ({ ...f, pergunta: e.target.value }))}
@@ -42,7 +43,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete 
             {(notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
           </select>
           <button onClick={() => onSave(fc.id, { pergunta: editForm.pergunta, resposta: editForm.resposta, nota_id: editForm.nota_id ? Number(editForm.nota_id) : null })}
-            className="text-xs text-success">Salvar</button>
+            disabled={saving} className="text-xs text-success disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar'}</button>
           <button onClick={() => setEditing(false)} className="text-xs text-text-muted ml-2">Cancelar</button>
         </div>
       ) : (
@@ -183,8 +184,8 @@ export default function Flashcards() {
               {notasLoad && <option disabled>Carregando...</option>}
               {!notasLoad && (notas || []).map(n => <option key={n.id} value={n.id}>{n.titulo}</option>)}
             </select>
-            <button type="submit" disabled={!form.pergunta.trim() || !form.resposta.trim()}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">Criar flashcard</button>
+            <button type="submit" disabled={!form.pergunta.trim() || !form.resposta.trim() || createMut.isPending}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar flashcard'}</button>
           </div>
         </form>
       )}
@@ -196,10 +197,12 @@ export default function Flashcards() {
           <div
             onClick={() => setVirado(!virado)}
             className="bg-bg-secondary rounded-xl border border-border p-8 min-h-[200px] cursor-pointer flex items-center justify-center text-center hover:border-accent/50 transition-colors"
+            title="Clique para ver a resposta"
           >
             <div>
               <p className="text-xs text-text-muted mb-4">{virado ? 'Resposta' : 'Pergunta'}</p>
               <p className="text-lg whitespace-pre-wrap">{virado ? currentCard.resposta : currentCard.pergunta}</p>
+              {!virado && <p className="text-xs text-text-muted mt-4">Clique no card para ver a resposta</p>}
             </div>
           </div>
 
@@ -211,9 +214,10 @@ export default function Flashcards() {
                   <button
                     key={q}
                     onClick={() => reviewMut.mutate({ id: currentCard.id, qualidade: q })}
-                    className="px-4 py-2 bg-bg-tertiary rounded-lg text-sm hover:bg-accent/20 hover:text-accent transition-colors"
+                    disabled={reviewMut.isPending}
+                    className="px-4 py-2 bg-bg-tertiary rounded-lg text-sm hover:bg-accent/20 hover:text-accent transition-colors disabled:opacity-50"
                   >
-                    {labels[q]}
+                    {reviewMut.isPending ? '...' : labels[q]}
                   </button>
                 ))}
               </div>
@@ -246,6 +250,7 @@ export default function Flashcards() {
                       notas={notas}
                       onSave={handleSave}
                       onDelete={handleDelete}
+                      saving={updateMut.isPending}
                     />
                   </div>
                 )
@@ -261,6 +266,7 @@ export default function Flashcards() {
           mensagem={`Tem certeza que deseja remover "${confirmDelete.pergunta}"?`}
           destructive
           confirmLabel="Remover"
+          disabled={deleteMut.isPending}
           onConfirm={() => { deleteMut.mutate(confirmDelete.id); setConfirmDelete(null) }}
           onCancel={() => setConfirmDelete(null)}
         />

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getLogs, clearLogs, type LogEntryResponse } from '../api/logs'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface Props {
   onClose: () => void
@@ -10,6 +11,7 @@ export default function LogsModal({ onClose }: Props) {
   const [levelFilter, setLevelFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
   const ref = useRef<HTMLDivElement>(null)
+  useFocusTrap(ref, true)
 
   function load() {
     setLoading(true)

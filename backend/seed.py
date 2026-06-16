@@ -1,7 +1,7 @@
 import logging
 from database import engine
-from models import TemplateNota, TipoObjeto
-from sqlmodel import Session, select
+from models import TemplateNota, TipoObjeto, Nota, Tarefa
+from sqlmodel import Session, select, func
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +82,20 @@ def seed_tipos(session: Session):
                 if schema:
                     t.schema_campos = schema
                     session.add(t)
+        # Remover tipos de teste sem schema_campos
+        nomes_padrao = {tp["nome"] for tp in TIPOS_PADRAO}
+        for t in tipos:
+            if t.nome not in nomes_padrao and not t.schema_campos:
+                session.delete(t)
+        # Remover tipos de teste explícitos (apenas se sem referências FK)
+        tipos_teste = ["Pessoa", "Recurso", "TipoImp"]
+        for t in tipos:
+            if t.nome in tipos_teste:
+                notas_ref = session.exec(select(func.count(Nota.id)).where(Nota.tipo_id == t.id)).one()
+                tarefas_ref = session.exec(select(func.count(Tarefa.id)).where(Tarefa.tipo_id == t.id)).one()
+                if notas_ref == 0 and tarefas_ref == 0:
+                    session.delete(t)
+                    logger.info("Tipo de teste removido: %s", t.nome)
         session.commit()
 
 

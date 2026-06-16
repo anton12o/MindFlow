@@ -18,6 +18,10 @@ from services import processar_wikilinks
 from services.estatisticas import calcular_estatisticas
 from datetime import datetime, date
 from models import TipoObjeto
+from pydantic import BaseModel
+
+class BatchDeleteRequest(BaseModel):
+    ids: list[int]
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +79,7 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 
 # ─── Notas ───
 @router.get("", response_model=list[NotaRead])
-def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, session: Session = Depends(get_session)):
+def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, sort: str | None = None, session: Session = Depends(get_session)):
     tag_id_list = []
     if tag_ids:
         for t in tag_ids.split(","):
@@ -110,7 +114,7 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
         if tag_id_list:
             # Filtrar notas que têm TODAS as tags (AND)
             stmt = select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
-            valid_nota_ids = {r[0] for r in session.exec(stmt).all()}
+            valid_nota_ids = set(session.exec(stmt).all())
             notas = [n for n in notas if n.id in valid_nota_ids]
         return notas
     
@@ -122,7 +126,12 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
         stmt = stmt.where(Nota.id.in_(
             select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
         ))
-    return session.exec(stmt.order_by(Nota.atualizado_em.desc())).all()
+    order = Nota.atualizado_em.desc()
+    if sort == 'acessos':
+        order = Nota.acessos.desc().nullslast()
+    elif sort == 'titulo':
+        order = Nota.titulo.asc()
+    return session.exec(stmt.order_by(order)).all()
 
 @router.post("", response_model=NotaRead)
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
@@ -190,11 +199,20 @@ def estatisticas_notas(mes: int, ano: int, session: Session = Depends(get_sessio
         }
     return calcular_estatisticas(mes, ano, session)
 
+@router.get("/recentes", response_model=list[NotaRead])
+def notas_recentes(session: Session = Depends(get_session)):
+    return session.exec(select(Nota).where(Nota.ultimo_acesso.isnot(None)).order_by(Nota.ultimo_acesso.desc()).limit(10)).all()
+
 @router.get("/{nota_id}", response_model=NotaRead)
 def get_nota(nota_id: int, session: Session = Depends(get_session)):
     nota = session.get(Nota, nota_id)
     if not nota:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
+    nota.acessos = (nota.acessos or 0) + 1
+    nota.ultimo_acesso = datetime.now().isoformat()
+    session.add(nota)
+    session.commit()
+    session.refresh(nota)
     return nota
 
 @router.patch("/{nota_id}", response_model=NotaRead)
@@ -241,6 +259,33 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
     session.commit()
     return {"ok": True}
 
+@router.post("/batch/delete")
+def batch_delete_notas(body: BatchDeleteRequest, session: Session = Depends(get_session)):
+    deleted = 0
+    for nota_id in body.ids:
+        n = session.get(Nota, nota_id)
+        if not n:
+            continue
+        for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
+            session.delete(tag)
+        for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
+            fc.nota_id = None
+            session.add(fc)
+        for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
+            s.resumo_nota_id = None
+            session.add(s)
+        conns = session.exec(
+            select(ConexaoNota).where(
+                or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
+            )
+        ).all()
+        for c in conns:
+            session.delete(c)
+        session.delete(n)
+        deleted += 1
+    session.commit()
+    return {"ok": True, "deleted": deleted}
+
 @router.get("/{nota_id}/export/md")
 def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
     n = session.get(Nota, nota_id)
@@ -274,7 +319,8 @@ def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
     body = n.conteudo or ""
     result = "\n".join(yaml_lines) + "\n\n" + body
     from fastapi import Response
-    headers = {"Content-Disposition": f"attachment; filename=\"{n.titulo}.md\""}
+    safe_filename = n.titulo.replace('"', "'").replace('\n', '')
+    headers = {"Content-Disposition": f"attachment; filename=\"{safe_filename}.md\""}
     return Response(content=result, media_type="text/markdown", headers=headers)
 
 class ExtrairInput(SQLModel):

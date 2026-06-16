@@ -30,6 +30,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
       doc: value,
       extensions: [
         EditorView.lineWrapping,
+        EditorView.contentAttributes.of({ spellcheck: 'true' }),
         markdown({ base: markdownLanguage }),
         python(),
         javascript(),

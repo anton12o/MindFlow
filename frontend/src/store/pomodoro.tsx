@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode, type Dispatch, type SetStateAction } from 'react'
+import { useBroadcastSync } from '../hooks/useBroadcastSync'
 
 type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
 
@@ -106,6 +107,16 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     resetTimer()
   }, [fase, config])
+
+  useBroadcastSync('sync:pomodoro', { sessaoId, minutos, segundos, ativo, fase, cicloAtual }, (data) => {
+    setSessaoId(data.sessaoId ?? null)
+    setMinutos(data.minutos)
+    setSegundos(data.segundos)
+    setAtivo(data.ativo)
+    setFase(data.fase as Fase)
+    setCicloAtual(data.cicloAtual)
+    startedAtRef.current = Date.now()
+  }, !!sessaoId || ativo)
 
   return (
     <PomodoroContext.Provider value={{

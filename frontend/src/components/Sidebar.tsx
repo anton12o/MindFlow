@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme, MODE_ICON } from '../store/theme'
-import InboxModal from './InboxModal'
 import { exportAll } from '../api/export'
+import ConfirmModal from './ConfirmModal'
 
 const navItems = [
   { icon: '◉', label: 'Dashboard', page: '/' },
@@ -14,20 +14,54 @@ const navItems = [
   { icon: '⚙', label: 'Tipos', page: '/tipos' },
   { icon: '⊞', label: 'Consultas', page: '/consultas' },
   { icon: '◎', label: 'Análise', page: '/analise' },
+  { icon: '↻', label: 'Revisão', page: '/revisao' },
 ]
 
-export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
-  inboxOpen: boolean; onToggleInbox: () => void; onOpenImport: () => void
+export default function Sidebar({ onToggleInbox, onOpenImport }: {
+  onToggleInbox: () => void; onOpenImport: () => void
 }) {
   const navigate = useNavigate()
   const location = useLocation()
   const { mode, cycleTheme } = useTheme()
   const [exporting, setExporting] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
+  const [showShutdown, setShowShutdown] = useState(false)
+  const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null)
+  const shutdownTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const currentPath = location.pathname
+
+  function handleShutdown() {
+    setShowShutdown(false)
+    setShutdownCountdown(3)
+    fetch('/api/shutdown', { method: 'POST' })
+    const timer = (count: number) => {
+      if (count <= 0) return
+      setShutdownCountdown(count)
+      shutdownTimerRef.current = setTimeout(() => timer(count - 1), 1000)
+    }
+    timer(3)
+  }
+
+  function cancelShutdown() {
+    clearTimeout(shutdownTimerRef.current)
+    setShutdownCountdown(null)
+  }
+
+  useEffect(() => {
+    return () => clearTimeout(shutdownTimerRef.current)
+  }, [])
 
   return (
     <>
-      <aside className="w-16 bg-bg-secondary border-r border-border flex flex-col items-center py-4 gap-1 shrink-0">
+      <button onClick={() => setCollapsed(p => !p)}
+        className="fixed top-2 left-1 z-50 w-8 h-8 flex items-center justify-center rounded-lg bg-bg-secondary border border-border text-text-muted hover:text-text-primary transition-colors text-sm md:hidden"
+        title={collapsed ? 'Abrir menu' : 'Fechar menu'}>
+        {collapsed ? '☰' : '✕'}
+      </button>
+      {collapsed && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setCollapsed(false)} />}
+      <aside className={`w-16 bg-bg-secondary border-r border-border flex flex-col items-center py-4 gap-1 shrink-0 transition-transform duration-200
+        ${collapsed ? '-translate-x-full' : 'translate-x-0'}
+        fixed md:relative z-40 h-full md:h-auto md:translate-x-0`}>
         <div className="text-accent text-lg font-bold mb-4 tracking-tight" title="MindFlow">MF</div>
         {navItems.map(item => (
           <button
@@ -79,6 +113,13 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
           {MODE_ICON[mode]}
         </button>
         <button
+          onClick={() => setShowShutdown(true)}
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-text-muted hover:text-danger hover:bg-danger/10 transition-colors text-sm"
+          title="Encerrar MindFlow"
+        >
+          ⏻
+        </button>
+        <button
           onClick={onToggleInbox}
           className="w-10 h-10 flex items-center justify-center rounded-lg bg-accent text-white text-lg hover:bg-accent-hover transition-colors"
           title="Captura rápida (Ctrl+I)"
@@ -86,7 +127,30 @@ export default function Sidebar({ inboxOpen, onToggleInbox, onOpenImport }: {
           +
         </button>
       </aside>
-      {inboxOpen && <InboxModal onClose={onToggleInbox} />}
+      {showShutdown && (
+        <ConfirmModal
+          titulo="Encerrar MindFlow"
+          mensagem="Tem certeza que deseja encerrar o servidor? Você precisará reiniciá-lo pelo terminal."
+          destructive
+          confirmLabel="Encerrar"
+          onConfirm={handleShutdown}
+          onCancel={() => setShowShutdown(false)}
+        />
+      )}
+      {shutdownCountdown !== null && shutdownCountdown > 0 && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-fade-in">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
+            <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
+            <p className="text-sm text-text-muted">Encerrando servidor...</p>
+            <button
+              onClick={cancelShutdown}
+              className="px-6 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover transition-colors text-sm"
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

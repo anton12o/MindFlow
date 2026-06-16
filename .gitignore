@@ -9,6 +9,7 @@ __pycache__/
 backend/data/
 .env
 .vite/
+venv/
 
 # Resíduos de script externo
 generate-spec.js

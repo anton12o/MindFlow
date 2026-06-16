@@ -23,6 +23,8 @@ export default function Rotina() {
   const [showBlocoForm, setShowBlocoForm] = useState(false)
   const [blocoForm, setBlocoForm] = useState({ titulo: '', hora_inicio: '', hora_fim: '' })
   const [editBloco, setEditBloco] = useState<{ id: number; titulo: string; hora_inicio: string; hora_fim: string } | null>(null)
+  const [blocoErrors, setBlocoErrors] = useState<Record<string, string>>({})
+  const [tarefaErrors, setTarefaErrors] = useState('')
   const [editTarefa, setEditTarefa] = useState<{ id: number; titulo: string } | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'bloco' | 'tarefa'; id: number; label: string } | null>(null)
   const hoje = hojeLocal()
@@ -106,7 +108,8 @@ export default function Rotina() {
 
   function handleAddTarefa(e: React.FormEvent) {
     e.preventDefault()
-    if (!novaTarefa.trim()) return
+    if (!novaTarefa.trim()) { setTarefaErrors('Digite o nome da tarefa'); return }
+    setTarefaErrors('')
     createTarefaMut.mutate(novaTarefa.trim())
   }
 
@@ -116,7 +119,12 @@ export default function Rotina() {
 
   function handleCreateBloco(e: React.FormEvent) {
     e.preventDefault()
-    if (!blocoForm.titulo.trim() || !blocoForm.hora_inicio.trim() || !blocoForm.hora_fim.trim()) return
+    const errors: Record<string, string> = {}
+    if (!blocoForm.titulo.trim()) errors.titulo = 'Informe um título'
+    if (!blocoForm.hora_inicio.trim()) errors.hora_inicio = 'Informe o início'
+    if (!blocoForm.hora_fim.trim()) errors.hora_fim = 'Informe o fim'
+    setBlocoErrors(errors)
+    if (Object.keys(errors).length > 0) return
     createBlocoMut.mutate(blocoForm)
   }
 
@@ -148,10 +156,22 @@ export default function Rotina() {
 
             {showBlocoForm && (
               <form onSubmit={handleCreateBloco} className="flex flex-wrap gap-2 mb-4 p-3 bg-bg-tertiary rounded-lg">
-                <input value={blocoForm.titulo} onChange={e => setBlocoForm(f => ({ ...f, titulo: e.target.value }))} placeholder="Título" maxLength={60} className="flex-1 min-w-[120px] bg-bg-primary rounded px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent" />
-                <input type="time" value={blocoForm.hora_inicio} onChange={e => setBlocoForm(f => ({ ...f, hora_inicio: e.target.value }))} className="bg-bg-primary rounded px-2 py-1.5 text-sm outline-none" />
-                <input type="time" value={blocoForm.hora_fim} onChange={e => setBlocoForm(f => ({ ...f, hora_fim: e.target.value }))} className="bg-bg-primary rounded px-2 py-1.5 text-sm outline-none" />
-                <button type="submit" className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg">OK</button>
+                <div className="flex-1 min-w-[120px]">
+                  <input value={blocoForm.titulo} onChange={e => { setBlocoForm(f => ({ ...f, titulo: e.target.value })); if (blocoErrors.titulo) setBlocoErrors(p => { const n = {...p}; delete n.titulo; return n }) }} placeholder="Título" maxLength={60}
+                    className={`w-full bg-bg-primary rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ${blocoErrors.titulo ? 'ring-1 ring-danger border-danger' : 'focus:ring-accent'}`} />
+                  {blocoErrors.titulo && <p className="text-xs text-danger mt-0.5">{blocoErrors.titulo}</p>}
+                </div>
+                <div>
+                  <input type="time" value={blocoForm.hora_inicio} onChange={e => { setBlocoForm(f => ({ ...f, hora_inicio: e.target.value })); if (blocoErrors.hora_inicio) setBlocoErrors(p => { const n = {...p}; delete n.hora_inicio; return n }) }}
+                    className={`bg-bg-primary rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ${blocoErrors.hora_inicio ? 'ring-1 ring-danger border-danger' : 'focus:ring-accent'}`} />
+                  {blocoErrors.hora_inicio && <p className="text-xs text-danger mt-0.5">{blocoErrors.hora_inicio}</p>}
+                </div>
+                <div>
+                  <input type="time" value={blocoForm.hora_fim} onChange={e => { setBlocoForm(f => ({ ...f, hora_fim: e.target.value })); if (blocoErrors.hora_fim) setBlocoErrors(p => { const n = {...p}; delete n.hora_fim; return n }) }}
+                    className={`bg-bg-primary rounded px-2 py-1.5 text-sm outline-none focus:ring-1 ${blocoErrors.hora_fim ? 'ring-1 ring-danger border-danger' : 'focus:ring-accent'}`} />
+                  {blocoErrors.hora_fim && <p className="text-xs text-danger mt-0.5">{blocoErrors.hora_fim}</p>}
+                </div>
+                <button type="submit" disabled={createBlocoMut.isPending} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createBlocoMut.isPending ? '...' : 'OK'}</button>
               </form>
             )}
 
@@ -172,7 +192,7 @@ export default function Rotina() {
                         <input type="time" value={editBloco.hora_fim} onChange={e => setEditBloco(prev => ({ ...prev!, hora_fim: e.target.value }))}
                           className="bg-bg-primary rounded px-2 py-1 text-sm outline-none" />
                         <button onClick={() => updateBlocoMut.mutate({ id: b.id, data: { titulo: editBloco.titulo, hora_inicio: editBloco.hora_inicio, hora_fim: editBloco.hora_fim } })}
-                          className="text-xs text-success">OK</button>
+                          disabled={updateBlocoMut.isPending} className="text-xs text-success disabled:opacity-50">{updateBlocoMut.isPending ? '...' : 'OK'}</button>
                         <button onClick={() => setEditBloco(null)} className="text-xs text-text-muted">Cancelar</button>
                       </div>
                     ) : (
@@ -201,10 +221,11 @@ export default function Rotina() {
             <form onSubmit={handleAddTarefa} className="mb-4">
               <input
                 value={novaTarefa}
-                onChange={e => setNovaTarefa(e.target.value)}
+                onChange={e => { setNovaTarefa(e.target.value); if (tarefaErrors) setTarefaErrors('') }}
                 placeholder="Adicionar tarefa..."
-                className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                className={`w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ${tarefaErrors ? 'ring-1 ring-danger border-danger' : 'focus:ring-accent'}`}
               />
+              {tarefaErrors && <p className="text-xs text-danger mt-0.5">{tarefaErrors}</p>}
             </form>
 
             <div className="space-y-1">
@@ -215,7 +236,8 @@ export default function Rotina() {
                 return (
                 <div key={t.id} className="flex items-center gap-3 py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors">
                   <button onClick={() => handleToggleTarefa(t)}
-                    className={`w-4 h-4 rounded border flex items-center justify-center text-xs transition-colors shrink-0
+                    disabled={toggleTarefaMut.isPending}
+                    className={`w-4 h-4 rounded border flex items-center justify-center text-xs transition-colors shrink-0 disabled:opacity-50
                       ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
                     {t.status === 'feito' && '✓'}
                   </button>
@@ -224,7 +246,7 @@ export default function Rotina() {
                       <input value={editTarefa.titulo} onChange={e => setEditTarefa(prev => ({ ...prev!, titulo: e.target.value }))}
                         className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-sm outline-none" />
                       <button onClick={() => updateTarefaMut.mutate({ id: t.id, data: { titulo: editTarefa.titulo } })}
-                        className="text-xs text-success">OK</button>
+                        disabled={updateTarefaMut.isPending} className="text-xs text-success disabled:opacity-50">{updateTarefaMut.isPending ? '...' : 'OK'}</button>
                       <button onClick={() => setEditTarefa(null)} className="text-xs text-text-muted">Cancelar</button>
                     </>
                   ) : (
@@ -253,6 +275,7 @@ export default function Rotina() {
           mensagem={`Tem certeza que deseja remover "${confirmDelete.label}"?`}
           destructive
           confirmLabel="Remover"
+          disabled={deleteBlocoMut.isPending || deleteTarefaMut.isPending}
           onConfirm={() => {
             if (confirmDelete.type === 'bloco') deleteBlocoMut.mutate(confirmDelete.id)
             else deleteTarefaMut.mutate(confirmDelete.id)

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useImport } from '../hooks/useImport'
+import { useFocusTrap } from '../hooks/useFocusTrap'
 
 interface Props {
   onClose: () => void
@@ -12,6 +13,8 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
   const [file, setFile] = useState<File | null>(null)
   const [dragOver, setDragOver] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
+  useFocusTrap(modalRef, true)
   const onCloseRef = useRef(onClose)
   const onSuccessRef = useRef(onSuccess)
   onCloseRef.current = onClose
@@ -73,7 +76,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={handleClose}>
-      <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-lg mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
+      <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-lg mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
 
         {step === 'select' && (
           <>

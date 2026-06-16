@@ -12,39 +12,219 @@
 
 ## 🔴 Alta Prioridade — Refinados, prontos para execução
 
-### Timer personalizado (Pomodoro)
-**Status:** ✅ Implementado (Jun/2026)
-**Origem:** Revisão do usuário (Item 2)
+### Header injection via título de nota no export MD
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Permitir que o usuário configure os tempos do Pomodoro antes de iniciar: duração do foco (padrão 25min), pausa curta (padrão 5min) e pausa longa (padrão 15min). As configurações ficam salvas no `localStorage`.
+**Descrição:** Em `notas.py:277`, o header `Content-Disposition` é montado com `filename="{n.titulo}.md"`. Se o título contiver `"` ou `\n`, o header é quebrado. Corrigir escapando aspas e removendo caracteres perigosos do filename.
 
 **Arquivos envolvidos:**
-- `frontend/src/store/pomodoro.tsx` — adicionar configurações de tempo + ciclo foco/pausa
-- `frontend/src/components/PomodoroTimer.tsx` — UI de configuração + ciclo automático
-- `frontend/src/pages/Pomodoro.tsx` — expor controles de configuração
+- `backend/routers/notas.py:277` — sanitizar `n.titulo` antes de usar no header
 
 **Dependências:** Nenhuma.
 
-**Observações:** O timer atual não tem conceito de "pausa" — apenas foco. Será necessário adicionar ciclo foco → pausa curta → foco → pausa longa.
+**Observações:** ~15min. Patch simples: `urllib.parse.quote` ou strip de caracteres especiais.
 
-**Implementado:** Módulo 1 (Context + config), Módulo 2 (UI configuração), Módulo 3 (Ciclo automático)
+---
+
+### Race condition no Pomodoro start/stop (sessões órfãs)
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Em `PomodoroTimer.tsx:81-108`, `createSessao()` é assíncrono. Se o usuário clicar rapidamente "Iniciar" → "Parar", o handler de stop checa `if (sessaoId)` que ainda pode ser `null` — a sessão é criada no backend mas nunca finalizada. Solução: usar ref para rastrear ID da sessão ou desabilitar "Parar" até `sessaoId` estar definido.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/PomodoroTimer.tsx` — ref para sessão pendente + disable condicional
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h. `DELETE /sessoes?antes_de` limpa órfãs parcialmente, mas UX é confusa.
+
+---
+
+### N+1 queries no Dashboard (HabitItem)
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Cada `HabitItem` faz sua própria chamada `getRegistros(h.id)`. Com 6 hábitos, são 6 requests API na carga da página. Solução: criar endpoint `GET /api/habitos/registros?data=` que retorna todos os registros em uma única query.
+
+**Arquivos envolvidos:**
+- `backend/routers/habitos.py` — novo endpoint batch de registros
+- `frontend/src/api/habitos.ts` — função `getAllRegistros(data)`
+- `frontend/src/pages/Dashboard.tsx` — uma query em vez de N
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h. O mesmo padrão N+1 existe em `estatisticas.py` e no import — corrigir Dashboard primeiro.
+
+---
+
+### UI global "backend offline" (detecção + banner)
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Quando o backend cai, cada página mostra "Erro ao carregar" sem distinguir backend-down de erro 500. Criar interceptor no `client.ts` + banner global não-bloqueante. Usar `GET /api/health` com `refetchInterval: 10000`.
+
+**Arquivos envolvidos:**
+- `frontend/src/api/client.ts` — detectar erros de conexão vs erros de API
+- `frontend/src/App.tsx` — banner global de offline
+- `frontend/src/components/PomodoroTimer.tsx` — não iniciar timer se backend offline
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~4h. Pomodoro é o pior caso: timer visual roda sem sessão real.
+
+---
+
+### Validadores Pydantic para campos enum-like
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `HabitoBase.tipo` aceita qualquer string (deveria ser `"binario" | "quantitativo"`), `TarefaBase.prioridade` (deveria ser `"baixa" | "normal" | "alta" | "urgente"`), `TarefaBase.status` (deveria ser `"pendente" | "em_andamento" | "feito"`). Adicionar `Literal` types.
+
+**Arquivos envolvidos:**
+- `backend/models.py` — adicionar `Literal` types + `@field_validator`
+- `backend/tests/test_api.py` — testar rejeição de valores inválidos
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h. Hoje o frontend envia valores corretos via `<select>`, mas a API não tem guard.
+
+---
+
+### Validação de comprimento em campos de texto
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `InboxItemBase.conteudo`, `NotaBase.titulo`, `FlashcardBase.pergunta/resposta` não têm `min_length`. Strings vazias passam na validação. Adicionar `min_length=1` em campos obrigatórios e `max_length` razoável (títulos 500 chars, conteúdo 10MB).
+
+**Arquivos envolvidos:**
+- `backend/models.py` — adicionar `min_length`/`max_length`
+- `backend/routers/queries.py` — `BatchInput.ids` com `max_length=100`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h. Mudança backward-compatible.
+
+---
+
+### Missing 404 checks em operações com FK
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `add_tag_to_nota` não verifica se `nota_id` ou `tag_id` existem. SQLite lança `IntegrityError` que vira 500 genérico. Mesmo padrão em outras associações. Adicionar verificação de existência.
+
+**Arquivos envolvidos:**
+- `backend/routers/notas.py:377-386` — verificar nota e tag existem
+- `backend/routers/pomodoro.py:29-40` — validar `resumo_nota_id`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h. Padrão: `session.get(Model, id); if not: raise HTTPException(404)`.
+
+---
+
+### Sanitização de filename no export MD
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Header injection em `notas.py:277` — `n.titulo` inserido diretamente no header `Content-Disposition`. Um título como `test"; filename="evil.txt` quebra o header. Corrigir com sanitização.
+
+**Arquivos envolvidos:**
+- `backend/routers/notas.py` — sanitizar `n.titulo` antes de usar em `Content-Disposition`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min. Fix de segurança trivial.
+
+---
+
+### Quick Switcher (Ctrl+P) — Nota Finder
+**Status:** ⏳ Planejado
+**Origem:** Conversa de análise DeepSeek + Gemini (Jun/2026)
+
+**Descrição:** Modal de busca rápida de notas ativado por `Ctrl+P`, reutilizando `CommandPalette.tsx` com `mode="nota"`. Filtra notas do cache React Query por título. Mesma acessibilidade e navegação por setas do Ctrl+K.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/CommandPalette.tsx` — adicionar `mode="nota"`
+- `frontend/src/App.tsx` — registrar atalho `Ctrl+P`
+
+**Dependências:** Nenhuma.
+
+**Observações:** MVP em ~10min reaproveitando o que já existe.
+
+---
+
+### Pré-carregamento do InboxModal
+**Status:** 🟡 Média Prioridade
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** InboxModal leva ~3s para abrir. Renderizar modal oculto ou usar `queryClient.prefetchQuery` para abertura instantânea.
+
+**Arquivos:**
+- `frontend/src/pages/Dashboard.tsx` — renderizar InboxModal oculto ou prefetch
+- `frontend/src/pages/Ideias.tsx` — mesma abordagem
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min. Melhoria de percepção de performance.
+
+---
+
+### Processar #tag e [[link]] no Inbox
+**Status:** 🟡 Planejado
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** Ao criar ou arquivar item do inbox, extrair `#tags` e `[[wikilinks]]` do conteúdo. Tags associadas ao destino, wikilinks viram conexões.
+
+**Arquivos:**
+- `backend/routers/inbox.py` — extrair tags/wikilinks
+- `backend/services/notes.py` — funções de extração reutilizáveis
+- `frontend/src/components/InboxModal.tsx` — UI de confirmação (opcional)
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~6h.
+
+---
+
+### Normalização de diacríticos na busca
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** O tokenizer `unicode61` do FTS5 já normaliza acentos (é = e, à = a, ã = a, ç = c). Nenhuma ação necessária — a busca já é accent-insensitive.
+
+**Observações:** A estimativa original era 15min, depois corrigida para 1h, mas após verificação o FTS5 com `unicode61` já faz isso nativamente. Zero código necessário.
+
+---
+
+### Shutdown fix — response antes do kill
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `os.kill` em `shutdown.py` matava o processo antes do response chegar ao frontend. Corrigido com `threading.Timer(0.5, ...)` para agendar o kill depois da resposta. `PRAGMA wal_checkpoint(TRUNCATE)` executado antes do kill.
+
+**Arquivos:** `backend/routers/shutdown.py`
+
+---
+
+### Timer personalizado (Pomodoro)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão do usuário
+
+**Descrição:** Configuração de tempos do Pomodoro: foco (padrão 25min), pausa curta (5min), pausa longa (15min). Ciclo foco → pausa curta → foco → pausa longa. Config salva no `localStorage`.
+
+**Arquivos:** `store/pomodoro.tsx`, `PomodoroTimer.tsx`, `Pomodoro.tsx`
 
 ---
 
 ### Execução simplificada (start.py + static serve)
 **Status:** ✅ Implementado (Jun/2026)
-**Origem:** Revisão do usuário (Item 3)
+**Origem:** Revisão do usuário
 
-**Descrição:** Script Python único que instala dependências, builda o frontend (se necessário), sobe o servidor e abre o navegador. Backend passa a servir o frontend buildado como static file, eliminando a necessidade de Node.js no dia a dia.
+**Descrição:** Script único que instala deps, builda frontend, sobe uvicorn e abre navegador. Backend serve frontend buildado como static file.
 
-**Arquivos envolvidos:**
-- `start.py` (novo, raiz) — script principal
-- `backend/main.py` — adicionar `StaticFiles` + catch-all route SPA
-- `start.bat` — simplificar para só chamar `python start.py`
-
-**Dependências:** Nenhuma.
-
-**Observações:** Depois da primeira execução (que instala tudo), Node.js só é necessário se o frontend precisar ser rebuildado.
+**Arquivos:** `start.py`, `backend/main.py`, `start.bat`
 
 ---
 
@@ -52,200 +232,637 @@
 **Status:** ✅ Implementado (Jun/2026)
 **Origem:** Continuação da Execução simplificada
 
-**Descrição:** Bootstrap para Release via `MindFlow.bat` (~2KB). Verifica Git/Python, clona repositório (se necessário), cria `venv`, instala deps, e chama `start.py`. Anexado à Release v1.0.0 do GitHub para download com um clique.
+**Descrição:** Bootstrap para Release via `MindFlow.bat`. Verifica Git/Python, clona, cria venv, instala deps, chama `start.py`.
 
-**Arquivos envolvidos:**
-- `MindFlow.bat` (raiz) — entrypoint único para o usuário final
-- `start.py` — motor principal (já existente)
+**Arquivos:** `MindFlow.bat`, `start.py`
 
-**Dependências:** Nenhuma.
+---
+
+### Spellcheck nativo no editor
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** `EditorView.contentAttributes.of({ spellcheck: 'true' })` no CodeMirror. Cobre ~80% dos erros de digitação.
+
+**Arquivos:** `frontend/src/components/EditorMarkdown.tsx`
+
+---
+
+### Detecção de WAL + cloud sync no startup
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** `start.py` verifica se o caminho do `.db` contém "onedrive", "dropbox", "icloud" ou "syncthing" e exibe alerta. WAL mode + nuvem corrompe o banco.
+
+**Arquivos:** `start.py`
+
+---
+
+### PRAGMA wal_checkpoint(TRUNCATE) no shutdown
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** `PRAGMA wal_checkpoint(TRUNCATE)` executado antes do `os.kill` no shutdown via API.
+
+**Arquivos:** `backend/routers/shutdown.py`
+
+---
+
+### Árvore de pastas (hierarquia com pai_id)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão do usuário (Jun/2026)
+
+**Descrição:** Substituição da lista plana de pastas por visualização em árvore com indentação por nível, ▶/▼ toggle, ícone de pasta, contagem de notas. Suporte a criação de subpastas inline ao hover. Toda a lógica no frontend (flat API → tree via `pai_id`).
+
+**Arquivos:** `frontend/src/pages/Ideias.tsx`
 
 ---
 
 ## 🟡 Média Prioridade — Discutidos, precisam de refinamento
 
-### 5 novas views nas Consultas
-**Status:** ✅ Implementado (Jun/2026)
-**Origem:** Revisão do usuário (Item 4)
+### try/catch em DB writes do backend (erros 500 genéricos)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Adicionar 5 novos modos de visualização às Consultas além de Grid e Kanban.
-
-**Sub-itens:**
-1. **Lista** — Exibição densa em coluna, título + ícone do tipo + uma propriedade secundária. Suporte a reordenação drag-and-drop vertical.
-2. **Galeria** — Grade de cards com imagem de capa extraída automaticamente (cover_url → regex markdown → fallback). Rodapé com título.
-3. **Calendário** — Matriz mensal onde o usuário define qual propriedade da nota age como âncora de data. Drag-and-drop entre dias atualiza a propriedade no backend.
-4. **Cronograma (Gantt)** — Barras horizontais posicionadas no tempo usando data_inicio e data_fim. Arrastar move início/fim. Redimensionar bordas altera individualmente cada data.
-5. **Formulário** — Gerador dinâmico de campos baseado no `schema_campos` do Tipo de Objeto. Lê o schema JSON e instancia inputs corretos (date, number, select, etc.). Cria nota nova com as propriedades preenchidas.
+**Descrição:** Quase todos os endpoints de criação/atualização/exclusão não têm try/catch. Se o DB write falha, o erro SQLAlchemy propaga como 500 com stack trace. Adicionar handler global FastAPI para `IntegrityError` → 400/409.
 
 **Arquivos envolvidos:**
-- `frontend/src/pages/Consultas.tsx` — 5 novos renderers
-- `backend/routers/queries.py` — possíveis ajustes no endpoint
-- `backend/models.py` — definir estrutura do `schema_campos` (hoje é `{}` vazio)
-- `backend/seed.py` — preencher `schema_campos` dos tipos padrão
-
-**Dependências:** Definir estrutura do `schema_campos` (convenção de tipos, opções, obrigatoriedade). Preencher seed data.
-
-**Observações:** Feature de maior porte. Recomendado implementar view por view. Formulário depende de definição do schema.
-
-**Implementado:** Lista (Módulo 1), Galeria (Módulo 2), Formulário (Módulo 3), Calendário (Módulo 4), Gantt (Módulo 5)
-
----
-
-### Tags por cores + filtro combinado
-**Status:** ✅ Implementado (Jun/2026)
-**Origem:** CONTEXT.md — Próximos Passos (Item 1)
-
-**Descrição:** Tags já têm campo `cor` no backend, mas não é usado no frontend. Adicionar exibição colorida nas notas + filtro combinado (selecionar múltiplas tags para filtrar notas).
-
-**Arquivos envolvidos:**
-- `frontend/src/pages/Ideias.tsx` — filtro por tags na sidebar, chips coloridos, modal de criação/edição com color picker
-- `frontend/src/api/notas.ts` — `getNotas` com `tagIds`, `updateTag`, `getNotaTags`
-- `backend/routers/notas.py` — `GET /notas?tag_ids=` (AND), `PATCH /tags/{id}`, `GET /notas/{id}/tags`, `DELETE /notas/{id}/tags/{tag_id}`
-- `backend/models.py` — `TagUpdate` model
-
-**Implementado:** Módulo 1 (Backend), Módulo 2 (Frontend exibição + color picker), Módulo 3 (Frontend filtro combinado)
-
-**Dependências:** Nenhuma. Campo `cor` já existe no modelo.
-
----
-
-### Arrastar blocos de tempo no calendário semanal
-**Status:** ✅ Implementado (Jun/2026)
-**Origem:** CONTEXT.md — Próximos Passos (Item 2)
-
-**Descrição:** Permitir arrastar blocos de horário no CalendarioSemanal para alterar hora_inicio/hora_fim. Drag-and-drop visual com feedback em tempo real.
-
-**Arquivos envolvidos:**
-- `frontend/src/components/CalendarioSemanal.tsx` — drag-and-drop
-- `frontend/src/api/rotina.ts` — função updateBloco
+- `backend/main.py` — exception handler global para `IntegrityError`
+- `backend/routers/notas.py:127-136` — rollback em `processar_wikilinks`
+- Todos os routers — try/catch em operações de escrita
 
 **Dependências:** Nenhuma.
+
+**Observações:** ~4h.
+
+---
+
+### Índices de banco ausentes (8 índices faltando)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Migration `8616ba3b846c` adicionou 10 índices mas deixou de cobrir: `notas.pasta_id`, `notas.tipo_id`, `notas.atualizado_em`, `flashcards.nota_id`, `flashcards.proxima_revisao`, `sessoes_pomodoro.iniciado_em`, `tarefas.(data, status)`, `conexoes_notas.nota_destino_id`.
+
+**Arquivos envolvidos:**
+- Migration Alembic (8 novos índices)
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h.
+
+---
+
+### Invalidação de cache React Query entre páginas
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Várias mutations invalidam cache de uma página mas não de páginas relacionadas. `checkHabitoMut` no Dashboard não invalida `['registros']`. Criar nota com wikilinks não invalida `['grafo']`. Adicionar/remover tags não invalida `['notas']`.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/Dashboard.tsx` — invalidar registros + hábitos
+- `frontend/src/pages/Habitos.tsx` — invalidar chaves do Dashboard
+- `frontend/src/pages/Ideias.tsx` — invalidar grafo + notas após tags
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h.
+
+---
+
+### Erros silenciosos no frontend (swallowed errors)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Export falha e usuário não sabe, `createSessao` falha silenciosamente, `getLogs` falha e mostra lista vazia, arquivos não-.json ignorados sem aviso. Corrigir todos para exibir feedback visível.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/Sidebar.tsx:64-66` — toast de erro no export
+- `frontend/src/components/PomodoroTimer.tsx:103-106` — feedback de erro
+- `frontend/src/components/LogsModal.tsx:18` — mensagem de erro
+- `frontend/src/components/ImportModal.tsx:34` — "tipo não suportado"
+
+**Dependências:** Componente Toast.
+
+**Observações:** ~2h.
+
+---
+
+### onError com toast/notificação em todas as mutations
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Quase todas as mutations têm `onSuccess` mas não `onError`. Criar componente Toast e adicionar `onError` com feedback visível em todas as mutations.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/Toast.tsx` (novo)
+- `frontend/src/App.tsx` — toast global no mutations.onError
+- Demais páginas com mutations
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h.
+
+---
+
+### Type safety no frontend (any types + Partial incorreto)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** 8 usos de `Record<string, any>`, `executarQuery` retorna `dados: any[]`, funções de API usam `Partial<T>` para criação. Adicionar tipos específicos para create/update.
+
+**Arquivos envolvidos:**
+- `frontend/src/types/index.ts` — substituir `any` por tipos específicos
+- `frontend/src/api/` — usar tipos dedicados em vez de `Partial<T>`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~4h.
+
+---
+
+### DRY: CRUD genérico no backend
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Routers repetem 3 padrões idênticos (create, update, delete). Extrair funções genéricas `create_entity()`, `update_entity()`, `delete_entity()` para reduzir ~120 linhas duplicadas.
+
+**Arquivos envolvidos:**
+- `backend/services/crud.py` (novo) — funções genéricas
+- Todos os routers — refatorar
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h. Refatoração pura.
+
+---
+
+### DRY: Hooks e componentes repetidos no frontend
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Handler de Escape repetido em 4 modais, `onCloseRef` pattern repetido, loading/error/empty repetido 20+ vezes, lógica de export duplicada. Extrair hooks `useEscapeKey`, `useLatestRef`, `useExport`, componente `<QueryState>`.
+
+**Arquivos envolvidos:**
+- `frontend/src/hooks/useEscapeKey.ts` (novo)
+- `frontend/src/hooks/useLatestRef.ts` (novo)
+- `frontend/src/hooks/useExport.ts` (novo)
+- `frontend/src/components/QueryState.tsx` (novo)
+- 4 modais + Sidebar + App.tsx
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h.
+
+---
+
+### useMemo em filtros de lista (re-renders desnecessários)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `Habitos.tsx` filtra `habitos.filter(h => h.ativo)` duas vezes sem memo, `Dashboard.tsx` filtra tarefas e hábitos, `Flashcards.tsx` prop `notas` muda referência a cada render.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/Habitos.tsx`
+- `frontend/src/pages/Dashboard.tsx`
+- `frontend/src/pages/Flashcards.tsx`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h.
+
+---
+
+### Endpoint batch de registros de hábitos
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `GET /api/habitos/registros?data=YYYY-MM-DD` que retorna todos os registros de todos os hábitos ativos em uma query. Resolve N+1 do Dashboard.
+
+**Arquivos envolvidos:**
+- `backend/routers/habitos.py` — novo endpoint batch
+- `frontend/src/api/habitos.ts` — nova função `getAllRegistros`
+- `frontend/src/pages/Dashboard.tsx` — usar endpoint batch
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h.
+
+---
+
+### No pagination em endpoints de listagem
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Além de `GET /notas`, endpoints sem paginação: `GET /registros`, `GET /flashcards/review`, `GET /sessoes`, `GET /tarefas`. Adicionar `limit/offset`.
+
+**Arquivos envolvidos:**
+- `backend/routers/habitos.py`
+- `backend/routers/flashcards.py`
+- `backend/routers/pomodoro.py`
+- `backend/routers/rotina.py`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~4h.
+
+---
+
+### Pomodoro associado a hábito
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Associar sessão Pomodoro a um hábito. Ao completar, check-in automático. É a primeira conexão fixa entre módulos.
+
+**Arquivos envolvidos:**
+- `backend/models.py` — campo `habito_id` em `SessaoPomodoro`
+- Migration Alembic
+- `frontend/src/components/PomodoroTimer.tsx` — dropdown de hábitos
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~6h.
+
+---
+
+### Proteção contra loop em importação (pastas circulares)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `_topological_sort_pastas` em `import_data.py` não detecta ciclos. Adicionar detecção com visited set + recursion stack.
+
+**Arquivos envolvidos:**
+- `backend/routers/import_data.py` — detecção de ciclo
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h.
+
+---
+
+### Pin de dependências Python + lockfile
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `requirements.txt` usa `>=` sem upper bound. Usar `pip-compile` para gerar `requirements.lock` com versões exatas.
+
+**Arquivos envolvidos:**
+- `backend/requirements.txt` — adicionar upper bounds
+- `backend/requirements-dev.txt` — mesmo tratamento
+- `start.py` — instalar a partir do lockfile
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h.
+
+---
+
+### CI: eslint + vitest + coverage
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** CI pula eslint, vitest e coverage. Adicionar steps e threshold mínimo de cobertura.
+
+**Arquivos envolvidos:**
+- `.github/workflows/ci.yml` — adicionar `npm run lint`, `npm run test`, `pytest --cov`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h.
+
+---
+
+### Release ZIP com sujeira (exclusões insuficientes)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `release.yml` inclui `frontend/src/`, `backend/data/`, `__pycache__`, `.venv/` no ZIP. Expandir lista de exclusões.
+
+**Arquivos envolvidos:**
+- `.github/workflows/release.yml` — expandir exclusões
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~15min.
+
+---
+
+### timeout-minutes nos jobs do CI
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Nenhum job tem `timeout-minutes`. Adicionar `timeout-minutes: 10` em cada job.
+
+**Arquivos envolvidos:**
+- `.github/workflows/ci.yml` — `timeout-minutes: 10`
+- `.github/workflows/release.yml` — `timeout-minutes: 15`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Backend check no release workflow
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `release.yml` não roda testes backend antes de empacotar. Adicionar `pytest` ou usar `workflow_call`.
+
+**Arquivos envolvidos:**
+- `.github/workflows/release.yml` — dependência do CI ou steps de teste
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min.
+
+---
+
+### Release notes automáticas no GitHub Release
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `release.yml` usa `generate_release_notes: false`. Ativar para `true`.
+
+**Arquivos envolvidos:**
+- `.github/workflows/release.yml`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Tabela redirects para wikilinks por ID/slug
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Wikilinks `[[título]]` resolvem por título. Quando o usuário renomeia uma nota, links quebram silenciosamente. Criar tabela `redirects(titulo_antigo, nota_id)`.
+
+**Arquivos envolvidos:**
+- `backend/models.py` — novo modelo `Redirect`
+- Migration Alembic
+- `backend/services/notes.py` — consultar redirects
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~6h.
+
+---
+
+### Paginação server-side em GET /notas
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `GET /notas` retorna tudo sem limite. Adicionar `?limit=50&offset=0` no backend e `useInfiniteQuery` no frontend.
+
+**Arquivos envolvidos:**
+- `backend/routers/notas.py` — parâmetros `limit`/`offset`
+- `frontend/src/api/notas.ts` — suportar paginação
+- `frontend/src/pages/Ideias.tsx` — `useInfiniteQuery`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~4h. Preparação para escala.
+
+---
+
+### Histórico de versões de notas
+**Status:** ⏳ Planejado
+**Origem:** Revisão robustez
+
+**Descrição:** Tabela `versoes_nota` com diff simples + botão "Restaurar".
+
+**Observações:** Backend ~3h, UI ~5h. Considerar se o valor justifica o esforço em uso pessoal.
+
+---
+
+### Contador de acessos nas notas
+**Status:** ⏳ Planejado
+**Origem:** Conversa de análise DeepSeek + Gemini (Jun/2026)
+
+**Descrição:** Campo `acessos` e `ultimo_acesso` na tabela `notas`. Incrementar no GET. Ordenar Ctrl+P por frequência.
+
+**Arquivos:**
+- `backend/models.py` — campos novos
+- Migration Alembic
+- `backend/routers/notas.py` — incrementar no GET
+- `frontend/src/components/CommandPalette.tsx` — ordenar por acessos
+
+**Dependências:** Ctrl+P implementado.
+
+**Observações:** ~45min.
+
+---
+
+### Notas recentes no Ctrl+P (buffer local)
+**Status:** ⏳ Planejado
+**Origem:** Conversa de análise Gemini (Jun/2026)
+
+**Descrição:** Mostrar 5 notas mais recentemente acessadas antes do campo de busca no Ctrl+P. Buffer no frontend (localStorage), sem backend.
+
+**Arquivos:**
+- `frontend/src/components/CommandPalette.tsx` — seção de recentes
+- `frontend/src/store/` ou `App.tsx` — buffer de histórico
+
+**Dependências:** Ctrl+P implementado.
+
+**Observações:** ~30min. Reduz necessidade de digitar em ~80% dos usos.
+
+---
+
+### useMemo no PomodoroProvider + consolidar estado
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `PomodoroProvider` expõe estado num único objeto criado a cada render. Cada tick causa double re-render. `resetTimer` captura `fase` stale. Usar `useMemo` ou `useReducer`.
+
+**Arquivos envolvidos:**
+- `frontend/src/store/pomodoro.tsx` — `useMemo` no contexto ou `useReducer`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h.
+
+---
+
+### venv no start.py
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `start.py` instala deps no Python global. `MindFlow.bat` cria venv. Consistir os dois — adicionar detecção/criação de venv no `start.py`.
+
+**Arquivos envolvidos:**
+- `start.py` — adicionar lógica de venv
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h.
+
+---
+
+### Ícones PNG no manifest.json (PWA Android)
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `manifest.json` declara apenas SVGs. Chrome no Android requer PNG 192x192 para instalabilidade. Gerar PNGs e adicionar ao manifest.
+
+**Arquivos envolvidos:**
+- `frontend/public/icon-192.png` (novo)
+- `frontend/public/icon-512.png` (novo)
+- `frontend/public/manifest.json` — adicionar entradas PNG
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h. Sem PNG, PWA não instala no Android Chrome.
+
+---
+
+### SW update notification (nova versão disponível)
+**Status:** ✅ Implementado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Service Worker faz cache e atualiza automaticamente mas usuário não sabe. Adicionar listener para `controllerchange` e exibir toast/banner.
+
+**Arquivos envolvidos:**
+- `frontend/public/sw.js` — postMessage ao instalar nova versão
+- `frontend/src/main.tsx` — listener para notificação
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h.
+
+---
+
+### asyncio_mode no pytest
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Verificar se `pytest.ini` tem `asyncio_mode = auto`. Testes atuais são síncronos, mas quando assíncronos forem adicionados já estará configurado.
+
+**Arquivos:**
+- `backend/pytest.ini`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min. Preparatório.
 
 ---
 
 ## 🟢 Baixa Prioridade — Ideias gerais, sem refinamento
 
 ### Notificações nativas (navegador) para Pomodoro
-**Status:** 🟡 Movido para Média Prioridade
-**Origem:** CONTEXT.md — Próximos Passos (Item 3)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** CONTEXT.md
 
-**Descrição:** Usar Notification API do navegador para alertar quando o timer do Pomodoro chegar a zero, mesmo com a aba em segundo plano.
+**Descrição:** Notification API para alertar quando o timer chegar a zero, mesmo com aba em segundo plano. Fallback para Web Audio se sem permissão.
 
 ---
 
 ### PWA (Service Worker + Manifest)
 **Status:** ✅ Implementado (Jun/2026)
-**Origem:** CONTEXT.md — Próximos Passos (Item 4)
+**Origem:** CONTEXT.md
 
-**Descrição:** Adicionar service worker e manifest para permitir instalação como aplicativo no sistema operacional.
+**Descrição:** Service worker e manifest para instalação como aplicativo.
 
-**Arquivos envolvidos:**
-- `frontend/public/manifest.json` — name, icons, shortcuts, theme_color
-- `frontend/public/sw.js` — cache-first assets estáticos, network-only `/api/`
-- `frontend/public/icon-192.svg`, `icon-512.svg` — ícones "MF" gradiente escuro
-- `frontend/vite.config.ts` — hash nos assets, `publicDir: 'public'`
-- `frontend/index.html` — `<link rel="manifest">` + theme-color
-- `frontend/src/main.tsx` — registro SW com error handling
-
-**Implementado:** Manifest + Service Worker + Vite config + Ícones + Registro SW
+**Arquivos:** `manifest.json`, `sw.js`, `icon-192.svg`, `icon-512.svg`, `vite.config.ts`
 
 ---
 
 ### Tema "Sistema" automático (☀/🌙/💻)
-**Status:** ✅ Implementado (Jun/2026) — v1.0.1
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão de performance/UX
 
-**Descrição:** Terceira opção no toggle que segue `prefers-color-scheme` do sistema operacional, com listener `matchMedia('change')` para atualizar em tempo real.
+**Descrição:** Terceira opção no toggle que segue `prefers-color-scheme` do SO.
 
 **Arquivos:** `store/theme.tsx`, `Sidebar.tsx`
 
 ---
 
 ### PRAGMA mmap_size + CORS restrito + índice composto
-**Status:** ✅ Implementado (Jun/2026) — v1.0.1
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão de performance/segurança
 
-**Descrição:**
-- `PRAGMA mmap_size=268435456` — acelera leitura em bases maiores
-- CORS restrito a `localhost:5173`, `127.0.0.1:5173`, `localhost:8000`
-- Índice composto `registros_habito(habito_id, data)` — acelera check-ins e streaks
+**Descrição:** `mmap_size=256MB`, CORS restrito, índice composto `registros_habito(habito_id, data)`.
 
 **Arquivos:** `database.py`, `main.py`, migration `fac6c867ba98`
 
 ---
 
 ### Autocomplete de wikilinks no editor
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão UX
 
-**Descrição:** Ao digitar `[[`, o editor mostra dropdown com títulos de notas existentes. CM6 tem suporte nativo a autocomplete.
+**Descrição:** Ao digitar `[[`, dropdown com títulos de notas via `@codemirror/autocomplete`.
 
-**Arquivos:** `EditorMarkdown.tsx`
+**Arquivos:** `EditorMarkdown.tsx`, `Ideias.tsx`
 
 ---
 
 ### Export Markdown (nota = .md + frontmatter YAML)
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão portabilidade
 
-**Descrição:** Uma nota = um `.md` com frontmatter YAML para propriedades. Download como zip contendo todas as notas.
+**Descrição:** `GET /api/notas/{id}/export/md` com YAML frontmatter. Botão "↓ .md" no cabeçalho da nota.
 
 ---
 
 ### Journaling diário automático
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão produtividade
 
-**Descrição:** Template "Diário" aplicado automaticamente ao abrir o Dashboard se não houver nota na data de hoje.
+**Descrição:** Template "Diário" aplicado automaticamente ao abrir o Dashboard se não houver nota na data.
 
-**Arquivos:** `Dashboard.tsx`, templates existentes
+**Arquivos:** `Dashboard.tsx`
 
 ---
 
-### GET /api/stats/usage (diário de bordo)
-**Status:** 🟡 Adicionado à Média Prioridade (Módulo 24)
+### GET /api/stats/weekly
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Provocação de arquitetura
 
-**Descrição:** Endpoint que agrega: dias ativos nos últimos 30 dias, média de notas/dia, total de pomodoros, streak atual. Alimenta Dashboard e Revisão Semanal.
+**Descrição:** Endpoint que agrega notas, tarefas, pomodoros, minutos foco, taxa hábitos, streak. Suporta `?offset=`.
 
 ---
 
 ### Revisão Semanal
-**Status:** 🟡 Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão produtividade
 
-**Descrição:** Página de agregação: taxa de conclusão de hábitos, tarefas concluídas, minutos de foco, notas criadas, prompt reflexivo.
+**Descrição:** Página de agregação semanal com comparativo, gráficos, reflexão, navegação entre semanas.
 
-**Dependências:** `GET /api/stats/usage`
-
----
-
-### Histórico de versões de notas
-**Status:** 🟡 Planejado
-**Origem:** Revisão robustez
-
-**Descrição:** Tabela `versoes_nota` com diff simples + botão "Restaurar". Backend é trivial (~3h). UI de navegação dobra o esforço (~5h).
+**Arquivos:** `backend/routers/stats.py`, `frontend/src/pages/RevisaoSemanal.tsx`
 
 ---
 
-### App desktop (Tauri ou Electron)
-**Status:** ⏳ Planejado
-**Origem:** CONTEXT.md — Próximos Passos (Item 5)
+### 5 novas views nas Consultas
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão do usuário
 
-**Descrição:** Empacotar MindFlow como aplicativo desktop nativo. Tauri é a escolha certa mas o backend Python complica — opções: PyO3, Python embedded, ou reescrita em Rust. **Não fazer agora** — PWA já cumpre o papel.
+**Descrição:** Lista, Galeria, Formulário, Calendário, Gantt — 7 visualizações no total.
+
+---
+
+### Tags por cores + filtro combinado
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** CONTEXT.md
+
+**Descrição:** Chips coloridos, filtro AND por tags, color picker, PATCH tags.
+
+---
+
+### Arrastar blocos de tempo no calendário semanal
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** CONTEXT.md
+
+**Descrição:** Drag-and-drop no CalendarioSemanal com @dnd-kit.
 
 ---
 
 ### UX de notas — 3 bugs pendentes
-**Status:** ✅ Implementado (v1.1.0, Jun/2026)
-**Origem:** CONTEXT.md — Bugs Pendentes
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** CONTEXT.md
 
-**Descrição:**
-- Bug 25: Feedback visual ao criar/editar notas — estados loading/erro/sucesso nos botões
-- Bug 26: Indicador de salvamento automático — auto-save com 2s debounce + status inline
-- Bug 27: Confirmação ao sair com alterações não salvas — `beforeunload` quando dirty
-
-**Arquivos:** `Ideias.tsx`
+**Descrição:** Loading/erro/sucesso nos botões, auto-save com debounce, `beforeunload` quando dirty.
 
 ---
 
@@ -253,12 +870,7 @@
 **Status:** ✅ Implementado (Jun/2026)
 **Origem:** Módulo 21
 
-**Descrição:**
-- SQL injection via f-string em `queries.py:104` — `campo_agrupamento` validado com regex
-- `extrair_bloco` sem `cover_url` em `notas.py:250` — adicionado `extrair_cover_url()`
-- tag IDs não-numéricos silenciosos em `notas.py:82` — `logger.warning` adicionado
-- `sessaoId` em deps do timer (`PomodoroTimer.tsx:134`) — removido do array
-- import sem timeout em `import_data.py:98` — `asyncio.wait_for(30s)` + HTTP 408
+**Descrição:** SQL injection, cover_url, tag IDs não-numéricos, sessaoId deps, import timeout.
 
 ---
 
@@ -266,98 +878,387 @@
 **Status:** ✅ Implementado (Jun/2026)
 **Origem:** Módulo 21
 
-**Descrição:** Service Worker tentava cachear URLs de extensões (`chrome-extension://`), gerando erro no console. Adicionado filtro `event.request.url.startsWith('http')` antes de `cache.put()`.
+**Descrição:** Filtro `event.request.url.startsWith('http')` no SW.
 
 ---
 
 ### Sistema de logs (RotatingFileHandler + endpoint)
-**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Sessão de melhoria contínua
 
-**Descrição:** Sistema de logs com `RotatingFileHandler` (1MB × 3 backups) em `backend/data/mindflow.log`. Endpoint `GET/POST/DELETE /api/logs`. Frontend captura `window.onerror` + `unhandledrejection` + `ErrorBoundary`, envia para o backend com throttle (10/60s) e batch (5s/10 itens).
+**Descrição:** RotatingFileHandler 1MB × 3 backups, endpoint GET/POST/DELETE, frontend captura `window.onerror` + batch.
 
-**Arquivos:** `backend/logging_config.py`, `backend/routers/logs.py`, `frontend/src/api/logs.ts`, `frontend/src/components/LogsModal.tsx`
+**Arquivos:** `backend/logging_config.py`, `backend/routers/logs.py`, `frontend/src/api/logs.ts`, `LogsModal.tsx`
 
 ---
 
 ### CI/CD integrado (GitHub Actions)
-**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Necessidade de qualidade contínua
 
-**Descrição:** Workflows `ci.yml` (ruff, pytest 60, tsc, build) e `release.yml` (tag → build → zip → GitHub Release). `requirements-dev.txt` com dependências de teste.
-
-**Arquivos:** `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `backend/requirements-dev.txt`
+**Descrição:** `ci.yml` (ruff, pytest, tsc, build), `release.yml` (tag → zip → release).
 
 ---
 
 ### Migrar on_event para lifespan (FastAPI)
-**Status:** ✅ Implementado (v1.1.0, Jun/2026)
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Depreciação FastAPI
 
-**Descrição:** Substituir `@app.on_event("startup")` pelo context manager `lifespan` moderno. Removeu 2 warnings de depreciação. `pytest.ini` filtra `StarletteDeprecationWarning` restante (httpx2 ainda não estável).
-
-**Arquivos:** `backend/main.py`, `backend/pytest.ini`
+**Descrição:** Substituir `@app.on_event("startup")` pelo context manager `lifespan`.
 
 ---
 
 ### Botão encerrar app / shutdown
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Revisão do usuário
 
-**Descrição:** Permitir encerrar o servidor sem precisar de terminal (Ctrl+C). Três abordagens possíveis:
-- **Opção A (mais simples):** Botão "Encerrar app" na sidebar que chama `POST /api/shutdown` → FastAPI encerra processo com `os.kill(os.getpid(), signal.SIGTERM)`
-- **Opção B (mais elegante):** Ícone na bandeja do Windows via `pystray` com menu "Abrir" / "Encerrar"
-- **Opção C:** Capturar fechamento da janela do terminal via `start.py` para encerrar uvicorn junto
+**Descrição:** `POST /api/shutdown` + botão ⏻ na sidebar com ConfirmModal.
 
-**Recomendação:** A + C juntos cobrem usuário técnico (fecha terminal) e não técnico (botão na UI). Opção B para V2.
+---
+
+### Preview de nota ao hover
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão UX
+
+**Descrição:** Tooltip com conteúdo resumido ao pairar em wikilinks. Debounce 300ms.
+
+---
+
+### Backup a frio automatizado (cold copy via start.py)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Conversa de análise Gemini (Jun/2026)
+
+**Descrição:** `shutil.copy2` do `.db` antes de subir o servidor.
+
+---
+
+### Sincronização multi-aba
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão do usuário
+
+**Descrição:** `useBroadcastSync` via BroadcastChannel para tema + pomodoro.
+
+---
+
+### Bundle splitting (CodeMirror + d3-force)
+**Status:** ✅ Implementado (Jun/2026)
+**Origem:** Revisão performance
+
+**Descrição:** `manualChunks` separa `@codemirror/*` (582 kB) e `d3-force` (13 kB) do chunk Ideias (627 kB → 33 kB).
+
+---
+
+### App desktop (Tauri ou Electron)
+**Status:** ⏳ Ideia
+**Origem:** CONTEXT.md
+
+**Descrição:** Empacotar como desktop nativo. Tauri escolha certa mas backend Python complica. **Não fazer agora** — PWA já cumpre o papel.
+
+---
+
+### Codecov (cobertura de testes)
+**Status:** ⏳ Ideia
+**Origem:** Análise DeepSeek (Jun/2026)
+
+**Descrição:** Integrar Codecov no CI para rastrear cobertura. `pytest --cov` + upload.
+
+---
+
+### Suporte mobile refinado
+**Status:** ⏳ Ideia
+**Descrição:** Gestos de swipe, navegação inferior, editor adaptado para touch.
+
+---
+
+### i18n (múltiplos idiomas)
+**Status:** ⏳ Ideia
+**Descrição:** Internacionalizar interface. Só se houver demanda.
+
+---
+
+### Rate-limit nos endpoints
+**Status:** ⏳ Ideia
+**Descrição:** Middleware slowapi. Overengineering para contexto atual.
+
+---
+
+### Sanitização Markdown renderizado
+**Status:** ⏳ Ideia
+**Descrição:** Se futuro renderizador HTML for adicionado, usar DOMPurify.
+
+---
+
+### Acessibilidade — ARIA labels em botões de ícone
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Botões de ícone sem `aria-label`, checkboxes sem `aria-checked`, cards de flashcard sem `role="button"`. Adicionar atributos semânticos.
+
+**Arquivos envolvidos:** Sidebar, Habitos, Rotina, Dashboard, Flashcards, ConfirmModal, ImportModal
+
+**Observações:** ~3h.
+
+---
+
+### Acessibilidade — Navegação por teclado
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Flip de flashcard é click-only, nós do grafo não têm `tabIndex`, células do calendário são `<div>` com `onClick`. Adicionar suporte a teclado.
+
+**Arquivos envolvidos:** Flashcards, GrafoNotas, HabitoCalendario
+
+**Observações:** ~2h.
+
+---
+
+### Cobertura de testes — Backend (routers sem testes)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Routers sem testes dedicados: habitos, pomodoro, export, import_data. Edge cases não testados: estatísticas com mês inválido, FTS5 cleanup, wikilinks com aspas.
+
+**Arquivos:**
+- `backend/tests/test_habitos.py` (novo)
+- `backend/tests/test_pomodoro.py` (novo)
+- `backend/tests/test_import.py` (novo)
+
+**Observações:** ~6h.
+
+---
+
+### Cobertura de testes — Frontend (1 arquivo de teste)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Frontend tem apenas 7 testes num arquivo. Sem testes para API client, hooks, stores, ou componentes. Usar MSW para mocks.
+
+**Observações:** ~8h. Prioridade baixa — UI muda frequentemente.
+
+---
+
+### Export DELETE sem autenticação
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `DELETE /api/logs`, `POST /api/import`, `GET /api/export` expõem dados/destruição sem auth. App é local-first por design, mas documentar trade-off.
+
+**Observações:** ~2h (documentação). Implementar token opcional apenas se houver demanda.
+
+---
+
+### Grafo d3-force: inicialização como blob com 500 nós
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Simulação d3-force cria todos os nós no centro. Adicionar `forceX`/`forceY` com spread ou `d3.forceCollide` com raio adequado.
 
 **Arquivos envolvidos:**
-- `backend/routers/shutdown.py` (novo) — endpoint POST /api/shutdown
-- `frontend/src/components/Sidebar.tsx` — botão encerrar
-- `start.py` — capturar fechamento do terminal
+- `frontend/src/components/GrafoNotas.tsx`
+
+**Observações:** ~1h. Melhoria visual.
+
+---
+
+### Timestamp migration (str → datetime nativo)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Campos de datahora usam strings ISO em vez de datetime nativo do SQLite. Correção eliminaria hacks de string. **Risco alto, recompensa baixa — fazer apenas se houver bug real.**
+
+**Observações:** ~8h. Não urgente — o schema atual funciona.
+
+---
+
+### CASCADE deletes via migration
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** FKs sem `ON DELETE CASCADE`. Cleanup é procedural em Python, mas mais explícito. **Manter procedural — CASCADE esconde bugs e dificulta debug.**
+
+**Observações:** ~4h. Não recomendado sem motivo concreto.
+
+---
+
+### Split notas.py em múltiplos routers
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** `notas.py` tem 395 linhas e 5 domínios. Separar em routers: pastas, tags, templates.
+
+**Observações:** ~4h. Melhoria de manutenção, zero impacto funcional.
+
+---
+
+### Módulo de Contexto Ambiental (Open-Meteo + Nager.Date + IP Geolocation)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Clima no Dashboard, feriados para streak justo, localização automática. APIs gratuitas sem key.
+
+**Arquivos envolvidos:**
+- `backend/routers/contexto.py` (novo)
+- `backend/services/contexto.py` (novo)
+- `frontend/src/api/contexto.ts` (novo)
+- `frontend/src/pages/Dashboard.tsx` — widget de clima
+
+**Sub-itens:** IP Geolocation (1h) → Open-Meteo (4h) → Nager.Date (3h)
+
+**Observações:** ~8h. Puramente incremental — app funciona 100% sem.
+
+---
+
+### Resiliência de APIs externas (offline-first com graceful fallback)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Timeout 5s, try/catch com fallback, validação de schema, log de warning, frontend renderiza condicionalmente.
+
+**Arquivos envolvidos:**
+- `backend/services/contexto.py` — `fetch_with_fallback()`
+- `frontend/src/api/contexto.ts` — tratamento de resposta vazia
+
+**Dependências:** Módulo de Contexto Ambiental.
+
+**Observações:** ~2h.
+
+---
+
+### #13 Compactar cards do Dashboard
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Os 5 cards do Dashboard ocupam muito espaço vertical. Cada card tem padding fixo e títulos grandes. Reduzir padding de `p-4` para `p-3`, reduzir tamanho de fonte dos títulos de `text-sm` para `text-xs`, e usar layout mais denso. Meta: mostrar todos os cards sem scroll em 768px de altura.
+
+**Arquivos envolvidos:** `frontend/src/pages/Dashboard.tsx` — Card component props
 
 **Dependências:** Nenhuma.
+
+**Observações:** ~30min. Apenas Tailwind classes.
+
+---
+
+### #14 Agrupar ações no Habitos page
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Na página de Hábitos, cada hábito tem botões de editar/deletar ao lado. Com muitos hábitos, fica poluído. Agrupar ações em um menu "..." (kebab) no canto direito de cada linha, com ações: Editar, Pomodoro, Deletar.
+
+**Arquivos envolvidos:** `frontend/src/pages/Habitos.tsx` — botões de ação por hábito
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h. Requer componente de menu dropdown simples.
+
+---
+
+### #17 Aumentar densidade do calendário mensal de hábitos
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** O `HabitoCalendario` renderiza uma grade 7×N com células grandes. Em monitores menores, o calendário ocupa muito espaço. Reduzir cell-height, diminuir font-size dos números do dia, e compactar o header do mês.
+
+**Arquivos envolvidos:** `frontend/src/components/HabitoCalendario.tsx` — classes Tailwind
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min. Apenas CSS/Tailwind.
 
 ---
 
 ## 🔮 Requer Refinamento — Ideias que precisam de spec antes de codar
 
+### Estratégia de resiliência de dados (auto-save + conflitos)
+**Status:** ⏳ Ideia
+
+**Descrição:** Auto-save com debounce de 2s + `updateNota`. Se usuário navega durante save, mutation tenta atualizar state desmontado. Duas abas editando mesma nota = perda silenciosa. Definir: last-write-wins é aceitável? Adicionar versioning otimista? Auto-save deve usar `mutateAsync`?
+
+---
+
+### Estratégia de lazy loading e code splitting avançado
+**Status:** ⏳ Ideia
+
+**Descrição:** CodeMirror e d3-force já separados. Próximo nível: lazy load do CodeMirror só quando Ideias for visitada, preloading de páginas prováveis. Medir bundle e decidir se ganho justifica complexidade.
+
+---
+
+### Sistema de undo/redo global
+**Status:** ⏳ Ideia
+
+**Descrição:** Deletar nota/hábito/flashcard é irreversível (ConfirmModal não é undo). Opções: soft-delete com `deleted_at` + purge 30d, trash bin com restauração, event sourcing. Definir escopo — todas entidades ou só notas?
+
+---
+
+### Estratégia de busca unificada (Ctrl+P expandido)
+**Status:** ⏳ Ideia
+
+**Descrição:** CommandPalette busca só notas por título. Expandir para hábitos, tarefas, flashcards, templates, e conteúdo de notas (FTS5). Definir: entidades buscáveis, ranking, UI heterogênea, busca client-side vs server-side.
+
+---
+
 ### Criptografia local (sqlcipher / campo a campo)
 **Status:** ⏳ Ideia
-**Descrição:** Oferecer criptografia transparente via sqlcipher ou criptografia campo a campo com senha mestra. Trade-off real com FTS5 (busca não funciona em texto cifrado). Senha perdida = dados perdidos.
+
+**Descrição:** Criptografia transparente via sqlcipher ou campo a campo com senha mestra. Trade-off real com FTS5 (busca não funciona em texto cifrado). Senha perdida = dados perdidos.
+
+---
 
 ### API de plugins / extensões locais
 **Status:** ⏳ Ideia
-**Descrição:** Hooks para extensões Python numa pasta `extensions/` que adicionam endpoints ou automatizam tarefas. Requer definição de interface, isolamento, permissões.
 
-### Múltiplos workspaces
-**Status:** ⏳ Ideia
-**Descrição:** Permitir criar/alternar workspaces (ex: "Pessoal", "Trabalho"). Cada workspace = um `.db` separado. Exige refatoração do `database.py` (engine singleton).
+**Descrição:** Hooks para extensões Python em `extensions/` que adicionam endpoints ou automatizam tarefas. Requer definição de interface, isolamento, permissões.
 
-### Preview de nota ao hover
-**Status:** ⏳ Ideia
-**Descrição:** Tooltip com conteúdo resumido da nota ao pairar em wikilinks. Tecnicamente simples, mas precisa definir gatilho e quantidade de conteúdo.
+---
 
-### Sincronização multi-aba
+### Sistema de perfis (evolução de "Múltiplos workspaces")
 **Status:** ⏳ Ideia
-**Descrição:** Timer e tema sincronizam via `BroadcastChannel` entre abas. Precisa definir comportamento: sincronizar display ou estado completo?
 
-### Bundle splitting (CodeMirror + d3-force)
-**Status:** ⏳ Ideia
-**Descrição:** Separar CodeMirror e d3-force em chunks independentes via `manualChunks` do Vite. Ganho pequeno (~200kB só na página Ideias) pra 30min de configuração.
+**Descrição:** Múltiplas pessoas num computador, cada uma com `.db` separado. Tela de seleção de perfil sem senha. Engine dinâmica, troca via API sem restart. **~16h. Mudança arquitetural que toca no coração do app. Aguardar estabilidade.**
 
-### Suporte mobile refinado
-**Status:** ⏳ Ideia
-**Descrição:** Gestos de swipe, navegação inferior, editor adaptado para touch. Exigiria redesign significativo.
+**Abordagem recomendada:** Bancos separados (1 `.db` por perfil). Engine singleton → engine dinâmica. Models e migrations iguais pra todos.
 
-### i18n (múltiplos idiomas)
-**Status:** ⏳ Ideia
-**Descrição:** Internacionalizar interface. Não urgente — fazer só se houver demanda.
-  
-### Rate-limit nos endpoints
-**Status:** ⏳ Ideia
-**Descrição:** Middleware slowapi para FastAPI. Sem autenticação, qualquer processo local pode bombardear o backend. Overengineering para o contexto atual.
+**Decisões pendentes:** Perfil tem senha? Avatar? Máximo de perfis? Troca exige restart?
 
-### Sanitização Markdown renderizado
+---
+
+### Workflows / Automações declarativas (Nível 2)
 **Status:** ⏳ Ideia
-**Descrição:** Se futuro renderizador HTML for adicionado, usar DOMPurify. Hoje o conteúdo é texto puro — não vulnerável.
+
+**Descrição:** Tabela `automacoes` com regras `quando(X) → fazer(Y)`. Ex: `quando(pomodoro_completado, habito_id=5) → fazer(habito_checkin)`. Observar Nível 1 (conexões fixas) antes de construir.
+
+---
+
+### Dicionário integrado (Dicionário Aberto + Free Dictionary API)
+**Status:** ⏳ Ideia
+
+**Descrição:** Selecionar palavra no editor → ação contextual "Buscar definição". APIs gratuitas sem key. Criar flashcard de vocabulário com 1 clique.
+
+**Arquivos:** `backend/routers/dicionario.py` (novo), `EditorMarkdown.tsx` — ação contextual
+
+**Observações:** ~3h. Nicho — fazer depois do Contexto Ambiental se houver demanda.
+
+---
+
+### Capas automáticas via Unsplash Source
+**Status:** ⏳ Ideia
+
+**Descrição:** Botão "Gerar capa" que busca imagem do Unsplash Source por tag/pasta. Sem API key. Fallback se offline.
+
+**Observações:** ~2h. Puramente estético.
+
+---
+
+### Revisão Semanal — Redesign "Ritual de Fechamento"
+**Status:** ⏳ Ideia (Spec escrito, ~20h em 3 módulos)
+
+**Descrição:** Redesign completo da Revisão Semanal em 4 momentos: Score (78/100), Celebrações automáticas, Lacunas com botões de ação, Planejamento com metas. Duas dimensões: produtividade (hábitos/tarefas/pomodoro) e conhecimento (notas/wikilinks/grafo). Métrica exclusiva de conectividade.
+
+**Sub-itens:**
+1. **Módulo 1 (~6h)** — Score composto + breakdown + comparativo visual
+2. **Módulo 2 (~6h)** — Celebrações automáticas + Lacunas com botões de ação
+3. **Módulo 3 (~8h)** — Planejamento (tabela `metas_semana` + migração tarefas + "Iniciar próxima semana")
+
+**Arquivos:** `frontend/src/pages/RevisaoSemanal.tsx` (redesign), `backend/routers/stats.py` (expandido), `backend/services/score.py` (novo), `backend/models.py` (MetaSemana), Migration Alembic
+
+**Observações:** Feature de maior porte. Implementar módulo por módulo. **Não iniciar sem ter as 6 prioridades 🔴 resolvidas primeiro.**
+
