@@ -20,12 +20,13 @@ O MindFlow é um aplicativo de produtividade pessoal local-first que combina not
 8. [Flashcards](#8-flashcards)
 9. [Sistema de Tipos](#9-sistema-de-tipos)
 10. [Consultas Dinâmicas](#10-consultas-dinâmicas)
-11. [Insights](#11-insights)
-12. [Weglogs e Backlinks](#12-weglogs-e-backlinks)
-13. [Personalização](#13-personalizaçao)
-14. [Produtoividade](#14-produtividade)
-15. [Soluição de Problemas](#15-solução-de-problemas)
-16. [Referência Rápida](#16-referência-rápida)
+11. [Análise (Insights)](#11-análise-insights)
+12. [Wikilinks e Backlinks](#12-wikilinks-e-backlinks)
+13. [Revisão Semanal](#13-revisão-semanal)
+14. [Personalização](#14-personalização)
+15. [Produtividade](#15-produtividade)
+16. [Solução de Problemas](#16-solução-de-problemas)
+17. [Referência Rápida](#17-referência-rápida)
 
 ---
 
@@ -243,7 +244,7 @@ Clique em **+ Tarefa** dentro de um bloco:
 
 **Calendário Semanal**:
 - View por hora do dia
-- Drag-and-drop suportado (em breve)
+- **Drag-and-drop** para mover blocos (já implementado)
 
 ### Streak de Atividade
 
@@ -402,12 +403,13 @@ O sistema de flashcards usando o algoritmo SM-2 da SuperMemo.
 
 ### Conceito SM-2
 
-**SuperMemo 2** calcula quando você deve revisar cada flashcard baseado em:
+**SuperMemo 2** calcula quando você deve revisar cada flashcard baseado em 5 níveis:
 
-- **Fácil**: Repetir em 21 dias
-- **Bom**: Repetir em 10 dias
-- **Razoável**: Repetir em 3 dias
+- **Muito fácil**: Repetir em intervalo longo (21+ dias)
+- **Fácil**: Repetir em intervalo médio (10+ dias)
+- **Médio**: Repetir em intervalo curto (3+ dias)
 - **Difícil**: Repetir em 1 dia
+- **Muito difícil**: Repetir no mesmo dia
 
 ### Criar Flashcard
 
@@ -433,14 +435,13 @@ O sistema de flashcards usando o algoritmo SM-2 da SuperMemo.
 
 ### Visualizar Flashcard
 
-1. Flip card para ver a resposta
-2. Avalie (1-5 pontos)
-3. Emocionais (1-4 pontos)
-4. Nota (1-5 pontos)
+1. Clique no card para virar e ver a resposta
+2. Avalie com 5 níveis: **Muito difícil**, **Difícil**, **Médio**, **Fácil**, **Muito fácil**
+3. O algoritmo SM-2 agenda automaticamente a próxima revisão
 
 **Notas de revisão**:
-- **Difícil**: Marque "Muito difícil"
-- **Facil**: Marque "Muito fácil"
+- **Difícil**: Marque "Muito difícil" ou "Difícil"
+- **Fácil**: Marque "Fácil" ou "Muito fácil"
 
 ### Próxima Revisão
 
@@ -578,9 +579,9 @@ Altere múltiplos itens de uma vez:
 
 ---
 
-## 11. Insights
+## 11. Análise (Insights)
 
-O Insights analisa sua produtividade com heatmap visual.
+O Análise analisa sua produtividade com heatmap visual.
 
 ### Calendário Mensal
 
@@ -613,8 +614,6 @@ O Insights analisa sua produtividade com heatmap visual.
 ## 12. Wikilinks e Backlinks
 
 **Wikilinks**: `[[nome da nota]]` — cria conexão entre notas
-
-**Backlinks**: Visualiza todas as notas que mencionam uma nota específica
 
 ### Criar Wikilink
 
@@ -657,7 +656,34 @@ Visualização interativa das conexões:
 
 ---
 
-## 13. Personalização
+## 13. Revisão Semanal
+
+A Revisão Semanal ajuda você a analisar sua produtividade semanal com score composto, gráficos e reflexão textual.
+
+### Score Composto
+
+- **Score 0-100**: Combina hábitos, tarefas, pomodoro e notas
+- **4 sub-scores**: Produtividade, Consistência, Volume, Conectividade
+- **Comparativo**: Compara com semana anterior
+
+### Celebrações
+
+- Score ≥ 70 → Banner 🎉 automático
+- Destaque para conquistas da semana
+
+### Lacunas
+
+- Áreas com score < 60% do máximo são destacadas
+- Botões de ação direta para melhorar
+
+### Reflexão Textual
+
+- 4 textareas: Conquistas, Aprendizados, Desafios, Próxima Semana
+- Salvo como nota automaticamente
+
+---
+
+## 14. Personalização
 
 ### Tema Claro/Escuro
 
@@ -672,7 +698,7 @@ Visualização interativa das conexões:
 
 ---
 
-## 14. Produtividade
+## 15. Produtividade
 
 ### Keyboard Shortcuts
 
@@ -683,7 +709,7 @@ Visualização interativa das conexões:
 | **/** | Focar search bar |
 | **Ctrl+Z** | Desfazer (revisão) |
 | **Ctrl+Shift+Z** | Refazer (revisão) |
-| **Ctrl+P** | Buscar nota (em breve) |
+| **Ctrl+P** | Buscar nota (Ctrl+P) |
 
 ### Workflow de GTD
 
@@ -702,7 +728,7 @@ Visualização interativa das conexões:
 
 ---
 
-## 15. Solução de Problemas
+## 16. Solução de Problemas
 
 ### Comuns
 
@@ -722,7 +748,7 @@ Visualização interativa das conexões:
 
 ---
 
-## 16. Referência Rápida
+## 17. Referência Rápida
 
 ### Status Icons
 - ✓ Concluído
@@ -738,12 +764,6 @@ Visualização interativa das conexões:
 - 🟢 Normal
 - 🟡 Alta
 - 🔴 Urgente
-
-### Priorities
-- Baixa
-- Normal
-- Alta
-- Urgente
 
 ---
 
