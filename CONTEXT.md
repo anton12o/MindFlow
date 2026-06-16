@@ -445,8 +445,9 @@ cd frontend && npx tsc --noEmit
 | Módulo 25 ⚡ | 6 Quick Wins | Notificação, shutdown, backup, journaling, BroadcastChannel, bundle split |
 | Módulo 26 🟡 | Revisão Semanal | Endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags |
 | Módulo 27 🛡️ | v1.2.0 | Security fixes, Pomodoro race, PWA, N+1 Dashboard, offline banner, SW update, Score, venv, WAL integrity |
+| Módulo 28 🔧 | v1.2.1-v1.2.3 | 8 correções (concluida→feito, ensure_venv backup, barColor, YAML, batch delete); ReDoS fix; shutdown sys.exit + AbortController |
 
-**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · 0 bugs conhecidos · CI verde · Release v1.2.0
+**Status:** Backend OK · Frontend 0 erros TypeScript · 60/60 testes · ruff clean · CI verde · Release v1.2.3
 
 ### Módulo 13: Release v1.0.0 + Polimento
 
@@ -687,6 +688,23 @@ cd frontend && npx tsc --noEmit
 | 22 | Venv auto-setup | Infra | `ensure_venv()` no start.py |
 | 23 | Árvore de pastas | Feature | Hierarquia pai_id com ▶/▼ toggle |
 | 24 | Reflexão textual na Revisão | Feature | 4 textareas + salvar como nota |
+
+### Módulo 28: v1.2.1-v1.2.3 — Hotfixes + ReDoS + Shutdown (Jun/2026)
+
+**v1.2.1 (8 correções — PR #19):**
+- `stats.py`: `"concluida"` → `"feito"` — status correto de tarefas concluídas
+- `start.py`: `ensure_venv()` no `--backup` path; `pip-selfcheck.json` → `.mindflow_installed`
+- `RevisaoSemanal.tsx`: `scoreColor.replace('text-','bg-')` → `barColor` map explícito
+- `notas.py`: `_cleanup_nota_relations()` helper p/ remover órfãos; `_yaml_quote()` para YAML frontmatter; batch delete com IN clause
+- `stats.py`: `_calcular_streak()` com DISTINCT + `func.substr` p/ streak por data única
+
+**v1.2.2 (PR #51):** CodeQL alertou ReDoS — `extrair_wikilinks()` regex polinomial simplificada para `re.findall` + `split('|')` manual → O(n)
+
+**v1.2.3 (PR #52):** Shutdown flow corrigido:
+- `shutdown.py`: `os.kill(SIGTERM)` → `sys.exit(0)` — no Windows `TerminateProcess` não faz graceful shutdown
+- `Sidebar.tsx`: AbortController cancela requisição de verdade; `.catch()` no fetch; `window.location.reload()` pós-countdown
+
+**Arquivos:** `backend/routers/stats.py`, `backend/routers/notas.py`, `backend/routers/shutdown.py`, `backend/services/notes.py`, `start.py`, `frontend/src/pages/RevisaoSemanal.tsx`, `frontend/src/components/Sidebar.tsx`, `.github/workflows/codeql.yml`, `.github/ISSUE_TEMPLATE/*.yml`
 
 ---
 
