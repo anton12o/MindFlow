@@ -5,11 +5,10 @@ from models import Nota, ConexaoNota
 
 
 def extrair_wikilinks(conteudo: str) -> list[str]:
-    titles = re.findall(r'\[\[([^\]]+?)(?:\|([^\]]+))?\]\]', conteudo)
     seen: set[str] = set()
     result: list[str] = []
-    for raw_title, _ in titles:
-        title = raw_title.strip()
+    for match in re.findall(r'\[\[([^\]]+)\]\]', conteudo):
+        title = match.split('|')[0].strip()
         if title and title not in seen:
             seen.add(title)
             result.append(title)
