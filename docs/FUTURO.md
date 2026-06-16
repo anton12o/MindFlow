@@ -297,18 +297,20 @@
 
 ---
 
-### Índices de banco ausentes (8 índices faltando)
+### Índices de banco pendentes (4 índices)
 **Status:** ⏳ Planejado
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Migration `8616ba3b846c` adicionou 10 índices mas deixou de cobrir: `notas.pasta_id`, `notas.tipo_id`, `notas.atualizado_em`, `flashcards.nota_id`, `flashcards.proxima_revisao`, `sessoes_pomodoro.iniciado_em`, `tarefas.(data, status)`, `conexoes_notas.nota_destino_id`.
+**Descrição:** A migration `8616ba3b846c` já adicionou 10 índices, mas 4 ainda estão pendentes:
+- `notas.tipo_id`
+- `flashcards.nota_id`
+- `tarefas.(data, status)` — índice composto (já existe `ix_tarefas_data`, mas sem status)
+- `conexoes_notas.nota_destino_id`
 
 **Arquivos envolvidos:**
-- Migration Alembic (8 novos índices)
+- Migration Alembic (4 novos índices)
 
-**Dependências:** Nenhuma.
-
-**Observações:** ~2h.
+**Observações:** ~1h.
 
 ---
 

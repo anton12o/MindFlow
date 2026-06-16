@@ -1,0 +1,28 @@
+name: Feature
+description: Sugerir nova funcionalidade ou melhoria
+labels: [feat]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: Descrição
+      description: O que esta feature faz? Qual problema resolve?
+    validations:
+      required: true
+  - type: textarea
+    id: arquivos
+    attributes:
+      label: Arquivos envolvidos
+      description: Quais arquivos provavelmente precisarão de alteração?
+      placeholder: backend/routers/, frontend/src/pages/
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Dependências
+      description: Essa feature depende de outra Issue ou PR?
+      placeholder: Nenhuma
+  - type: textarea
+    id: observacoes
+    attributes:
+      label: Observações
+      description: Estimativa de esforço, riscos, notas adicionais
