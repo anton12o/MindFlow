@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.0"
+VERSION = "1.2.1"
 VENV_DIR = Path(ROOT) / "venv"
 
 
@@ -135,7 +135,7 @@ def ensure_venv():
 
     venv_python = VENV_DIR / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
-    marker = VENV_DIR / "pip-selfcheck.json"
+    marker = VENV_DIR / ".mindflow_installed"
     if not marker.exists():
         print("[Venv] Instalando dependencias...")
         subprocess.run(
@@ -237,6 +237,7 @@ def main():
     args = parser.parse_args()
 
     if args.backup:
+        ensure_venv()
         check_python()
         install_backend_deps()
         do_backup()

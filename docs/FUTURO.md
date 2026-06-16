@@ -77,18 +77,18 @@
 ---
 
 ### Validadores Pydantic para campos enum-like
-**Status:** ✅ Implementado
+**Status:** ⏳ Planejado
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** `HabitoBase.tipo` aceita qualquer string (deveria ser `"binario" | "quantitativo"`), `TarefaBase.prioridade` (deveria ser `"baixa" | "normal" | "alta" | "urgente"`), `TarefaBase.status` (deveria ser `"pendente" | "em_andamento" | "feito"`). Adicionar `Literal` types.
+**Descrição:** `HabitoBase.tipo` aceita qualquer string (deveria ser `"binario" | "quantitativo"`), `TarefaBase.prioridade` (deveria ser `"baixa" | "normal" | "alta" | "urgente"`), `TarefaBase.status` (deveria ser `"pendente" | "em_andamento" | "feito"`). Adicionar `@field_validator` do Pydantic — `Literal` não funciona com SQLModel 0.0.38.
 
 **Arquivos envolvidos:**
-- `backend/models.py` — adicionar `Literal` types + `@field_validator`
+- `backend/models.py` — adicionar `@field_validator` em `TarefaBase` e `HabitoBase`
 - `backend/tests/test_api.py` — testar rejeição de valores inválidos
 
 **Dependências:** Nenhuma.
 
-**Observações:** ~2h. Hoje o frontend envia valores corretos via `<select>`, mas a API não tem guard.
+**Observações:** ~2h. `field_validator` roda na camada Pydantic (que o SQLModel usa por baixo), então funciona sem quebrar o schema SQL. Teria prevenido o bug do `"concluida"` vs `"feito"` em stats.py — qualquer valor inválido daria 422 na origem.
 
 ---
 

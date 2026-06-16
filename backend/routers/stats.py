@@ -11,27 +11,25 @@ router = APIRouter()
 
 def _calcular_streak(session: Session) -> int:
     desde = (date.today() - timedelta(days=365)).isoformat()
-    notas = session.exec(select(Nota.criado_em).where(Nota.criado_em >= desde)).all()
+    notas = session.exec(
+        select(func.substr(Nota.criado_em, 1, 10)).where(Nota.criado_em >= desde).distinct()
+    ).all()
     tarefas = session.exec(
-        select(Tarefa.data).where(Tarefa.data >= desde, Tarefa.status == "concluida")
+        select(Tarefa.data).where(Tarefa.data >= desde, Tarefa.status == "feito").distinct()
     ).all()
     sessoes = session.exec(
-        select(SessaoPomodoro.finalizado_em).where(SessaoPomodoro.finalizado_em >= desde)
+        select(func.substr(SessaoPomodoro.finalizado_em, 1, 10))
+        .where(SessaoPomodoro.finalizado_em >= desde).distinct()
     ).all()
     registros = session.exec(
-        select(RegistroHabito.data).where(RegistroHabito.data >= desde)
+        select(RegistroHabito.data).where(RegistroHabito.data >= desde).distinct()
     ).all()
 
     dias_ativos: set[str] = set()
-    for n in notas:
-        dias_ativos.add(n[:10])
-    for t in tarefas:
-        dias_ativos.add(t)
-    for s in sessoes:
-        if s:
-            dias_ativos.add(s[:10])
-    for r in registros:
-        dias_ativos.add(r)
+    dias_ativos.update(notas)
+    dias_ativos.update(tarefas)
+    dias_ativos.update(s for s in sessoes if s)
+    dias_ativos.update(registros)
 
     streak = 0
     d = date.today()
@@ -168,7 +166,7 @@ def weekly_stats(
         ).all()
         tarefas = session.exec(
             select(Tarefa).where(
-                Tarefa.data >= ini_str, Tarefa.data <= fim_str, Tarefa.status == "concluida"
+                Tarefa.data >= ini_str, Tarefa.data <= fim_str, Tarefa.status == "feito"
             )
         ).all()
         sessoes = session.exec(

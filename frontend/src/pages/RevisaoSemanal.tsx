@@ -234,6 +234,7 @@ export default function RevisaoSemanal() {
   }
 
   const scoreColor = score.total >= 70 ? 'text-success' : score.total >= 40 ? 'text-warning' : 'text-danger'
+  const barColor = score.total >= 70 ? 'bg-success' : score.total >= 40 ? 'bg-warning' : 'bg-danger'
 
   // Celebration
   const celebration = score.total >= 70
@@ -336,7 +337,7 @@ export default function RevisaoSemanal() {
           <span className={`text-3xl font-bold tabular-nums ${scoreColor}`}>{score.total}/100</span>
         </div>
         <div className="w-full h-2 bg-bg-hover rounded-full overflow-hidden">
-          <div className={`h-full rounded-full transition-all ${scoreColor.replace('text-', 'bg-')}`} style={{ width: `${score.total}%` }} />
+          <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${score.total}%` }} />
         </div>
         <div className="grid grid-cols-4 gap-2 text-xs">
           {(['foco', 'tarefas', 'habitos', 'notas'] as ScoreKey[]).map(k => (
