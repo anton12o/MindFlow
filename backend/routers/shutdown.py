@@ -1,8 +1,7 @@
-import os
-import signal
 import threading
 import logging
 import shutil
+import sys
 import time
 from pathlib import Path
 from sqlmodel import Session, text
@@ -44,5 +43,5 @@ def shutdown():
         logger.info("WAL checkpoint realizado com sucesso")
     except Exception as e:
         logger.warning("Falha ao fazer WAL checkpoint: %s", e)
-    threading.Timer(0.5, lambda: os.kill(os.getpid(), signal.SIGTERM)).start()
+    threading.Timer(0.5, lambda: sys.exit(0)).start()
     return {"ok": True}

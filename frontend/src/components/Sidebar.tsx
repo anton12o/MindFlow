@@ -28,14 +28,23 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
   const [showShutdown, setShowShutdown] = useState(false)
   const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null)
   const shutdownTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const shutdownAbortRef = useRef<AbortController | undefined>(undefined)
   const currentPath = location.pathname
 
   function handleShutdown() {
     setShowShutdown(false)
     setShutdownCountdown(3)
-    fetch('/api/shutdown', { method: 'POST' })
+
+    const controller = new AbortController()
+    shutdownAbortRef.current = controller
+    fetch('/api/shutdown', { method: 'POST', signal: controller.signal }).catch(() => {})
+
     const timer = (count: number) => {
-      if (count <= 0) return
+      if (count <= 0) {
+        setShutdownCountdown(null)
+        setTimeout(() => window.location.reload(), 500)
+        return
+      }
       setShutdownCountdown(count)
       shutdownTimerRef.current = setTimeout(() => timer(count - 1), 1000)
     }
@@ -45,6 +54,10 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
   function cancelShutdown() {
     clearTimeout(shutdownTimerRef.current)
     setShutdownCountdown(null)
+    if (shutdownAbortRef.current) {
+      shutdownAbortRef.current.abort()
+      shutdownAbortRef.current = undefined
+    }
   }
 
   useEffect(() => {
