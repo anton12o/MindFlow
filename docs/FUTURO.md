@@ -93,7 +93,7 @@
 ---
 
 ### Validação de comprimento em campos de texto
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Análise técnica (Jun/2026)
 
 **Descrição:** `InboxItemBase.conteudo`, `NotaBase.titulo`, `FlashcardBase.pergunta/resposta` não têm `min_length`. Strings vazias passam na validação. Adicionar `min_length=1` em campos obrigatórios e `max_length` razoável (títulos 500 chars, conteúdo 10MB).
@@ -125,7 +125,7 @@
 ---
 
 ### Sanitização de filename no export MD
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Análise técnica (Jun/2026)
 
 **Descrição:** Header injection em `notas.py:277` — `n.titulo` inserido diretamente no header `Content-Disposition`. Um título como `test"; filename="evil.txt` quebra o header. Corrigir com sanitização.
@@ -686,7 +686,7 @@
 ---
 
 ### venv no start.py
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (Jun/2026)
 **Origem:** Análise técnica (Jun/2026)
 
 **Descrição:** `start.py` instala deps no Python global. `MindFlow.bat` cria venv. Consistir os dois — adicionar detecção/criação de venv no `start.py`.
@@ -1249,16 +1249,16 @@
 ---
 
 ### Revisão Semanal — Redesign "Ritual de Fechamento"
-**Status:** ⏳ Ideia (Spec escrito, ~20h em 3 módulos)
+**Status:** 🔧 Parcialmente implementado (Módulo 1 ✅, Módulo 2 ✅, Módulo 3 ⏳)
 
 **Descrição:** Redesign completo da Revisão Semanal em 4 momentos: Score (78/100), Celebrações automáticas, Lacunas com botões de ação, Planejamento com metas. Duas dimensões: produtividade (hábitos/tarefas/pomodoro) e conhecimento (notas/wikilinks/grafo). Métrica exclusiva de conectividade.
 
 **Sub-itens:**
-1. **Módulo 1 (~6h)** — Score composto + breakdown + comparativo visual
-2. **Módulo 2 (~6h)** — Celebrações automáticas + Lacunas com botões de ação
-3. **Módulo 3 (~8h)** — Planejamento (tabela `metas_semana` + migração tarefas + "Iniciar próxima semana")
+1. **Módulo 1 (~6h)** — Score composto + breakdown + comparativo visual ✅
+2. **Módulo 2 (~6h)** — Celebrações automáticas + Lacunas com botões de ação ✅
+3. **Módulo 3 (~8h)** — Planejamento (tabela `metas_semana` + migração tarefas + "Iniciar próxima semana") ⏳
 
 **Arquivos:** `frontend/src/pages/RevisaoSemanal.tsx` (redesign), `backend/routers/stats.py` (expandido), `backend/services/score.py` (novo), `backend/models.py` (MetaSemana), Migration Alembic
 
-**Observações:** Feature de maior porte. Implementar módulo por módulo. **Não iniciar sem ter as 6 prioridades 🔴 resolvidas primeiro.**
+**Observações:** Feature de maior porte. Módulos 1 e 2 implementados na v1.2.0. Módulo 3 pendente — requer modelo de dados novo (`metas_semana`).
 

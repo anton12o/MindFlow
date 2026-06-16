@@ -937,13 +937,69 @@ Os bugs 25, 26 e 27 foram adiados por serem de melhoria UX, não funcionais:
 
 ---
 
-## 19. Próximos Passos
+## 19. Módulo 27: v1.2.0 — Security, UX Hardening, Revisão Score, Polish (Jun/2026)
+
+**Antes:** Header injection via título de nota, race condition no Pomodoro, N+1 no Dashboard, sem offline banner, sem validação de comprimento, SW sem update notification, Revisão Semanal sem score.
+
+**Depois:**
+
+### Segurança e Dados
+
+1. **Header injection fix** — `notas.py:277`: título sanitizado com `.replace('"', "'")` no `Content-Disposition`
+2. **Race condition Pomodoro** — `cancelledRef` guarda callback de `createSessao()`; sessão finalizada imediatamente se usuário parou durante criação
+3. **Pydantic validators** — `Field(min_length=1)` em campos críticos (titulo, nome hábito, pergunta flashcard, conteudo inbox)
+
+### Performance
+
+4. **N+1 Dashboard** — `GET /api/stats/dashboard` retorna blocos, tarefas, hábitos (streak + feito_hoje), inbox_count, notas_hoje em **1 chamada** (era 6+). `HabitItem` não chama mais `getRegistros()` internamente.
+
+### UX
+
+5. **Backend offline banner** — `useBackendOnline` hook pinga `/api/health` a cada 30s; banner sticky no `<main>` quando offline
+6. **SW update notification** — `sw.js` escuta `SKIP_WAITING`, `SwUpdateBanner` com "Atualizar"/"Agora não"
+7. **Spellcheck no editor** — `EditorView.contentAttributes.of({ spellcheck: 'true' })` no CodeMirror
+8. **Cursor + hover Flashcard** — `cursor-pointer hover:scale-[1.02] transition-transform` no `FlashcardItem`
+9. **Destacar "Iniciar" Pomodoro** — `font-semibold` adicionado ao botão toggle
+10. **Grace period shutdown** — Sidebar exibe contagem 3-2-1 com "Cancelar" (`clearTimeout`), frontend-only
+
+### Revisão Semanal Redesign
+
+11. **Score composto 0-100** — 4 sub-scores (foco/tarefas/hábitos/notas) com barra + breakdown visual
+12. **Celebração automática** — Banner 🎉 quando score ≥ 70
+13. **Lacunas com botões ação** — Áreas < 60% do max destacadas em seção separada
+14. **Reflexão textual** — 4 textareas com botão "Salvar reflexão" → cria nota
+
+### Infra e Robustez
+
+15. **Venv auto-setup** — `ensure_venv()` em `start.py`: detecta se já está em venv, se não, cria `venv/`, instala deps, re-executa com venv python via `subprocess.run`
+16. **Port detection** — `check_port()` testa `socket.connect_ex` antes de subir servidor
+17. **DB integrity check** — `PRAGMA quick_check` no startup após migrations
+18. **Cold backup no shutdown** — `shutdown.py` copia `.db` para `data/backups/` antes do WAL checkpoint (máx 6 backups)
+19. **WAL checkpoint + cloud sync detection** — `PRAGMA wal_checkpoint(TRUNCATE)` no shutdown; `check_cloud_sync()` em `start.py`
+20. **Limpar tipos de teste** — `seed.py` deleta "Pessoa", "Recurso", "TipoImp" se sem referências
+
+### PWA
+
+21. **PNG icons** — `manifest.json` adiciona entradas PNG 192×192 e 512×512 para instalabilidade no Android
+22. **SW stale chunk fix** — Cache name hardcoded para `mindflow-v1.2.0`; network-first para navegação e `/assets/` chunks
+
+### Design
+
+23. **Árvore de pastas** — Substituição da lista plana por hierarquia com indentação, ▶/▼ toggle, criação inline de subpastas
+24. **Gráfico "Atividade por dia"** — Altura proporcional por segmento em vez de `flex-1`
+25. **Separador nas ações de Hábitos** — `w-px h-4 bg-border` entre ícones de ação
+
+**Arquivos:** `backend/routers/notas.py`, `frontend/src/components/PomodoroTimer.tsx`, `backend/routers/stats.py`, `frontend/src/pages/Dashboard.tsx`, `frontend/src/hooks/useBackendOnline.ts`, `frontend/src/components/SwUpdateBanner.tsx`, `frontend/src/pages/RevisaoSemanal.tsx`, `backend/routers/shutdown.py`, `start.py`, `backend/database.py`, `backend/seed.py`, `backend/models.py`, `frontend/public/sw.js`, `frontend/public/manifest.json`, `frontend/src/pages/Ideias.tsx`, `frontend/src/components/EditorMarkdown.tsx`, `frontend/src/pages/Flashcards.tsx`, `frontend/src/pages/Habitos.tsx`, `frontend/src/components/Sidebar.tsx`
+
+---
+
+## 20. Próximos Passos
 
 As futuras adições planejadas foram movidas para [`docs/FUTURO.md`](./docs/FUTURO.md), organizadas por prioridade (🔴 alta, 🟡 média, 🟢 baixa). Cada item contém descrição, arquivos envolvidos e dependências.
 
 ---
 
-## 20. Filosofia do Projeto
+## 21. Filosofia do Projeto
 
 MindFlow segue alguns princípios fundamentais:
 
@@ -958,4 +1014,4 @@ MindFlow segue alguns princípios fundamentais:
 ---
 
 *Documento gerado em 11 de junho de 2026.*
-*Última atualização: 15 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow) + Módulo 23 (Logging + CI/CD) + Módulo 24 (Quick Wins: favoritos, export MD, tooltip, autocomplete, design, CI fix, pre-commit Windows) + Módulo 25 (6 Quick Wins: notificação, shutdown, backup, journaling, BroadcastChannel, bundle split) + Módulo 26 (Revisão Semanal: endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags).*
+*Última atualização: 16 de junho de 2026. Módulo 12 (55 correções) + Módulo 13 (Release v1.0.0) + Módulos 14-19 (Tags, Pomodoro custom, Consultas views, CalendarioSemanal DnD, PWA) + Módulo 20 (Performance: índices, virtualização, memo) + Módulo 21 (5 bugs finais + sw.js) + Módulo 22 (Editor lineWrapping, Pomodoro freeze, Calendário hábitos, Tags sidebar + overflow) + Módulo 23 (Logging + CI/CD) + Módulo 24 (Quick Wins: favoritos, export MD, tooltip, autocomplete, design, CI fix, pre-commit Windows) + Módulo 25 (6 Quick Wins: notificação, shutdown, backup, journaling, BroadcastChannel, bundle split) + Módulo 26 (Revisão Semanal: endpoint weekly, página revisão, gráfico CSS, export MD, bug fixes streak/tags) + Módulo 27 (v1.2.0: security, UX hardening, Revisão Score, venv, offline banner, SW update, N+1 Dashboard fix).*
