@@ -446,7 +446,7 @@ export default function Ideias() {
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar notas..."
+            placeholder="Buscar por conteúdo..."
             className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
           />
           <button onClick={handleCreate} disabled={createMut.isPending} className="px-2 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover shrink-0 disabled:opacity-50" title="Nova nota em branco">{createMut.isPending ? '...' : '+'}</button>
@@ -485,9 +485,10 @@ export default function Ideias() {
           </div>
         ) : (
           <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
-            {notas && notas.filter(n => n.favoritado).length > 0 && (
+            {notas && (
               <div className="mb-3">
                 <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">⭐ Favoritos</span>
+                {notas.filter(n => n.favoritado).length > 0 ? (
                 <div className="flex flex-col gap-0.5 mt-1">
                   {notas.filter(n => n.favoritado).map(n => {
                     const tipo = tipos?.find(t => t.id === n.tipo_id)
@@ -513,6 +514,9 @@ export default function Ideias() {
                     )
                   })}
                 </div>
+              ) : (
+                <p className="text-xs text-text-muted mt-1">Nenhuma nota favoritada. Clique na ⭐ em uma nota.</p>
+              )}
               </div>
             )}
             {pastas && (
@@ -532,7 +536,7 @@ export default function Ideias() {
                         }
                         if (e.key === 'Escape') { setNewFolderName(''); setCreatingFolder(false) }
                       }}
-                      placeholder="Nome da pasta..."
+                      placeholder="Nome da pasta (ex: Projetos)"
                       className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
                     />
                   </div>
@@ -614,7 +618,7 @@ export default function Ideias() {
             {notasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar notas</p>}
             {!notasLoad && !notasErr && visibleItems.length === 0 && (
               <p className="text-sm text-text-muted py-4 text-center">
-                {searchDebounced ? 'Nenhuma nota encontrada' : 'Nenhuma nota criada ainda'}
+                {searchDebounced ? 'Nenhuma nota encontrada. Tente outro termo.' : 'Nenhuma nota criada ainda. Clique em + para criar a primeira.'}
               </p>
             )}
             {!notasLoad && !notasErr && visibleItems.length > 0 && (
@@ -661,7 +665,7 @@ export default function Ideias() {
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-text-muted">
               {editando ? (
                 <>
-                  <label className="text-text-muted">Tipo:</label>
+                  <label className="text-text-muted">Categoria:</label>
                   <select value={String(notaAtual.tipo_id || '')} onChange={e => {
                     const id = selectedIdRef.current
                     if (!id) return
@@ -672,7 +676,7 @@ export default function Ideias() {
                     <option value="">Sem tipo</option>
                     {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
                   </select>
-                  <label className="text-text-muted">Pasta:</label>
+                  <label className="text-text-muted">Grupo:</label>
                   <select value={String(notaAtual.pasta_id || '')} onChange={e => {
                     const id = selectedIdRef.current
                     if (!id) return
@@ -915,7 +919,7 @@ export default function Ideias() {
               <div>
                 <label className="block text-xs text-text-muted mb-1">Nome</label>
                 <input value={newTagNome} onChange={e => setNewTagNome(e.target.value)}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="Nome da tag" />
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="Nome da tag (ex: #urgente)" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">Cor</label>

@@ -137,6 +137,10 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
       {createMut.isPending && (
         <p className="text-[10px] text-text-muted text-center mt-1 animate-pulse">Salvando...</p>
       )}
+      <div className="flex items-center justify-center gap-3 mt-2 text-[10px] text-text-muted">
+        <span>✅ Check-in</span>
+        <span>⬜ Sem registro</span>
+      </div>
     </div>
   )
 }

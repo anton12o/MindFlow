@@ -19,6 +19,17 @@ uma única ferramenta integrada.
 
 ## Funcionalidades Completas
 
+### v1.2.9 — Melhorias de texto/UI nas interfaces
+- **EditorMarkdown**: placeholder "Escreva sua nota aqui… Use [[wikilink]] para conectar ideias"
+- **InboxModal**: placeholder "O que você quer capturar? (Ctrl+I…)", botão "Salvar" → "Capturar"
+- **ErrorBoundary**: mensagem amigável "Não foi possível carregar esta seção"
+- **CommandPalette**: mensagens vazias com dica "Tente outro termo."
+- **Ideias**: busca "Buscar por conteúdo…", labels "Categoria:"/"Grupo:", favoritos vazio com dica, placeholders com exemplos
+- **Hábitos**: placeholder "Meta diária (ex: 8 copos)"
+- **HabitoCalendario**: legenda "✅ Check-in / ⬜ Sem registro"
+- **Dashboard**: tooltip "Dias consecutivos com check-in" no streak
+- **start.py**: dica de atalhos (Ctrl+I/K) na inicialização + finally com despedida amigável
+
 ### Infraestrutura
 - API REST com FastAPI, 8 routers (inbox, habitos, rotina, pomodoro, notas, flashcards, tipos, queries)
 - CRUD completo com 404 real (`HTTPException`) em vez de 200 com `{"ok": false}`

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react'
-import { EditorView, keymap } from '@codemirror/view'
+import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
 import { python } from '@codemirror/lang-python'
@@ -29,6 +29,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
     const startState = EditorState.create({
       doc: value,
       extensions: [
+        placeholder("Escreva sua nota aqui\u2026 Use [[wikilink]] para conectar ideias"),
         EditorView.lineWrapping,
         EditorView.contentAttributes.of({ spellcheck: 'true' }),
         markdown({ base: markdownLanguage }),

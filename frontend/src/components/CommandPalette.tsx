@@ -76,7 +76,7 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
         <div className="max-h-64 overflow-y-auto" role="listbox" aria-label={isNotaMode ? "Notas disponíveis" : "Comandos disponíveis"} aria-activedescendant={items[selected]?.id}>
           {items.length === 0 ? (
             <div className="px-4 py-6 text-center text-text-muted text-sm">
-              {isNotaMode ? (query ? 'Nenhuma nota encontrada' : 'Nenhuma nota acessada recentemente') : 'Nenhum comando encontrado'}
+              {isNotaMode ? (query ? 'Nenhuma nota encontrada. Tente outro termo.' : 'Nenhuma nota acessada recentemente') : 'Nenhum comando encontrado. Tente outro termo.'}
             </div>
           ) : (
             <>

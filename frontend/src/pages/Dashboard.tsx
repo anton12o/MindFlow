@@ -196,7 +196,7 @@ function HabitItem({ h, onCheck }: { h: DashboardStats['habitos'][number]; onChe
       <div className="flex items-center gap-2 min-w-0">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: h.cor || '#5B8DEF' }} />
         <span className="text-sm truncate">{h.nome}</span>
-        {h.streak > 0 && <span className="text-xs text-accent font-medium shrink-0">🔥{h.streak}</span>}
+        {h.streak > 0 && <span className="text-xs text-accent font-medium shrink-0" title="Dias consecutivos com check-in">🔥{h.streak}</span>}
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {h.feito_hoje ? (
