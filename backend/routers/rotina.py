@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, or_, and_
 from database import get_session
-from models import BlocoRotina, BlocoRotinaCreate, BlocoRotinaUpdate, BlocoRotinaRead, Tarefa, TarefaCreate, TarefaUpdate, TarefaRead
+from models import BlocoRotina, BlocoRotinaCreate, BlocoRotinaUpdate, BlocoRotinaRead, Tarefa, TarefaCreate, TarefaUpdate, TarefaRead, TipoObjeto
 from datetime import datetime
 
 router = APIRouter()
@@ -71,6 +71,10 @@ def list_tarefas(data: str | None = None, session: Session = Depends(get_session
 
 @router.post("/tarefas", response_model=TarefaRead)
 def create_tarefa(t: TarefaCreate, session: Session = Depends(get_session)):
+    if t.bloco_id is not None and not session.get(BlocoRotina, t.bloco_id):
+        raise HTTPException(status_code=404, detail="Bloco não encontrado")
+    if t.tipo_id is not None and not session.get(TipoObjeto, t.tipo_id):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
     db = Tarefa(**t.model_dump())
     session.add(db)
     session.commit()
@@ -82,7 +86,12 @@ def update_tarefa(tarefa_id: int, t: TarefaUpdate, session: Session = Depends(ge
     db = session.get(Tarefa, tarefa_id)
     if not db:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
-    for field, value in t.model_dump(exclude_unset=True).items():
+    data = t.model_dump(exclude_unset=True)
+    if "bloco_id" in data and data["bloco_id"] is not None and not session.get(BlocoRotina, data["bloco_id"]):
+        raise HTTPException(status_code=404, detail="Bloco não encontrado")
+    if "tipo_id" in data and data["tipo_id"] is not None and not session.get(TipoObjeto, data["tipo_id"]):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
+    for field, value in data.items():
         setattr(db, field, value)
     session.add(db)
     session.commit()

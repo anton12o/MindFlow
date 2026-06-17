@@ -60,7 +60,8 @@ export default function Rotina() {
       setNovaTarefa('')
       return { previous }
     },
-    onError: (_err, _titulo, context) => {
+    onError: (err, _titulo, context) => {
+      console.error('[Rotina]', err)
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),

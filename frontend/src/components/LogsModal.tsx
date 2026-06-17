@@ -17,7 +17,7 @@ export default function LogsModal({ onClose }: Props) {
     setLoading(true)
     getLogs(50, levelFilter || undefined)
       .then(r => setEntries(r.entries))
-      .catch(() => setEntries([]))
+      .catch(e => { console.error('[LogsModal]', e); setEntries([]) })
       .finally(() => setLoading(false))
   }
 

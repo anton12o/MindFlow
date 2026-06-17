@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from database import get_session
-from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead
+from models import Flashcard, FlashcardCreate, FlashcardUpdate, FlashcardRead, Nota
 from services import sm2_calculo
 
 
@@ -27,6 +27,8 @@ def review_flashcards(session: Session = Depends(get_session)):
 
 @router.post("", response_model=FlashcardRead)
 def create_flashcard(f: FlashcardCreate, session: Session = Depends(get_session)):
+    if f.nota_id is not None and not session.get(Nota, f.nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
     db = Flashcard(**f.model_dump())
     session.add(db)
     session.commit()
@@ -56,7 +58,10 @@ def update_flashcard(flashcard_id: int, f: FlashcardUpdate, session: Session = D
     db = session.get(Flashcard, flashcard_id)
     if not db:
         raise HTTPException(status_code=404, detail="Flashcard não encontrado")
-    for field, value in f.model_dump(exclude_unset=True).items():
+    data = f.model_dump(exclude_unset=True)
+    if "nota_id" in data and data["nota_id"] is not None and not session.get(Nota, data["nota_id"]):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    for field, value in data.items():
         setattr(db, field, value)
     session.add(db)
     session.commit()

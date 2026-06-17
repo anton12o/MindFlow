@@ -20,7 +20,7 @@ TEMPLATES_PADRAO = [
 
 SCHEMA_CAMPOS_PADRAO = {
     "Tarefa": {
-        "status": {"type": "select", "options": ["pendente", "fazendo", "feito"]},
+        "status": {"type": "select", "options": ["pendente", "em_andamento", "feito"]},
         "prioridade": {"type": "select", "options": ["alta", "normal", "baixa"]},
         "vencimento": {"type": "date"},
         "estimativa": {"type": "number"},

@@ -51,7 +51,7 @@ export default function Dashboard() {
     const d = dash.notas_hoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
     if (d) { setDiarioId(d.id); return }
     const dataBR = new Date().toLocaleDateString('pt-BR')
-    createNota({ titulo: `Diário — ${dataBR}`, conteudo: '' }).then(n => setDiarioId(n.id)).catch(() => {})
+    createNota({ titulo: `Diário — ${dataBR}`, conteudo: '' }).then(n => setDiarioId(n.id)).catch(e => console.error('[Dashboard]', e))
   }, [dash, diarioId])
 
   const toggleTarefaMut = useMutation({

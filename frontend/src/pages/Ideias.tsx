@@ -201,7 +201,8 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
     },
-    onError: () => {
+    onError: (e) => {
+      console.error('[Ideias]', e)
       setSaveStatus('error')
       setTimeout(() => setSaveStatus('idle'), 3000)
     },
