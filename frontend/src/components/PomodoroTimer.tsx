@@ -8,29 +8,35 @@ interface Props {
   onFinalizar?: () => void
 }
 
-function playBeep(fase: string) {
-  try {
-    const ctx = new AudioContext()
-    const osc = ctx.createOscillator()
-    const gain = ctx.createGain()
-    osc.connect(gain)
-    gain.connect(ctx.destination)
-    osc.frequency.value = 880
-    osc.type = 'sine'
-    gain.gain.setValueAtTime(0.3, ctx.currentTime)
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
-    osc.start(ctx.currentTime)
-    osc.stop(ctx.currentTime + 0.5)
-    setTimeout(() => ctx.close(), 1000)
-  } catch { /* audio not available */ }
-  if ('Notification' in window && Notification.permission === 'granted') {
-    new Notification('MindFlow', {
-      body: fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!',
-      icon: '/icon-192.svg',
-    })
-  } else if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission()
+type PomodoroScreen = 'idle' | 'running' | 'foco_end' | 'pausa_end'
+
+function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
+  const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
+    idle: ['running'],
+    running: ['idle', 'foco_end', 'pausa_end'],
+    foco_end: ['idle', 'running'],
+    pausa_end: ['idle', 'running'],
   }
+  return valid[de].includes(para)
+}
+
+function playAlarm(ctx: AudioContext) {
+  try {
+    const freqs = [660, 880, 1040]
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.frequency.value = freq
+      osc.type = 'square'
+      const t = ctx.currentTime + i * 0.15
+      gain.gain.setValueAtTime(0.25, t)
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2)
+      osc.start(t)
+      osc.stop(t + 0.2)
+    })
+  } catch { /* audio not available */ }
 }
 
 export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
@@ -51,6 +57,12 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const queryClient = useQueryClient()
   const [showConfig, setShowConfig] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+  const [screen, setScreen] = useState<PomodoroScreen>(ativo ? 'running' : 'idle')
+
+  useEffect(() => {
+    return () => { audioCtxRef.current?.close() }
+  }, [])
 
   // Debounced config save
   useEffect(() => {
@@ -88,9 +100,11 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   }
 
   function toggle() {
-    if (ativo) {
+    if (screen === 'running') {
+      if (!canTransition('running', 'idle')) return
       cancelAnimationFrame(rafRef.current)
       setAtivo(false)
+      setScreen('idle')
       cancelledRef.current = true
       if (sessaoId) {
         finalizarMut.mutate(
@@ -100,6 +114,12 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       }
     } else {
       if (isCreating.current) return
+      if (!canTransition(screen, 'running')) return
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext()
+      } else if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
       isCreating.current = true
       cancelledRef.current = false
       createSessao({
@@ -115,6 +135,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         setSessaoId(s.id)
         startedAtRef.current = Date.now()
         setAtivo(true)
+        setScreen('running')
       }).catch(e => {
         isCreating.current = false
         console.error('[Pomodoro] criar sessão', e)
@@ -122,10 +143,8 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     }
   }
 
-  const [showPhaseTransition, setShowPhaseTransition] = useState<{ type: 'foco_end' | 'pausa_end' } | null>(null)
-
   useEffect(() => {
-    if (!ativo) return
+    if (screen !== 'running') return
 
     const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
 
@@ -138,11 +157,18 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     lastDisplaySecRef.current = initialTotalSec
 
     if (initialElapsed >= phaseMs) {
-      setAtivo(false)
       cancelledRef.current = false
-      playBeep(fase)
-      if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
-      else setShowPhaseTransition({ type: 'pausa_end' })
+      setAtivo(false)
+      setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
+      if (audioCtxRef.current) playAlarm(audioCtxRef.current)
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('MindFlow', {
+          body: fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!',
+          icon: '/icon-192.svg',
+        })
+      } else if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission()
+      }
       return
     }
 
@@ -160,9 +186,16 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       if (elapsed >= phaseMs) {
         cancelledRef.current = false
         setAtivo(false)
-        playBeep(fase)
-        if (fase === 'foco') setShowPhaseTransition({ type: 'foco_end' })
-        else setShowPhaseTransition({ type: 'pausa_end' })
+        setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
+        if (audioCtxRef.current) playAlarm(audioCtxRef.current)
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('MindFlow', {
+            body: fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!',
+            icon: '/icon-192.svg',
+          })
+        } else if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission()
+        }
         return
       }
 
@@ -171,7 +204,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
     rafRef.current = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafRef.current)
-  }, [ativo, fase, config])
+  }, [screen, fase, config])
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
 
@@ -311,7 +344,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       )}
 
       {/* Phase transition: Foco ended -> show Resumo + "Iniciar pausa?" */}
-      {showPhaseTransition?.type === 'foco_end' && (
+      {screen === 'foco_end' && (
         <div className="w-full max-w-md mt-2">
           <textarea
             value={resumo}
@@ -326,7 +359,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
                 advancePhase()
                 resetTimer()
                 setSessaoId(null)
-                setShowPhaseTransition(null)
+                setScreen('idle')
               }}
               className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
@@ -338,7 +371,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
                 advancePhase()
                 resetTimer()
                 setSessaoId(null)
-                setShowPhaseTransition(null)
+                setScreen('idle')
               }}
               className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
             >
@@ -349,7 +382,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       )}
 
       {/* Phase transition: Pausa ended -> "Iniciar próximo foco?" */}
-      {showPhaseTransition?.type === 'pausa_end' && (
+      {screen === 'pausa_end' && (
         <div className="w-full max-w-md mt-2 text-center">
           <p className="text-sm text-text-secondary mb-3">Pausa finalizada. Iniciar próximo foco?</p>
           <div className="flex gap-2 justify-center">
@@ -357,7 +390,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
               onClick={() => {
                 advancePhase()
                 resetTimer()
-                setShowPhaseTransition(null)
+                setScreen('idle')
               }}
               className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
             >
@@ -367,7 +400,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
               onClick={() => {
                 advancePhase()
                 resetTimer()
-                setShowPhaseTransition(null)
+                setScreen('idle')
                 toggle()
               }}
               className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
@@ -378,7 +411,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         </div>
       )}
 
-      {!ativo && !mostrarResumo && !showPhaseTransition && minutos === 0 && segundos === 0 && (
+      {!ativo && !mostrarResumo && screen === 'idle' && minutos === 0 && segundos === 0 && (
         <button
           onClick={() => { setMinutos(config.focoMin); setSegundos(0); setResumo(''); setSessaoId(null); setFase('foco'); setCicloAtual(0) }}
           className="text-sm text-accent hover:underline"
