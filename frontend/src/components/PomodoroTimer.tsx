@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
+import { createNota } from '../api/notas'
 import { usePomodoroContext } from '../store/pomodoro'
 
 interface Props {
@@ -56,6 +57,53 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const isCreating = useRef(false)
   const cancelledRef = useRef(false)
   const queryClient = useQueryClient()
+
+  // Heartbeat
+  const HB_KEY = 'mindflow_pomodoro_heartbeat'
+  const saveHeartbeat = () => {
+    if (screen !== 'running' && screen !== 'pausado') return
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+    const elapsed = Date.now() - startedAtRef.current
+    const remainingMs = Math.max(0, phaseMs - elapsed)
+    try {
+      localStorage.setItem(HB_KEY, JSON.stringify({
+        savedAt: Date.now(), screen, fase, cicloAtual, sessaoId,
+        interrupcoes, remainingMs, minutos, segundos,
+        contextoTipo: contexto?.tipo || null,
+        contextoId: contexto?.id || null,
+        contextoNome: contexto?.nome || null,
+      }))
+    } catch {}
+  }
+  const clearHeartbeat = () => { try { localStorage.removeItem(HB_KEY) } catch {} }
+
+  const [showRestore, setShowRestore] = useState(false)
+  const [heartbeatData, setHeartbeatData] = useState<any>(null)
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(HB_KEY)
+      if (raw) {
+        const data = JSON.parse(raw)
+        if (data.screen === 'running' || data.screen === 'pausado') {
+          if (Date.now() - data.savedAt < 2 * 60 * 60 * 1000) {
+            setHeartbeatData(data)
+            setShowRestore(true)
+            return
+          }
+        }
+        localStorage.removeItem(HB_KEY)
+      }
+    } catch {}
+  }, [])
+
+  function salvarInterrupcoesNoInbox() {
+    interrupcoes.forEach(texto => {
+      createNota({ titulo: `🧠 ${texto}`, conteudo: '' })
+        .catch(e => console.error('[Pomodoro] salvar interrupção no inbox', e))
+    })
+    setInterrupcoes([])
+  }
   const [showConfig, setShowConfig] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -99,14 +147,21 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
             contexto_nome: contexto?.nome,
           },
         },
-        { onSuccess: () => onFinalizar?.() },
+        {
+          onSuccess: () => {
+            onFinalizar?.()
+            clearHeartbeat()
+          },
+        },
       )
+      if (interrupcoes.length > 0) salvarInterrupcoesNoInbox()
     }
   }
 
   function handleStop() {
     if (!canTransition(screen === 'running' ? 'running' : 'pausado', 'idle')) return
     cancelAnimationFrame(rafRef.current)
+    clearHeartbeat()
     setAtivo(false)
     setScreen('idle')
     cancelledRef.current = true
@@ -130,6 +185,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       setSegundos(totalSec % 60)
       setAtivo(false)
       setScreen('pausado')
+      saveHeartbeat()
       return
     }
 
@@ -167,6 +223,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         finalizarSessao(s.id, {})
         return
       }
+      clearHeartbeat()
       setSessaoId(s.id)
       startedAtRef.current = Date.now()
       setAtivo(true)
@@ -193,6 +250,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
     if (initialElapsed >= phaseMs) {
       cancelledRef.current = false
+      clearHeartbeat()
       setAtivo(false)
       setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
       if (audioCtxRef.current) playAlarm(audioCtxRef.current)
@@ -216,10 +274,12 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         lastDisplaySecRef.current = totalSec
         setMinutos(Math.floor(totalSec / 60))
         setSegundos(totalSec % 60)
+        saveHeartbeat()
       }
 
       if (elapsed >= phaseMs) {
         cancelledRef.current = false
+        clearHeartbeat()
         setAtivo(false)
         setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
         if (audioCtxRef.current) playAlarm(audioCtxRef.current)
@@ -249,8 +309,54 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     pausa_longa: '🌿 Pausa longa',
   }
 
+  function handleRestore() {
+    if (!heartbeatData) return
+    const { fase: hFase, cicloAtual: hCiclo, minutos: hMin, segundos: hSeg,
+            interrupcoes: hInt, remainingMs, contextoTipo, contextoId } = heartbeatData
+    setFase(hFase)
+    setCicloAtual(hCiclo)
+    setMinutos(hMin)
+    setSegundos(hSeg)
+    setInterrupcoes(hInt || [])
+    isCreating.current = true
+    createSessao({
+      contexto_tipo: contextoTipo || 'tarefa',
+      contexto_id: contextoId || null,
+      duracao_min: Math.ceil(remainingMs / 60000) || 1,
+    }).then(s => {
+      isCreating.current = false
+      if (cancelledRef.current) { finalizarSessao(s.id, {}); return }
+      setSessaoId(s.id)
+      const phaseMs = (hFase === 'foco' ? config.focoMin : hFase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+      startedAtRef.current = Date.now() - Math.max(0, phaseMs - remainingMs)
+      setAtivo(true)
+      setScreen('running')
+      clearHeartbeat()
+      setShowRestore(false)
+      setHeartbeatData(null)
+    }).catch(e => {
+      isCreating.current = false
+      console.error('[Pomodoro] restaurar sessão', e)
+    })
+  }
+
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-md">
+      {showRestore && heartbeatData && (
+        <div className="w-full bg-bg-secondary border border-border rounded-lg p-4 text-center animate-fade-in">
+          <p className="text-sm text-text-primary mb-3">Sessão interrompida detectada ({heartbeatData.minutos}:{String(heartbeatData.segundos).padStart(2, '0')} restantes)</p>
+          <div className="flex gap-2 justify-center">
+            <button onClick={() => { clearHeartbeat(); setShowRestore(false); setHeartbeatData(null) }}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+              Descartar
+            </button>
+            <button onClick={handleRestore}
+              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">
+              Continuar sessão
+            </button>
+          </div>
+        </div>
+      )}
       <div className="flex items-center gap-4 w-full">
         {contexto && (
           <span className="text-sm text-text-secondary truncate max-w-[150px]">{contexto.nome}</span>
@@ -526,7 +632,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
       {!ativo && !mostrarResumo && screen === 'idle' && minutos === 0 && segundos === 0 && (
         <button
-          onClick={() => { setMinutos(config.focoMin); setSegundos(0); setResumo(''); setSessaoId(null); setFase('foco'); setCicloAtual(0) }}
+          onClick={() => { clearHeartbeat(); setMinutos(config.focoMin); setSegundos(0); setResumo(''); setSessaoId(null); setFase('foco'); setCicloAtual(0) }}
           className="text-sm text-accent hover:underline"
         >
           Novo Pomodoro
