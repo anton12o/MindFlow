@@ -19,6 +19,11 @@ uma única ferramenta integrada.
 
 ## Funcionalidades Completas
 
+### v1.2.10 — Correções de robustez (logs, shutdown, pomodoro)
+- **logs.py**: `read_text()` com try/except — log corrompido não quebra mais o modal
+- **pomodoro.py**: validação de data em `DELETE /sessoes` — data inválida vira 422 em vez de 500
+- **shutdown.py**: `except Exception: pass` → `logger.warning(...)` — WAL falha não é mais engolida
+
 ### v1.2.9 — Melhorias de texto/UI nas interfaces
 - **EditorMarkdown**: placeholder "Escreva sua nota aqui… Use [[wikilink]] para conectar ideias"
 - **InboxModal**: placeholder "O que você quer capturar? (Ctrl+I…)", botão "Salvar" → "Capturar"
