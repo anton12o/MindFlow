@@ -43,6 +43,11 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
 
 @router.delete("/sessoes")
 def delete_sessoes(antes_de: str | None = None, session: Session = Depends(get_session)):
+    if antes_de is not None:
+        try:
+            datetime.strptime(antes_de, "%Y-%m-%d")
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Data inválida: {antes_de}. Use YYYY-MM-DD.")
     stmt = select(SessaoPomodoro)
     if antes_de:
         stmt = stmt.where(SessaoPomodoro.iniciado_em < antes_de)
