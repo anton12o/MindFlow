@@ -8,12 +8,13 @@ interface Props {
   onFinalizar?: () => void
 }
 
-type PomodoroScreen = 'idle' | 'running' | 'foco_end' | 'pausa_end'
+type PomodoroScreen = 'idle' | 'running' | 'pausado' | 'foco_end' | 'pausa_end'
 
 function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
   const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
     idle: ['running'],
-    running: ['idle', 'foco_end', 'pausa_end'],
+    running: ['idle', 'pausado', 'foco_end', 'pausa_end'],
+    pausado: ['idle', 'running'],
     foco_end: ['idle', 'running'],
     pausa_end: ['idle', 'running'],
   }
@@ -58,7 +59,11 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const [showConfig, setShowConfig] = useState(false)
   const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const audioCtxRef = useRef<AudioContext | null>(null)
+  const remainingRef = useRef(0)
   const [screen, setScreen] = useState<PomodoroScreen>(ativo ? 'running' : 'idle')
+  const [taskInput, setTaskInput] = useState('')
+  const [interrupcoes, setInterrupcoes] = useState<string[]>([])
+  const [interrupcaoInput, setInterrupcaoInput] = useState('')
 
   useEffect(() => {
     return () => { audioCtxRef.current?.close() }
@@ -99,48 +104,78 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     }
   }
 
+  function handleStop() {
+    if (!canTransition(screen === 'running' ? 'running' : 'pausado', 'idle')) return
+    cancelAnimationFrame(rafRef.current)
+    setAtivo(false)
+    setScreen('idle')
+    cancelledRef.current = true
+    if (sessaoId) {
+      finalizarMut.mutate(
+        { id: sessaoId, body: { contexto_nome: contexto?.nome } },
+        { onSuccess: () => onFinalizar?.() },
+      )
+    }
+  }
+
   function toggle() {
     if (screen === 'running') {
-      if (!canTransition('running', 'idle')) return
+      if (!canTransition('running', 'pausado')) return
       cancelAnimationFrame(rafRef.current)
+      const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+      const elapsed = Date.now() - startedAtRef.current
+      remainingRef.current = Math.max(0, phaseMs - elapsed)
+      const totalSec = Math.ceil(remainingRef.current / 1000)
+      setMinutos(Math.floor(totalSec / 60))
+      setSegundos(totalSec % 60)
       setAtivo(false)
-      setScreen('idle')
-      cancelledRef.current = true
-      if (sessaoId) {
-        finalizarMut.mutate(
-          { id: sessaoId, body: { contexto_nome: contexto?.nome } },
-          { onSuccess: () => onFinalizar?.() },
-        )
-      }
-    } else {
-      if (isCreating.current) return
-      if (!canTransition(screen, 'running')) return
+      setScreen('pausado')
+      return
+    }
+
+    if (screen === 'pausado') {
+      if (!canTransition('pausado', 'running')) return
+      const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+      startedAtRef.current = Date.now() - (phaseMs - remainingRef.current)
       if (!audioCtxRef.current) {
         audioCtxRef.current = new AudioContext()
       } else if (audioCtxRef.current.state === 'suspended') {
         audioCtxRef.current.resume()
       }
-      isCreating.current = true
-      cancelledRef.current = false
-      createSessao({
-        contexto_tipo: contexto?.tipo || 'livre',
-        contexto_id: contexto?.id || null,
-        duracao_min: minutos,
-      }).then(s => {
-        isCreating.current = false
-        if (cancelledRef.current) {
-          finalizarSessao(s.id, {})
-          return
-        }
-        setSessaoId(s.id)
-        startedAtRef.current = Date.now()
-        setAtivo(true)
-        setScreen('running')
-      }).catch(e => {
-        isCreating.current = false
-        console.error('[Pomodoro] criar sessão', e)
-      })
+      setAtivo(true)
+      setScreen('running')
+      return
     }
+
+    if (isCreating.current) return
+    if (!canTransition(screen, 'running')) return
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext()
+    } else if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume()
+    }
+    if (!contexto && !taskInput.trim()) return
+    isCreating.current = true
+    cancelledRef.current = false
+    createSessao({
+      contexto_tipo: contexto?.tipo || 'tarefa',
+      contexto_id: contexto?.id || null,
+      duracao_min: minutos,
+    }).then(s => {
+      isCreating.current = false
+      if (cancelledRef.current) {
+        finalizarSessao(s.id, {})
+        return
+      }
+      setSessaoId(s.id)
+      startedAtRef.current = Date.now()
+      setAtivo(true)
+      setScreen('running')
+      setInterrupcoes([])
+    }).catch(e => {
+      isCreating.current = false
+      console.error('[Pomodoro] criar sessão', e)
+    })
   }
 
   useEffect(() => {
@@ -220,14 +255,72 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         {contexto && (
           <span className="text-sm text-text-secondary truncate max-w-[150px]">{contexto.nome}</span>
         )}
-        <span className={`text-4xl font-mono font-bold tabular-nums ${ativo ? 'text-accent' : 'text-text-primary'}`}>{display}</span>
-        <button
-          onClick={toggle}
-          className={`px-4 py-1.5 text-sm rounded-lg transition-colors ${ativo ? 'bg-danger text-white' : 'bg-accent text-white font-semibold hover:bg-accent-hover'}`}
-        >
-          {ativo ? 'Parar' : 'Iniciar'}
-        </button>
+        <span className={`text-4xl font-mono font-bold tabular-nums ${screen === 'running' ? 'text-accent' : 'text-text-primary'}`}>{display}</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggle}
+            disabled={!contexto && !taskInput.trim() && screen !== 'running' && screen !== 'pausado'}
+            className={`px-4 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-50 ${
+              screen === 'running' ? 'bg-bg-tertiary text-text-primary hover:bg-bg-hover' :
+              'bg-accent text-white font-semibold hover:bg-accent-hover'
+            }`}
+          >
+            {screen === 'running' ? 'Pausar' : screen === 'pausado' ? 'Continuar' : 'Iniciar'}
+          </button>
+          {(screen === 'running' || screen === 'pausado') && (
+            <button onClick={handleStop} className="text-xs text-danger hover:underline ml-1">
+              Parar
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Bloqueio de contexto */}
+      {!contexto && screen === 'idle' && (
+        <div className="w-full">
+          <input
+            value={taskInput}
+            onChange={e => setTaskInput(e.target.value)}
+            placeholder="O que você vai fazer neste ciclo?"
+            className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+          />
+        </div>
+      )}
+
+      {/* Lista de interrupções (durante o foco) */}
+      {screen === 'running' && (
+        <div className="w-full">
+          <div className="flex gap-2">
+            <input
+              value={interrupcaoInput}
+              onChange={e => setInterrupcaoInput(e.target.value)}
+              placeholder="Anotar distração..."
+              className="flex-1 bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
+            />
+            <button
+              onClick={() => {
+                if (interrupcaoInput.trim()) {
+                  setInterrupcoes(p => [...p, interrupcaoInput.trim()])
+                  setInterrupcaoInput('')
+                }
+              }}
+              className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors"
+            >
+              +
+            </button>
+          </div>
+          {interrupcoes.length > 0 && (
+            <ul className="mt-1 space-y-0.5">
+              {interrupcoes.map((item, i) => (
+                <li key={i} className="text-xs text-text-muted flex items-start gap-1">
+                  <span className="mt-0.5">•</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* Phase indicator */}
       <div className="w-full flex items-center justify-between text-sm">
@@ -312,6 +405,16 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
       {mostrarResumo && !ativo && (
         <div className="w-full max-w-md mt-2">
+          {interrupcoes.length > 0 && (
+            <div className="mb-2 text-xs text-text-muted">
+              <p className="font-medium mb-0.5">Distrações registradas:</p>
+              <ul className="space-y-0.5">
+                {interrupcoes.map((item, i) => (
+                  <li key={i} className="flex items-start gap-1">• {item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <textarea
             value={resumo}
             onChange={e => setResumo(e.target.value)}
@@ -346,6 +449,16 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       {/* Phase transition: Foco ended -> show Resumo + "Iniciar pausa?" */}
       {screen === 'foco_end' && (
         <div className="w-full max-w-md mt-2">
+          {interrupcoes.length > 0 && (
+            <div className="mb-2 text-xs text-text-muted">
+              <p className="font-medium mb-0.5">Distrações registradas:</p>
+              <ul className="space-y-0.5">
+                {interrupcoes.map((item, i) => (
+                  <li key={i} className="flex items-start gap-1">• {item}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <textarea
             value={resumo}
             onChange={e => setResumo(e.target.value)}
