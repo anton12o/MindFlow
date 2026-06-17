@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.3"
+VERSION = "1.2.5"
 VENV_DIR = Path(ROOT) / "venv"
 
 
