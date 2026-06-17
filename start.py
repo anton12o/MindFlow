@@ -19,27 +19,27 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.5"
+VERSION = "1.2.8"
 VENV_DIR = Path(ROOT) / "venv"
 
 
 def check_python():
     if sys.version_info < (3, 12):
-        print(f"[ERROR] Python 3.12+ necessario (atual: {sys.version_info.major}.{sys.version_info.minor})")
+        print(f" ✗ Python 3.12+ necessario (atual: {sys.version_info.major}.{sys.version_info.minor})")
         sys.exit(1)
-    print(f"[OK] Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+    print(f" ✓ Python {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
 
 
 def install_backend_deps():
-    print("[Backend] Instalando dependencias...")
+    print(" ↻ Instalando dependencias...")
     result = subprocess.run(
         [sys.executable, "-m", "pip", "install", "-r", "requirements.txt"],
         cwd=BACKEND, capture_output=True, text=True,
     )
     if result.returncode != 0:
-        print(f"[ERROR] Falha ao instalar dependencias do backend:\n{result.stderr}")
+        print(f" ✗ Falha ao instalar dependencias do backend:\n{result.stderr}")
         sys.exit(1)
-    print("[OK] Dependencias do backend instaladas")
+    print(" ✓ Dependencias do backend instaladas")
 
 
 def ensure_pre_commit():
@@ -54,7 +54,7 @@ def ensure_pre_commit():
             capture_output=True, check=True,
         )
     subprocess.run([sys.executable, "-m", "pre_commit", "install"], cwd=ROOT, capture_output=True, check=True)
-    print("[OK] Pre-commit hooks configurados")
+    print(" ✓ Pre-commit hooks configurados")
 
 
 def precisa_rebuildar() -> bool:
@@ -88,27 +88,27 @@ def ensure_frontend():
     try:
         subprocess.run([npm, "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print("[ERROR] npm nao encontrado. Instale Node.js 18+ ou execute manualmente:")
+        print(" ✗ npm nao encontrado. Instale Node.js 18+ ou execute manualmente:")
         print("  cd frontend && npm install && npm run build")
         sys.exit(1)
 
     if not os.path.exists(node_modules):
-        print("[Frontend] node_modules nao encontrado — executando npm install...")
+        print(" ↻ node_modules nao encontrado — executando npm install...")
         result = subprocess.run([npm, "install"], cwd=FRONTEND, capture_output=True, text=True)
         if result.returncode != 0:
-            print(f"[ERROR] npm install falhou:\n{result.stderr}")
+            print(f" ✗ npm install falhou:\n{result.stderr}")
             sys.exit(1)
-        print("[OK] npm install concluido")
+        print(" ✓ npm install concluido")
 
     if precisa_rebuildar():
-        print("[Frontend] Codigo fonte modificado — rebuildando...")
+        print(" ↻ Codigo fonte modificado — rebuildando...")
         result = subprocess.run([npm, "run", "build"], cwd=FRONTEND, capture_output=True, text=True)
         if result.returncode != 0:
-            print(f"[ERROR] npm run build falhou:\n{result.stderr}")
+            print(f" ✗ npm run build falhou:\n{result.stderr}")
             sys.exit(1)
-        print("[OK] Frontend buildado")
+        print(" ✓ Frontend buildado")
     else:
-        print("[OK] Frontend ja atualizado")
+        print(" ✓ Frontend ja atualizado")
 
 
 def check_cloud_sync():
@@ -118,9 +118,9 @@ def check_cloud_sync():
     keywords = ["onedrive", "dropbox", "icloud", "syncthing", "google drive", "box sync"]
     for kw in keywords:
         if kw in abspath:
-            print(f"[!] AVISO: O banco SQLite está em {kw.title()} ({abspath})")
-            print("[!] WAL mode + sincronização de nuvem pode CORROMPER o banco.")
-            print("[!] Use 'python start.py --backup' para backup manual antes de prosseguir.")
+            print(f" ⚠ AVISO: O banco SQLite está em {kw.title()} ({abspath})")
+            print(" ⚠ WAL mode + sincronização de nuvem pode CORROMPER o banco.")
+            print(" ⚠ Use 'python start.py --backup' para backup manual antes de prosseguir.")
 
 
 def ensure_venv():
@@ -129,21 +129,21 @@ def ensure_venv():
         return
 
     if not VENV_DIR.exists():
-        print("[Venv] Criando ambiente virtual...")
+        print(" ↻ Criando ambiente virtual...")
         subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True)
-        print(f"[Venv] venv criado em {VENV_DIR}")
+        print(f" ↻ venv criado em {VENV_DIR}")
 
     venv_python = VENV_DIR / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
     marker = VENV_DIR / ".mindflow_installed"
     if not marker.exists():
-        print("[Venv] Instalando dependencias...")
+        print(" ↻ Instalando dependencias...")
         subprocess.run(
             [str(venv_python), "-m", "pip", "install", "-r", "requirements.txt"],
             cwd=BACKEND, check=True,
         )
 
-    print("[Venv] Ativando ambiente virtual...")
+    print(" ↻ Ativando ambiente virtual...")
     result = subprocess.run([str(venv_python)] + sys.argv, cwd=ROOT)
     sys.exit(result.returncode)
 
@@ -165,9 +165,9 @@ def cold_backup():
         with sqlite3.connect(src) as src_conn:
             with sqlite3.connect(dst) as dst_conn:
                 src_conn.backup(dst_conn, pages=1000)
-        print(f"[Backup] Cópia salva em data/backups/mindflow-{now}.db")
+        print(f" ✓ Cópia salva em data/backups/mindflow-{now}.db")
     except Exception as e:
-        print(f"[Backup] Aviso: não foi possível fazer backup ({e})")
+        print(f" ⚠ Aviso: não foi possível fazer backup ({e})")
 
 
 def check_port():
@@ -178,16 +178,16 @@ def check_port():
         result = sock.connect_ex(('localhost', 8000))
         sock.close()
         if result == 0:
-            print("[ERROR] Porta 8000 já está em uso. Pare o outro processo ou use uma porta diferente.")
+            print(" ✗ Porta 8000 já está em uso. Pare o outro processo ou use uma porta diferente.")
             print("  Para usar porta alternativa: uvicorn main:app --port <PORTA>")
             sys.exit(1)
     except OSError as e:
-        print(f"[WARNING] Não foi possível verificar a porta 8000: {e}")
+        print(f" ⚠ Não foi possível verificar a porta 8000: {e}")
 
 
 def start_server():
-    print("[Server] Iniciando MindFlow em http://localhost:8000")
-    print("[Server] Pressione Ctrl+C para parar...\n")
+    print(" ↻ Iniciando MindFlow em http://localhost:8000")
+    print(" ↻ Pressione Ctrl+C para parar...\n")
 
     proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"],
@@ -197,7 +197,7 @@ def start_server():
     time.sleep(2)
 
     if proc.poll() is not None:
-        print("[ERROR] Servidor nao iniciou. Verifique se a porta 8000 esta livre.")
+        print(" ✗ Servidor nao iniciou. Verifique se a porta 8000 esta livre.")
         sys.exit(1)
 
     return proc
@@ -205,18 +205,18 @@ def start_server():
 
 def open_browser():
     webbrowser.open("http://localhost:8000")
-    print("[Browser] Navegador aberto em http://localhost:8000")
+    print(" ✓ Navegador aberto em http://localhost:8000")
 
 
 def do_backup():
     """Exporta dados via API e salva como JSON."""
     import json, urllib.request
-    print("[Backup] Exportando dados...")
+    print(" ↻ Exportando dados...")
     try:
         proc = start_server()
         time.sleep(2)
         if proc.poll() is not None:
-            print("[ERROR] Servidor nao iniciou para backup.")
+            print(" ✗ Servidor nao iniciou para backup.")
             return
         req = urllib.request.Request("http://localhost:8000/api/export")
         with urllib.request.urlopen(req, timeout=30) as resp:
@@ -225,19 +225,34 @@ def do_backup():
         path = os.path.join(ROOT, f"mindflow-backup-{now}.json")
         with open(path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
-        print(f"[OK] Backup salvo em: {path}")
-        print(f"[OK] Total: {sum(len(v) for v in data.values() if isinstance(v, list))} registros em {sum(1 for v in data.values() if isinstance(v, list))} tabelas")
+        print(f" ✓ Backup salvo em: {path}")
+        print(f" ✓ Total: {sum(len(v) for v in data.values() if isinstance(v, list))} registros em {sum(1 for v in data.values() if isinstance(v, list))} tabelas")
     except Exception as e:
-        print(f"[ERROR] Backup falhou: {e}")
+        print(f" ✗ Backup falhou: {e}")
     finally:
         proc.terminate()
         proc.wait()
 
+def print_banner():
+    slogan = "Seu segundo cérebro local-first, open-source e keyboard-driven"
+    w = len(slogan) + 4
+    version_line = f"MindFlow v{VERSION}"
+    left_pad = (w - len(version_line)) // 2
+    right_pad = w - len(version_line) - left_pad
+    print("╔" + "═" * w + "╗")
+    print("║" + " " * left_pad + version_line + " " * right_pad + "║")
+    print("║  " + slogan + "  ║")
+    print("╚" + "═" * w + "╝")
+    print()
+
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="MindFlow — Gerenciador de produtividade pessoal")
+    parser = argparse.ArgumentParser(description="MindFlow — Seu segundo cérebro local-first, open-source e keyboard-driven")
     parser.add_argument("--backup", action="store_true", help="Exportar dados para JSON e sair (backup a frio)")
     args = parser.parse_args()
+
+    if sys.platform == "win32":
+        sys.stdout.reconfigure(encoding='utf-8')
 
     if args.backup:
         ensure_venv()
@@ -248,28 +263,43 @@ def main():
 
     ensure_venv()
 
-    print("=" * 50)
-    print(f"  MindFlow v{VERSION} — Inicializando...")
-    print("=" * 50)
-    print()
+    print_banner()
 
+    print("═" * 60)
+    print("  Fase 1/3: Ambiente")
+    print("═" * 60)
     check_python()
     check_port()
+    print()
+
+    print("═" * 60)
+    print("  Fase 2/3: Dependências e Build")
+    print("═" * 60)
     install_backend_deps()
     ensure_pre_commit()
     ensure_frontend()
     check_cloud_sync()
     cold_backup()
+    print()
+
+    print("═" * 60)
+    print("  Fase 3/3: Servidor")
+    print("═" * 60)
     proc = start_server()
     open_browser()
+    print()
+
+    db_path = os.path.join(BACKEND, "mindflow.db")
+    print(f" ✓ Banco: {db_path}")
+    print(" ✓ Modo: Produção (porta 8000)")
+    print(" ✓ Pressione Ctrl+C para encerrar")
 
     try:
         proc.wait()
     except KeyboardInterrupt:
-        print("\n[Server] Parando...")
+        print("\n ✓ Servidor encerrado. Até logo!")
         proc.terminate()
         proc.wait()
-        print("[OK] MindFlow parado")
 
 
 if __name__ == "__main__":
