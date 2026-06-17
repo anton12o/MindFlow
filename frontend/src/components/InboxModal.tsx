@@ -80,7 +80,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
             ref={inputRef}
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="O que você está pensando?"
+            placeholder="O que você quer capturar? (Ctrl+I a qualquer momento)"
             className="w-full bg-transparent text-text-primary text-lg placeholder-text-muted outline-none"
           />
           <div className="flex items-center justify-between mt-4">
@@ -95,9 +95,9 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
               <span className="text-xs text-text-muted">Enter para salvar · Esc para fechar</span>
             </div>
             <div className="flex gap-2">
-              {saved && <span className="text-xs text-success">Salvo!</span>}
+              {saved && <span className="text-xs text-success">Capturado!</span>}
               <button type="submit" disabled={createMut.isPending} className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50">
-                {createMut.isPending ? 'Salvando...' : 'Salvar'}
+                {createMut.isPending ? 'Capturando...' : 'Capturar'}
               </button>
             </div>
           </div>

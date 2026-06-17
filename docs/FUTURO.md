@@ -12,6 +12,29 @@
 
 ## 🔴 Alta Prioridade — Refinados, prontos para execução
 
+### Melhorias de texto/UI (16 itens)
+**Status:** ✅ Implementado (v1.2.9)
+**Origem:** Análise de linguagem (Jun/2026)
+
+**Descrição:** Revisão completa de textos da interface (placeholders, labels, tooltips, mensagens de erro, estados vazios) sem adicionar novas funcionalidades. 16 mudanças em 10 arquivos.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/EditorMarkdown.tsx` — placeholder com dica de wikilink
+- `frontend/src/components/InboxModal.tsx` — placeholder + botão "Capturar"
+- `frontend/src/components/ErrorBoundary.tsx` — mensagem amigável
+- `frontend/src/components/CommandPalette.tsx` — dica em estados vazios
+- `frontend/src/pages/Ideias.tsx` — busca, labels, favoritos vazio, placeholders
+- `frontend/src/pages/Habitos.tsx` — placeholder de meta
+- `frontend/src/components/HabitoCalendario.tsx` — legenda
+- `frontend/src/pages/Dashboard.tsx` — tooltip no streak
+- `start.py` — dica de atalhos + finally na despedida
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min de edição. Zero risco — apenas trocas de string e 1 import novo (`placeholder` do `@codemirror/view`).
+
+---
+
 ### Header injection via título de nota no export MD
 **Status:** ✅ Implementado
 **Origem:** Análise técnica (Jun/2026)

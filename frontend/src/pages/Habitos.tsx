@@ -167,7 +167,7 @@ export default function Habitos() {
                   <input value={editForm.categoria} onChange={e => setEditForm(f => ({ ...f, categoria: e.target.value }))}
                     placeholder="Categoria" className="bg-bg-primary rounded px-2 py-1 text-sm w-24 outline-none" />
                   <input value={editForm.meta} onChange={e => setEditForm(f => ({ ...f, meta: e.target.value }))}
-                    placeholder="Meta" className="bg-bg-primary rounded px-2 py-1 text-sm w-16 outline-none" />
+                    placeholder="Meta diária (ex: 8 copos)" className="bg-bg-primary rounded px-2 py-1 text-sm w-16 outline-none" />
                 </div>
               ) : (
                 <div className="flex items-center gap-3 min-w-0">
