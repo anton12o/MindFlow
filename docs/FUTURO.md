@@ -10,6 +10,24 @@
 
 ---
 
+### read_text() sem proteção (logs.py)
+**Status:** ✅ Implementado (v1.2.10)
+**Descrição:** `get_logs` em `logs.py:23` chamava `read_text()` sem try/except. Se o arquivo de log estivesse corrompido (disco cheio, gravação concorrente), o modal de Logs crashava com 500.
+
+---
+
+### Validação de data em DELETE /pomodoro/sessoes
+**Status:** ✅ Implementado (v1.2.10)
+**Descrição:** `delete_sessoes` aceitava qualquer string em `antes_de` sem validar formato. Data inválida propagava erro SQL como 500. Adicionado `strptime` com 422.
+
+---
+
+### WAL checkpoint com erro silencioso (shutdown.py)
+**Status:** ✅ Implementado (v1.2.10)
+**Descrição:** `_wal_checkpoint` em `shutdown.py:44` usava `except Exception: pass`, engolindo falhas do WAL checkpoint sem nenhum registro. Trocado para `logger.warning(...)`.
+
+---
+
 ## 🔴 Alta Prioridade — Refinados, prontos para execução
 
 ### Melhorias de texto/UI (16 itens)

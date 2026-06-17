@@ -20,7 +20,10 @@ def get_logs(n: int = 50, level: str | None = None):
     if not LOG_FILE.exists():
         return {"entries": [], "total": 0}
 
-    lines = LOG_FILE.read_text(encoding="utf-8").strip().split("\n")
+    try:
+        lines = LOG_FILE.read_text(encoding="utf-8").strip().split("\n")
+    except Exception:
+        return {"entries": [], "total": 0}
     entries = []
     for line in reversed(lines):
         if not line.strip():

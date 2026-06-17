@@ -41,8 +41,8 @@ def _wal_checkpoint():
         with Session(engine) as session:
             session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
             session.commit()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("WAL checkpoint falhou: %s", e)
 
 atexit.register(_wal_checkpoint)
 
