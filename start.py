@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.8"
+VERSION = "1.2.9"
 VENV_DIR = Path(ROOT) / "venv"
 
 
@@ -292,14 +292,17 @@ def main():
     db_path = os.path.join(BACKEND, "mindflow.db")
     print(f" ✓ Banco: {db_path}")
     print(" ✓ Modo: Produção (porta 8000)")
+    print(" ✓ Dica: Ctrl+I captura ideias, Ctrl+K abre comandos")
     print(" ✓ Pressione Ctrl+C para encerrar")
 
     try:
         proc.wait()
     except KeyboardInterrupt:
-        print("\n ✓ Servidor encerrado. Até logo!")
         proc.terminate()
         proc.wait()
+    finally:
+        print("\n ✓ Servidor encerrado com segurança")
+        print("   Até logo!")
 
 
 if __name__ == "__main__":

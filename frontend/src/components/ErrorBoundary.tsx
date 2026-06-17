@@ -21,8 +21,8 @@ export default class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="h-full min-h-[200px] flex items-center justify-center bg-bg-primary text-text-primary">
           <div className="text-center">
-            <h1 className="text-xl font-bold mb-2">Algo deu errado</h1>
-            <p className="text-sm text-text-muted mb-4">{this.state.error?.message}</p>
+            <h1 className="text-xl font-bold mb-2">Não foi possível carregar esta seção</h1>
+            <p className="text-sm text-text-muted mb-4">Verifique se o servidor está rodando. {this.state.error?.message}</p>
             <button onClick={() => { this.setState({ hasError: false }); window.location.reload() }}
               className="px-4 py-2 bg-accent text-white rounded-lg text-sm">
               Recarregar
