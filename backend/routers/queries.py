@@ -1,4 +1,3 @@
-import re
 import logging
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,12 +10,20 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+CAMPOS_AGRUPAMENTO = frozenset({
+    "status", "prioridade", "titulo", "data", "criado_em", "atualizado_em",
+    "autor", "fonte", "lido_em", "avaliacao", "paginas",
+    "vencimento", "estimativa", "data_inicio", "data_fim", "cover_url",
+})
+
 @router.get("", response_model=list[QuerySalvaRead])
 def list_queries(session: Session = Depends(get_session)):
     return session.exec(select(QuerySalva)).all()
 
 @router.post("", response_model=QuerySalvaRead)
 def create_query(q: QuerySalvaCreate, session: Session = Depends(get_session)):
+    if not session.get(TipoObjeto, q.tipo_objeto_id):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
     db = QuerySalva(**q.model_dump())
     session.add(db)
     session.commit()
@@ -103,7 +110,7 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             if not q.campo_agrupamento:
                 raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para filtro por mês")
             campo = q.campo_agrupamento
-            if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', campo):
+            if campo not in CAMPOS_AGRUPAMENTO:
                 raise HTTPException(status_code=422, detail="campo_agrupamento inválido")
             stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
         # Gantt view: filter only notes with both data_inicio and data_fim

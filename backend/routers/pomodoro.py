@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 from database import get_session
-from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead
+from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead, Nota
 from services.notes import criar_nota_resumo
 from datetime import datetime
 from pydantic import BaseModel
@@ -20,6 +20,8 @@ def list_sessoes(session: Session = Depends(get_session)):
 
 @router.post("/sessoes", response_model=SessaoPomodoroRead)
 def create_sessao(s: SessaoPomodoroCreate, session: Session = Depends(get_session)):
+    if s.resumo_nota_id is not None and not session.get(Nota, s.resumo_nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
     db = SessaoPomodoro(**s.model_dump())
     session.add(db)
     session.commit()

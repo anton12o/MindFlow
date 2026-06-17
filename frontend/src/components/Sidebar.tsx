@@ -29,6 +29,7 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
   const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null)
   const shutdownTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const shutdownAbortRef = useRef<AbortController | undefined>(undefined)
+  const [shutdownDone, setShutdownDone] = useState(false)
   const currentPath = location.pathname
 
   function handleShutdown() {
@@ -37,12 +38,12 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
 
     const controller = new AbortController()
     shutdownAbortRef.current = controller
-    fetch('/api/shutdown', { method: 'POST', signal: controller.signal }).catch(() => {})
+    fetch('/api/shutdown', { method: 'POST', signal: controller.signal }).catch(e => console.error('[Sidebar]', e))
 
     const timer = (count: number) => {
       if (count <= 0) {
         setShutdownCountdown(null)
-        setTimeout(() => window.location.reload(), 500)
+        setShutdownDone(true)
         return
       }
       setShutdownCountdown(count)
@@ -151,7 +152,7 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
         />
       )}
       {shutdownCountdown !== null && shutdownCountdown > 0 && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center animate-fade-in">
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
             <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
             <p className="text-sm text-text-muted">Encerrando servidor...</p>
@@ -161,6 +162,15 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
             >
               Cancelar
             </button>
+          </div>
+        </div>
+      )}
+      {shutdownDone && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
+            <div className="text-4xl">⏻</div>
+            <p className="text-base font-medium text-text-primary">Servidor encerrado</p>
+            <p className="text-sm text-text-muted">Você pode fechar esta aba.</p>
           </div>
         </div>
       )}
