@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mindflow-v1.2.0';
+const CACHE_NAME = 'mindflow-__VERSION__';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

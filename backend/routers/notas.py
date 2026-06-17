@@ -80,10 +80,17 @@ def list_pastas(session: Session = Depends(get_session)):
 
 @router.post("/pastas", response_model=PastaRead)
 def create_pasta(p: PastaCreate, session: Session = Depends(get_session)):
+    if p.pai_id is not None and not session.get(Pasta, p.pai_id):
+        raise HTTPException(status_code=404, detail="Pasta pai não encontrada")
     db = Pasta(**p.model_dump())
     session.add(db)
-    session.commit()
-    session.refresh(db)
+    try:
+        session.commit()
+        session.refresh(db)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.create_pasta] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao criar pasta")
     return db
 
 # ─── Tags ───
@@ -98,8 +105,13 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
         return existing
     db = Tag(**t.model_dump())
     session.add(db)
-    session.commit()
-    session.refresh(db)
+    try:
+        session.commit()
+        session.refresh(db)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.create_tag] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao criar tag")
     return db
 
 # ─── Notas ───
@@ -160,13 +172,22 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
 
 @router.post("", response_model=NotaRead)
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
+    if n.pasta_id is not None and not session.get(Pasta, n.pasta_id):
+        raise HTTPException(status_code=404, detail="Pasta não encontrada")
+    if n.tipo_id is not None and not session.get(TipoObjeto, n.tipo_id):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
     db = Nota(**n.model_dump())
     db.cover_url = extrair_cover_url(db.conteudo, db.propriedades)
     session.add(db)
     session.flush()
     processar_wikilinks(db.id, db.conteudo, session)
-    session.commit()
-    session.refresh(db)
+    try:
+        session.commit()
+        session.refresh(db)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.create_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao criar nota")
     return db
 
 # Rotas com caminho fixo — devem vir ANTES de /{nota_id} para evitar conflito
@@ -193,8 +214,13 @@ def list_templates(session: Session = Depends(get_session)):
 def create_template(t: TemplateBase, session: Session = Depends(get_session)):
     db = TemplateNota(**t.model_dump())
     session.add(db)
-    session.commit()
-    session.refresh(db)
+    try:
+        session.commit()
+        session.refresh(db)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.create_template] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao criar template")
     return db
 
 @router.post("/templates/{template_id}/aplicar", response_model=NotaRead)
@@ -209,8 +235,13 @@ def aplicar_template(template_id: int, session: Session = Depends(get_session)):
     session.flush()
     if conteudo:
         processar_wikilinks(nota.id, conteudo, session)
-    session.commit()
-    session.refresh(nota)
+    try:
+        session.commit()
+        session.refresh(nota)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.aplicar_template] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao aplicar template")
     return nota
 
 @router.get("/estatisticas")
@@ -236,8 +267,13 @@ def get_nota(nota_id: int, session: Session = Depends(get_session)):
     nota.acessos = (nota.acessos or 0) + 1
     nota.ultimo_acesso = datetime.now().isoformat()
     session.add(nota)
-    session.commit()
-    session.refresh(nota)
+    try:
+        session.commit()
+        session.refresh(nota)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.get_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao registrar acesso")
     return nota
 
 @router.patch("/{nota_id}", response_model=NotaRead)
@@ -246,6 +282,10 @@ def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_sess
     if not db:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
     data = n.model_dump(exclude_unset=True)
+    if "pasta_id" in data and data["pasta_id"] is not None and not session.get(Pasta, data["pasta_id"]):
+        raise HTTPException(status_code=404, detail="Pasta não encontrada")
+    if "tipo_id" in data and data["tipo_id"] is not None and not session.get(TipoObjeto, data["tipo_id"]):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
     data["atualizado_em"] = datetime.now().isoformat()
     for k, v in data.items():
         setattr(db, k, v)
@@ -256,8 +296,13 @@ def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_sess
     session.flush()
     if "conteudo" in data:
         processar_wikilinks(db.id, db.conteudo, session)
-    session.commit()
-    session.refresh(db)
+    try:
+        session.commit()
+        session.refresh(db)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.update_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao atualizar nota")
     return db
 
 @router.delete("/{nota_id}")
@@ -267,7 +312,12 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Nota não encontrada")
     _cleanup_nota_relations(nota_id, session)
     session.delete(n)
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.delete_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao excluir nota")
     return {"ok": True}
 
 @router.post("/batch/delete")
@@ -298,7 +348,12 @@ def batch_delete_notas(body: BatchDeleteRequest, session: Session = Depends(get_
             continue
         session.delete(n)
         deleted += 1
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.batch_delete_notas] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao excluir notas")
     return {"ok": True, "deleted": deleted}
 
 @router.get("/{nota_id}/export/md")
@@ -350,6 +405,8 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
     if not original:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
     titulo = body.trecho.split('\n')[0][:60] or "Trecho extraído"
+    if body.tipo_id is not None and not session.get(TipoObjeto, body.tipo_id):
+        raise HTTPException(status_code=404, detail="Tipo não encontrado")
     nova = Nota(titulo=titulo.strip(), conteudo=body.trecho, tipo_id=body.tipo_id)
     nova.cover_url = extrair_cover_url(nova.conteudo, nova.propriedades)
     session.add(nova)
@@ -357,8 +414,13 @@ def extrair_bloco(nota_id: int, body: ExtrairInput, session: Session = Depends(g
     original.conteudo += f"\n\n[[{nova.titulo}]]"
     session.add(original)
     processar_wikilinks(original.id, original.conteudo, session)
-    session.commit()
-    session.refresh(nova)
+    try:
+        session.commit()
+        session.refresh(nova)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.extrair_bloco] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao extrair bloco")
     return nova
 
 @router.patch("/{nota_id}/favoritar", response_model=NotaRead)
@@ -369,8 +431,13 @@ def favoritar_nota(nota_id: int, session: Session = Depends(get_session)):
     nota.favoritado = not nota.favoritado
     nota.atualizado_em = datetime.now().isoformat()
     session.add(nota)
-    session.commit()
-    session.refresh(nota)
+    try:
+        session.commit()
+        session.refresh(nota)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.favoritar_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao favoritar nota")
     return nota
 
 @router.delete("/tags/{tag_id}")
@@ -382,7 +449,12 @@ def delete_tag(tag_id: int, session: Session = Depends(get_session)):
     for nt in nts:
         session.delete(nt)
     session.delete(tag)
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.delete_tag] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao excluir tag")
     return {"ok": True}
 
 @router.patch("/tags/{tag_id}", response_model=TagRead)
@@ -398,8 +470,13 @@ def update_tag(tag_id: int, t: TagUpdate, session: Session = Depends(get_session
     for k, v in data.items():
         setattr(tag, k, v)
     session.add(tag)
-    session.commit()
-    session.refresh(tag)
+    try:
+        session.commit()
+        session.refresh(tag)
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.update_tag] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao atualizar tag")
     return tag
 
 @router.get("/{nota_id}/tags", response_model=list[TagRead])
@@ -420,7 +497,12 @@ def remove_tag_from_nota(nota_id: int, tag_id: int, session: Session = Depends(g
     if not nt:
         raise HTTPException(status_code=404, detail="Tag não associada à nota")
     session.delete(nt)
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.remove_tag_from_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao remover tag")
     return {"ok": True}
 
 @router.delete("/pastas/{pasta_id}")
@@ -433,11 +515,20 @@ def delete_pasta(pasta_id: int, session: Session = Depends(get_session)):
         n.pasta_id = None
         session.add(n)
     session.delete(pasta)
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.delete_pasta] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao excluir pasta")
     return {"ok": True}
 
 @router.post("/{nota_id}/tags/{tag_id}")
 def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_session)):
+    if not session.get(Nota, nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    if not session.get(Tag, tag_id):
+        raise HTTPException(status_code=404, detail="Tag não encontrada")
     existing = session.exec(
         select(NotaTag).where(NotaTag.nota_id == nota_id, NotaTag.tag_id == tag_id)
     ).first()
@@ -445,7 +536,12 @@ def add_tag_to_nota(nota_id: int, tag_id: int, session: Session = Depends(get_se
         return {"ok": True}
     nt = NotaTag(nota_id=nota_id, tag_id=tag_id)
     session.add(nt)
-    session.commit()
+    try:
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error("[notas.add_tag_to_nota] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao adicionar tag")
     return {"ok": True}
 
 @router.get("/{nota_id}/conexoes", response_model=list[ConexaoNotaRead])

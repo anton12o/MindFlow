@@ -1,7 +1,8 @@
+import atexit
+import os
 import threading
 import logging
-import shutil
-import sys
+import sqlite3
 import time
 from pathlib import Path
 from sqlmodel import Session, text
@@ -12,7 +13,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 BACKUP_DIR = Path(__file__).parent.parent / "data" / "backups"
-DB_PATH = Path(__file__).parent.parent / "data" / "mindflow.db"
+DB_PATH = Path(__file__).parent.parent / "mindflow.db"
 
 
 def cold_backup():
@@ -22,7 +23,10 @@ def cold_backup():
     try:
         BACKUP_DIR.mkdir(parents=True, exist_ok=True)
         now = time.strftime("%Y-%m-%d_%H-%M-%S")
-        shutil.copy2(str(DB_PATH), str(BACKUP_DIR / f"mindflow-{now}.db"))
+        dst = str(BACKUP_DIR / f"mindflow-{now}.db")
+        with sqlite3.connect(str(DB_PATH)) as src_conn:
+            with sqlite3.connect(dst) as dst_conn:
+                src_conn.backup(dst_conn, pages=1000)
         logger.info("Backup salvo: data/backups/mindflow-%s.db", now)
 
         backups = sorted(BACKUP_DIR.glob("mindflow-*.db"))
@@ -32,16 +36,21 @@ def cold_backup():
         logger.warning("Falha ao fazer backup antes de encerrar: %s", e)
 
 
-@router.post("/shutdown")
-def shutdown():
-    logger.info("Recebido pedido de encerramento via API")
-    cold_backup()
+def _wal_checkpoint():
     try:
         with Session(engine) as session:
             session.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))
             session.commit()
-        logger.info("WAL checkpoint realizado com sucesso")
-    except Exception as e:
-        logger.warning("Falha ao fazer WAL checkpoint: %s", e)
-    threading.Timer(0.5, lambda: sys.exit(0)).start()
+    except Exception:
+        pass
+
+atexit.register(_wal_checkpoint)
+
+
+@router.post("/shutdown")
+def shutdown():
+    logger.info("Recebido pedido de encerramento via API")
+    _wal_checkpoint()
+    cold_backup()
+    threading.Timer(0.5, lambda: os._exit(0)).start()
     return {"ok": True}

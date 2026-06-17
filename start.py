@@ -113,7 +113,7 @@ def ensure_frontend():
 
 def check_cloud_sync():
     """Alerta se o banco estiver dentro de pasta sincronizada (WAL + cloud = corrupção)."""
-    src = os.path.join(BACKEND, "data", "mindflow.db")
+    src = os.path.join(BACKEND, "mindflow.db")
     abspath = os.path.abspath(src).lower()
     keywords = ["onedrive", "dropbox", "icloud", "syncthing", "google drive", "box sync"]
     for kw in keywords:
@@ -150,8 +150,8 @@ def ensure_venv():
 
 def cold_backup():
     """Copia mindflow.db para backups/ antes de iniciar o servidor."""
-    import glob, shutil
-    src = os.path.join(BACKEND, "data", "mindflow.db")
+    import glob, sqlite3
+    src = os.path.join(BACKEND, "mindflow.db")
     if not os.path.exists(src):
         return
     dst_dir = os.path.join(BACKEND, "data", "backups")
@@ -161,7 +161,10 @@ def cold_backup():
         while len(backups) > 6:
             os.remove(backups.pop(0))
         now = time.strftime("%Y-%m-%d_%H-%M-%S")
-        shutil.copy2(src, os.path.join(dst_dir, f"mindflow-{now}.db"))
+        dst = os.path.join(dst_dir, f"mindflow-{now}.db")
+        with sqlite3.connect(src) as src_conn:
+            with sqlite3.connect(dst) as dst_conn:
+                src_conn.backup(dst_conn, pages=1000)
         print(f"[Backup] Cópia salva em data/backups/mindflow-{now}.db")
     except Exception as e:
         print(f"[Backup] Aviso: não foi possível fazer backup ({e})")

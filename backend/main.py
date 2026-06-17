@@ -15,7 +15,7 @@ from logging_config import setup_logging
 logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
 
-VERSION = "1.2.0"
+VERSION = "1.2.4"
 
 
 @asynccontextmanager
