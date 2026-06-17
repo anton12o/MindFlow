@@ -188,6 +188,21 @@
 
 ---
 
+### Quick Catch — salvar interrupções do Pomodoro no Inbox
+**Status:** ✅ Implementado (v1.2.7)
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Interrupções anotadas durante o foco são salvas como notas Inbox (`tipo: 'inbox'`) ao finalizar a sessão. Cada interrupção vira uma nota com título `🧠 {texto}`. Reusa endpoint `POST /notas` existente.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/PomodoroTimer.tsx` — `salvarInterrupcoesNoInbox()` chamado em `handleFinalizar`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~15min. Fire-and-forget com `.catch()`.
+
+---
+
 ### Normalização de diacríticos na busca
 **Status:** ✅ Implementado (Jun/2026)
 **Origem:** Análise DeepSeek (Jun/2026)
@@ -205,6 +220,21 @@
 **Descrição:** `os.kill` em `shutdown.py` matava o processo antes do response chegar ao frontend. Corrigido com `threading.Timer(0.5, ...)` para agendar o kill depois da resposta. `PRAGMA wal_checkpoint(TRUNCATE)` executado antes do kill.
 
 **Arquivos:** `backend/routers/shutdown.py`
+
+---
+
+### Heartbeat no Pomodoro (checkpoint localStorage + restore)
+**Status:** ✅ Implementado (v1.2.7)
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Se o navegador fechar ou o app cair durante uma sessão pomodoro, o progresso do timer é perdido. Salvar checkpoint no `localStorage` a cada segundo com `remainingMs`, `fase`, `cicloAtual`, `interrupcoes`. No mount, se detectar sessão salva (< 2h), exibir prompt "Continuar sessão?" que recria sessão com tempo restante.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/PomodoroTimer.tsx` — `saveHeartbeat()` no tick, `handleRestore()` no mount
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min. Zero backend, zero migration.
 
 ---
 
@@ -1072,6 +1102,28 @@
 
 ---
 
+### Extrair PomodoroEngine (Clean Architecture)
+
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Extrair lógica do timer (cálculo, estados `OCIOSO/FOCO/PAUSADO/DESCANSO_CURTO/DESCANSO_LONGO`, `canTransition`) para classe pura `PomodoroEngine` sem importar React ou JSX. O componente `PomodoroTimer.tsx` só "pergunta" o tempo e renderiza.
+
+**Benefício:** Testabilidade sem React, reuso em CLI/web, separação de responsabilidades SRP.
+
+**Risco:** Refatoração sem valor imediato para o usuário. ~4h de engenharia, 0 impacto funcional.
+
+**Arquivos envolvidos:**
+- `frontend/src/engine/pomodoro.ts` (novo) — classe `PomodoroEngine`
+- `frontend/src/components/PomodoroTimer.tsx` — consumir engine
+- `frontend/src/store/pomodoro.tsx` — remover lógica duplicada
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~4h. Fazer apenas se houver demanda de testes unitários do timer ou versão CLI.
+
+---
+
 ### CASCADE deletes via migration
 **Status:** ⏳ Planejado
 **Origem:** Análise técnica (Jun/2026)
@@ -1165,6 +1217,106 @@
 **Dependências:** Nenhuma.
 
 **Observações:** ~30min. Apenas CSS/Tailwind.
+
+---
+
+### Heatmap de foco (calendário de produtividade)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Visualizar dias e horários de maior concentração. Novo endpoint `GET /api/pomodoro/heatmap` agregando sessões por hora/dia. Reutilizar componente de calendário do Insights.tsx.
+
+**Arquivos envolvidos:**
+- `backend/routers/pomodoro.py` — novo endpoint
+- `frontend/src/api/pomodoro.ts` — função heatmap
+- `frontend/src/pages/Pomodoro.tsx` — novo widget
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~2h. Visualiza padrões de quando o usuário é mais produtivo.
+
+---
+
+### Self-report de foco (avaliação 1-5 por ciclo)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Ao final de cada ciclo de foco, exibir prompt simples (1 a 5 estrelas) perguntando sobre a qualidade do foco. Campo `foco_avaliado` na tabela `sessoes_pomodoro`. Permite identificar padrões de fadiga (ex: às 14h a nota é sempre 2).
+
+**Arquivos envolvidos:**
+- `backend/models.py` — novo campo `foco_avaliado: Optional[int]`
+- Migration Alembic
+- `frontend/src/components/PomodoroTimer.tsx` — prompt de avaliação no foco_end
+- `frontend/src/types/index.ts` — campo no tipo SessaoPomodoro
+
+**Dependências:** Migration.
+
+**Observações:** ~1h + migration. Atrito: prompt adicional ao final do ciclo pode cansar. Fazer opcional.
+
+---
+
+### Slash Commands no editor (/pomodoro 25)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Digitar `/pomodoro 25` no editor Markdown → navegar para `/pomodoro?duracao=25&modo=slash`. Evita sair da nota para iniciar timer.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/EditorMarkdown.tsx` — detectar slash command
+- `frontend/src/components/PomodoroTimer.tsx` — aceitar `duracao` via searchParams
+- `frontend/src/pages/Pomodoro.tsx` — propagar parâmetro
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~3h. Nicho — power users.
+
+---
+
+### Sugestões inteligentes de descanso
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Baseado no histórico de ciclos, sugerir tipo de descanso. Ex: "Você fez 4 ciclos intensos. Recomendo descanso longo." Usar regras simples, sem IA.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/PomodoroTimer.tsx` — lógica de sugestão + UI no pausa_end
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min. Lógica puramente baseada em contagem de ciclos consecutivos.
+
+---
+
+### Gamificação preditiva (análise de queda de desempenho)
+**Status:** ⏳ Ideia
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Se os dados mostram queda de 15% no foco após o 3º ciclo, sugerir "Seu desempenho cai após o 3º ciclo. Considere descanso longo agora." Requer coleta de `foco_avaliado` ao longo do tempo.
+
+**Arquivos envolvidos:**
+- `backend/routers/pomodoro.py` — endpoint de análise
+- `frontend/src/components/PomodoroTimer.tsx` — exibir sugestão preditiva
+
+**Dependências:** Self-report de foco (campo `foco_avaliado`).
+
+**Observações:** ~4h. Complexidade alta para valor incremental. Só implementar após haver dados históricos suficientes.
+
+---
+
+### Correlação temporal de foco (dashboard analítico)
+**Status:** ⏳ Planejado
+**Origem:** Análise técnica (Jun/2026)
+
+**Descrição:** Dashboard mostrando correlação entre horário do dia e nota de foco média. Se `foco_avaliado` = 2 sempre às 14h, sugere não agendar tarefas críticas nesse horário.
+
+**Arquivos envolvidos:**
+- `backend/routers/pomodoro.py` — novo endpoint analítico
+- `frontend/src/pages/Dashboard.tsx` — widget de correlação temporal
+- Reutilizar gráfico d3 existente no projeto
+
+**Dependências:** Self-report de foco.
+
+**Observações:** ~3h. Só faz sentido com dados históricos.
 
 ---
 
