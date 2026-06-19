@@ -67,7 +67,10 @@ export default function Dashboard() {
   const checkHabitoMut = useMutation({
     mutationFn: ({ habitoId, data }: { habitoId: number; data: string }) =>
       createRegistro(habitoId, { habito_id: habitoId, data, valor: 1 }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['habitos'] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['habitos'] })
+      queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
+    },
   })
 
   function handleToggleTarefa(t: DashboardStats['tarefas'][number]) {

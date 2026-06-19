@@ -421,6 +421,7 @@ export default function Consultas() {
     mutationFn: () => batchEdit(selectedQuery!, [...selectedIds], { [batchField]: batchValue }),
     onSuccess: () => {
       refetchResult()
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
       setSelectedIds(new Set())
     },
   })

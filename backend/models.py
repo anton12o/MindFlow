@@ -1,6 +1,7 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
 from sqlalchemy import UniqueConstraint
 from typing import Optional, Any
+from pydantic import field_validator
 from datetime import datetime, date
 
 def now():
@@ -34,7 +35,14 @@ class InboxItemRead(InboxItemBase):
 # ─── Hábitos ───
 class HabitoBase(SQLModel):
     nome: str = Field(min_length=1)
-    tipo: str = "binario"  # binario | quantitativo
+    tipo: str = "binario"
+
+    @field_validator('tipo')
+    @classmethod
+    def check_tipo(cls, v: str) -> str:
+        if v not in ("binario", "quantitativo"):
+            raise ValueError(f'tipo inválido: "{v}". Deve ser "binario" ou "quantitativo"')
+        return v
     meta: Optional[float] = None
     unidade: Optional[str] = None
     categoria: Optional[str] = None
@@ -51,7 +59,7 @@ class HabitoCreate(HabitoBase):
     pass
 
 class HabitoUpdate(SQLModel):
-    nome: Optional[str] = None
+    nome: Optional[str] = Field(default=None, min_length=1)
     tipo: Optional[str] = None
     meta: Optional[float] = None
     categoria: Optional[str] = None
@@ -99,7 +107,7 @@ class BlocoRotinaCreate(BlocoRotinaBase):
     pass
 
 class BlocoRotinaUpdate(SQLModel):
-    titulo: Optional[str] = None
+    titulo: Optional[str] = Field(default=None, min_length=1)
     hora_inicio: Optional[str] = None
     hora_fim: Optional[str] = None
     cor: Optional[str] = None
@@ -112,9 +120,23 @@ class BlocoRotinaRead(BlocoRotinaBase):
 
 class TarefaBase(SQLModel):
     titulo: str = Field(min_length=1)
-    prioridade: str = "normal"  # baixa | normal | alta | urgente
+    prioridade: str = "normal"
     tempo_estimado: Optional[int] = None
-    status: str = "pendente"  # pendente | em_andamento | feito
+    status: str = "pendente"
+
+    @field_validator('prioridade')
+    @classmethod
+    def check_prioridade(cls, v: str) -> str:
+        if v not in ("baixa", "normal", "alta", "urgente"):
+            raise ValueError(f'prioridade inválida: "{v}". Deve ser "baixa", "normal", "alta" ou "urgente"')
+        return v
+
+    @field_validator('status')
+    @classmethod
+    def check_status(cls, v: str) -> str:
+        if v not in ("pendente", "em_andamento", "feito"):
+            raise ValueError(f'status inválido: "{v}". Deve ser "pendente", "em_andamento" ou "feito"')
+        return v
     bloco_id: Optional[int] = Field(default=None, foreign_key="blocos_rotina.id")
     data: str
     tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
@@ -135,7 +157,7 @@ class TarefaCreate(SQLModel):
     propriedades: dict[str, Any] = {}
 
 class TarefaUpdate(SQLModel):
-    titulo: Optional[str] = None
+    titulo: Optional[str] = Field(default=None, min_length=1)
     prioridade: Optional[str] = None
     status: Optional[str] = None
     tempo_estimado: Optional[int] = None
@@ -232,7 +254,7 @@ class NotaRead(NotaBase):
     ultimo_acesso: Optional[str] = None
 
 class NotaUpdate(SQLModel):
-    titulo: Optional[str] = None
+    titulo: Optional[str] = Field(default=None, min_length=1)
     conteudo: Optional[str] = None
     pasta_id: Optional[int] = None
     tipo_id: Optional[int] = None
@@ -283,8 +305,8 @@ class FlashcardCreate(SQLModel):
     resposta: str = Field(min_length=1)
 
 class FlashcardUpdate(SQLModel):
-    pergunta: Optional[str] = None
-    resposta: Optional[str] = None
+    pergunta: Optional[str] = Field(default=None, min_length=1)
+    resposta: Optional[str] = Field(default=None, min_length=1)
     nota_id: Optional[int] = None
 
 class FlashcardRead(FlashcardBase):
@@ -338,7 +360,14 @@ class QuerySalva(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     nome: str
     tipo_objeto_id: int = Field(foreign_key="tipos_objeto.id")
-    visualizacao: str = "grid"  # grid | kanban
+    visualizacao: str = "grid"
+
+    @field_validator('visualizacao')
+    @classmethod
+    def check_visualizacao(cls, v: str) -> str:
+        if v not in ("grid", "kanban"):
+            raise ValueError(f'visualizacao inválida: "{v}". Deve ser "grid" ou "kanban"')
+        return v
     campo_agrupamento: str | None = None  # usado no kanban: ex: "status", "prioridade"
     filtros: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     ordem: str = "criado_em DESC"

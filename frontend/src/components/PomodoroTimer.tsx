@@ -71,7 +71,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
         }
         localStorage.removeItem(HB_KEY)
       }
-    } catch {}
+    } catch (e) { console.error('[PomodoroTimer.restore]', e) }
   }, [ativo, sessaoId])
 
   function salvarInterrupcoesNoInbox() {
@@ -93,7 +93,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
     saveTimeout.current = setTimeout(() => {
       try {
         localStorage.setItem('mindflow_pomodoro_config', JSON.stringify(config))
-      } catch {}
+      } catch (e) { console.error('[PomodoroTimer.save]', e) }
     }, 500)
     return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
   }, [config])

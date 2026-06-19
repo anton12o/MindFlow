@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from database import get_session
 from models import SessaoPomodoro, SessaoPomodoroCreate, SessaoPomodoroRead, Nota
@@ -14,9 +14,9 @@ class FinalizarSessaoBody(BaseModel):
     contexto_nome: Optional[str] = None
 
 @router.get("/sessoes", response_model=list[SessaoPomodoroRead])
-def list_sessoes(session: Session = Depends(get_session)):
+def list_sessoes(limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(SessaoPomodoro).order_by(SessaoPomodoro.iniciado_em.desc())
-    return session.exec(stmt).all()
+    return session.exec(stmt.offset(offset).limit(limit)).all()
 
 @router.post("/sessoes", response_model=SessaoPomodoroRead)
 def create_sessao(s: SessaoPomodoroCreate, session: Session = Depends(get_session)):
