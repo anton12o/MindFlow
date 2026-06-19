@@ -49,7 +49,11 @@ kill -9 <PID>              # Linux/macOS
 taskkill /PID <PID> /F     # Windows
 
 # Or change the port
-uvicorn main:app --port 8001
+python start.py --port 3000
+
+# O script start.py já tem fallback automático:
+# se 8000 estiver ocupado, tenta 8001, 8002... até achar livre
+# (com --port explícito, NÃO faz fallback — falha se ocupado)
 ```
 
 #### 2. Database Locked
@@ -488,5 +492,5 @@ npm --version
 
 ---
 
-*Última atualização: 16 de junho de 2026*
-*Versão: v1.2.3*
+*Última atualização: 19 de junho de 2026*
+*Versão: v1.2.11*

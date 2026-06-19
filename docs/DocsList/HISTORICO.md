@@ -19,6 +19,29 @@ uma única ferramenta integrada.
 
 ## Funcionalidades Completas
 
+### v1.2.11 — Correções de robustez, notificações, port fallback, Sidebar/Pastas UX
+- **`start.py` sem Git**: `ensure_pre_commit()` checa `git --version` + try/except, warning + continue
+- **Export nota 500**: `n.titulo or '(sem titulo)'` em Content-Disposition
+- **Query 422**: `if mes and q.campo_agrupamento:` — skip month filter sem campo_agrupamento
+- **Pomodoro som background**: `Notification.requestPermission()`, `visibilitychange`→`resume()`, closed guard
+- **PomodoroBadge global**: badge `⚡ MM:SS` fixo no canto superior direito, independente do timer
+- **Pomodoro livre**: screen `'livre'`, `handleFree()`, `canTransition` inclui livre, cronômetro crescente
+- **Ideias UI**: `border-b` removido, data abaixo do título `text-xs`, Star outline, sentence case headers, botão + sem bg
+- **`--port` + fallback**: `resolve_port()` com auto-fallback 8000→8001→8002..., propagado para todas as funções
+- **N+1 batch_edit**: `select().where(id.in_())` em vez de loop N SELECTs
+- **Diário duplicado**: `useRef` `diarioCreating` trava criação concorrente
+- **Notificação global**: `NotificationProvider` + `useNotify()` — toast com slide-up, 4s auto-dismiss, aplicado em 13 catch blocks
+- **README**: Git prereq, `node node_modules/typescript/bin/tsc --noEmit`, `--port` documentado
+- **Pastas collapse/delete**: header colapsável alinhado com Favoritos/Tags, X button em cada pasta, ConfirmModal
+- **Criação nota Ideias**: correção de duplicação no mapeamento de favoritas
+- **Setas Revisão Semanal**: encoding UTF-8 corrigido
+- **Normalização CRLF**: 19 arquivos com espaçamento duplo normalizados
+- **Sidebar lucide-react**: ícones de texto → componentes lucide-react, w-10→w-11, navegação colapsável "Mais..."
+- **Pomodoro contexto global**: `PomodoroProvider` com screen, interrupções, heartbeat, restore no mount
+- **lucide-react package.json**: dependência adicionada e instalada, Ideias.tsx refatorado
+- **Dashboard emojis + focusTrap**: `→` → `➕`, useFocusTrap em CommandPalette e Sidebar modais
+- **Stash aplicado**: merge sem conflitos do stash@{0}
+
 ### v1.2.10 — Correções de robustez (logs, shutdown, pomodoro)
 - **logs.py**: `read_text()` com try/except — log corrompido não quebra mais o modal
 - **pomodoro.py**: validação de data em `DELETE /sessoes` — data inválida vira 422 em vez de 500

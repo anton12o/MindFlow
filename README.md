@@ -59,6 +59,7 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 
 ## 📦 Pré-requisitos
 
+- **Git** 2.x+
 - **Python** 3.12+
 - **Node.js** 18+ e npm (apenas para o primeiro build do frontend)
 
@@ -67,18 +68,23 @@ MindFlow é um aplicativo de produtividade pessoal que combina notas, tarefas, h
 ### 1. Clone e entre no repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/mindflow.git
-cd mindflow
+git clone https://github.com/anton12o/MindFlow.git
+cd MindFlow
 ```
+
+> **Windows:** Você também pode baixar o ZIP da [última release](https://github.com/anton12o/MindFlow/releases) e executar `MindFlow.bat` — ele faz tudo automaticamente.
 
 ### 2. Inicie com um comando
 
 ```bash
-python start.py
+python start.py          # Linux/macOS: use python3 start.py
+python start.py --port 3000  # porta personalizada
 ```
 
 O script cria um ambiente virtual Python isolado (venv), instala as dependências do backend, builda o frontend (se necessário),
-sobe o servidor em **http://localhost:8000** e abre o navegador automaticamente.
+sobe o servidor e abre o navegador automaticamente.
+Se a porta 8000 estiver ocupada, o script tenta 8001, 8002... automaticamente (a menos que `--port` seja explicitamente definido).
+Se o navegador não abrir, acesse manualmente **http://localhost:8000** (ou a porta definida com `--port`).
 
 > Após o primeiro build, Node.js não é mais necessário para rodar o app.
 > Para desenvolvimento, continue usando `npm run dev` no frontend.
@@ -89,7 +95,7 @@ sobe o servidor em **http://localhost:8000** e abre o navegador automaticamente.
 # Terminal 1 — Backend
 cd backend
 pip install -r requirements.txt
-python -m uvicorn main:app --reload --port 8000
+python -m uvicorn main:app --reload --port 8000   # Linux: python3 -m uvicorn ...
 
 # Terminal 2 — Frontend (apenas para desenvolvimento)
 cd frontend
@@ -97,7 +103,7 @@ npm install
 npm run dev
 ```
 
-Acesse **http://localhost:5173** (dev) ou **http://localhost:8000** (produção).
+Acesse **http://localhost:5173** (dev) ou **http://localhost:[porta]** (produção, padrão 8000).
 
 ---
 
@@ -187,7 +193,7 @@ cd backend && python -m pytest tests/ -q
 cd backend && python -m ruff check .
 
 # TypeScript (frontend)
-cd frontend && npx tsc --noEmit
+cd frontend && node node_modules/typescript/bin/tsc --noEmit
 ```
 
 ## 🛠️ Desenvolvimento

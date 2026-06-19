@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { getNotas } from '../api/notas'
 import type { Nota } from '../types'
-
+import { useFocusTrap } from '../hooks/useFocusTrap'
 interface Command {
   id: string
   label: string
   action: () => void
 }
-
 interface Props {
   commands: Command[]
   onClose: () => void
@@ -15,13 +14,13 @@ interface Props {
   notasRecentes?: Nota[]
   onNavigate?: (notaId: number) => void
 }
-
 export default function CommandPalette({ commands, onClose, mode = 'comando', notasRecentes = [], onNavigate }: Props) {
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(0)
   const [searchResults, setSearchResults] = useState<Nota[] | null>(null)
   const searchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
+  const ref = useRef<HTMLDivElement>(null)
+  useFocusTrap(ref, true)
   const doSearch = useCallback(async (q: string) => {
     if (!q.trim()) { setSearchResults(null); return }
     try {
@@ -29,7 +28,6 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
       setSearchResults(res)
     } catch { setSearchResults([]) }
   }, [])
-
   useEffect(() => {
     clearTimeout(searchTimer.current)
     setSelected(0)
@@ -37,19 +35,16 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
     searchTimer.current = setTimeout(() => doSearch(query), 200)
     return () => clearTimeout(searchTimer.current)
   }, [query, doSearch])
-
   const isNotaMode = mode === 'nota'
   const notas = searchResults !== null ? searchResults : notasRecentes
   const filteredCommands = commands.filter(c => c.label.toLowerCase().includes(query.toLowerCase()))
   const items = isNotaMode
     ? notas.map(n => ({ id: `nota-${n.id}`, label: n.titulo, action: () => onNavigate?.(n.id) }))
     : filteredCommands
-
   const itemsRef = useRef(items)
   itemsRef.current = items
   const selectedRef = useRef(selected)
   selectedRef.current = selected
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const f = itemsRef.current
@@ -62,10 +57,9 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
-
   return (
     <div className="fixed inset-0 bg-black/60 flex items-start justify-center pt-[15vh] z-50" onClick={onClose}>
-      <div className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div ref={ref} className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl overflow-hidden" onClick={e => e.stopPropagation()}>
         <input
           autoFocus
           value={query}

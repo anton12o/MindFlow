@@ -1,7 +1,8 @@
 import { createContext, useContext, useState, useEffect, useRef, type ReactNode, type Dispatch, type SetStateAction } from 'react'
 import { useBroadcastSync } from '../hooks/useBroadcastSync'
 
-type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
+export type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
+export type PomodoroScreen = 'idle' | 'running' | 'pausado' | 'foco_end' | 'pausa_end' | 'livre'
 
 interface PomodoroConfig {
   focoMin: number
@@ -28,6 +29,32 @@ function loadConfig(): PomodoroConfig {
     }
   } catch {}
   return DEFAULT_CONFIG
+}
+
+function playAlarm(ctx: AudioContext) {
+  const run = () => {
+    try {
+      const freqs = [660, 880, 1040]
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.frequency.value = freq
+        osc.type = 'square'
+        const t = ctx.currentTime + i * 0.15
+        gain.gain.setValueAtTime(0.25, t)
+        gain.gain.exponentialRampToValueAtTime(0.01, t + 0.2)
+        osc.start(t)
+        osc.stop(t + 0.2)
+      })
+    } catch { /* audio not available */ }
+  }
+  if (ctx.state === 'suspended') {
+    ctx.resume().then(run).catch(run)
+  } else {
+    run()
+  }
 }
 
 interface PomodoroContextType {
@@ -57,6 +84,16 @@ interface PomodoroContextType {
   advancePhase: () => void
   // Timestamp ref for smooth resume
   startedAtRef: React.MutableRefObject<number>
+  // Global Pomodoro screen/state
+  screen: PomodoroScreen
+  setScreen: Dispatch<SetStateAction<PomodoroScreen>>
+  interrupcoes: string[]
+  setInterrupcoes: Dispatch<SetStateAction<string[]>>
+  contexto: { tipo: string; id: number; nome: string } | null
+  setContexto: Dispatch<SetStateAction<{ tipo: string; id: number; nome: string } | null>>
+  audioCtxRef: React.MutableRefObject<AudioContext | null>
+  saveHeartbeat: () => void
+  clearHeartbeat: () => void
 }
 
 const PomodoroContext = createContext<PomodoroContextType | null>(null)
@@ -71,7 +108,30 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [mostrarResumo, setMostrarResumo] = useState(false)
   const [cicloAtual, setCicloAtual] = useState(0)
   const [fase, setFase] = useState<Fase>('foco')
+  const [screen, setScreen] = useState<PomodoroScreen>('idle')
+  const [interrupcoes, setInterrupcoes] = useState<string[]>([])
+  const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | null>(null)
+  
   const startedAtRef = useRef(0)
+  const lastDisplaySecRef = useRef(-1)
+  const audioCtxRef = useRef<AudioContext | null>(null)
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+    return () => { audioCtxRef.current?.close() }
+  }, [])
+
+  useEffect(() => {
+    const handler = () => {
+      if (document.visibilityState === 'visible' && audioCtxRef.current?.state === 'suspended') {
+        audioCtxRef.current.resume()
+      }
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
+  }, [])
 
   // Persist config
   useEffect(() => {
@@ -108,13 +168,91 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     resetTimer()
   }, [fase, config])
 
-  useBroadcastSync('sync:pomodoro', { sessaoId, minutos, segundos, ativo, fase, cicloAtual }, (data) => {
+  // Heartbeat
+  const HB_KEY = 'mindflow_pomodoro_heartbeat'
+  const saveHeartbeat = () => {
+    if (screen !== 'running' && screen !== 'pausado' && screen !== 'livre') return
+    const elapsed = Date.now() - startedAtRef.current
+    const remainingMs = screen === 'livre' ? 0 : Math.max(0, (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000 - elapsed)
+    try {
+      localStorage.setItem(HB_KEY, JSON.stringify({
+        savedAt: Date.now(), screen, fase, cicloAtual, sessaoId,
+        interrupcoes, remainingMs, minutos, segundos,
+        contextoTipo: contexto?.tipo || null,
+        contextoId: contexto?.id || null,
+        contextoNome: contexto?.nome || null,
+      }))
+    } catch {}
+  }
+  const clearHeartbeat = () => { try { localStorage.removeItem(HB_KEY) } catch {} }
+
+  // Tick loop
+  useEffect(() => {
+    if (!ativo || (screen !== 'running' && screen !== 'livre')) return
+
+    if (screen === 'livre') {
+      const checkTimer = () => {
+        const elapsed = Date.now() - startedAtRef.current
+        const totalSec = Math.floor(elapsed / 1000)
+        if (totalSec !== lastDisplaySecRef.current) {
+          lastDisplaySecRef.current = totalSec
+          setMinutos(Math.floor(totalSec / 60))
+          setSegundos(totalSec % 60)
+          saveHeartbeat()
+        }
+      }
+      checkTimer()
+      const interval = setInterval(checkTimer, 200)
+      return () => clearInterval(interval)
+    }
+
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+
+    const checkTimer = () => {
+      const elapsed = Date.now() - startedAtRef.current
+      const remainingMs = Math.max(0, phaseMs - elapsed)
+      const totalSec = Math.ceil(remainingMs / 1000)
+
+      if (totalSec !== lastDisplaySecRef.current) {
+        lastDisplaySecRef.current = totalSec
+        setMinutos(Math.max(0, Math.floor(totalSec / 60)))
+        setSegundos(Math.max(0, totalSec % 60))
+        saveHeartbeat()
+      }
+
+      if (elapsed >= phaseMs) {
+        clearHeartbeat()
+        setAtivo(false)
+        setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
+        
+        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+          playAlarm(audioCtxRef.current)
+        }
+        
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('MindFlow', {
+            body: fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!',
+            icon: '/icon-192.svg',
+          })
+        }
+      }
+    }
+
+    checkTimer()
+
+    const interval = setInterval(checkTimer, 200)
+    return () => clearInterval(interval)
+  }, [ativo, screen, fase, config, interrupcoes, contexto])
+
+  useBroadcastSync('sync:pomodoro', { sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes }, (data) => {
     setSessaoId(data.sessaoId ?? null)
     setMinutos(data.minutos)
     setSegundos(data.segundos)
     setAtivo(data.ativo)
     setFase(data.fase as Fase)
     setCicloAtual(data.cicloAtual)
+    setScreen(data.screen as PomodoroScreen)
+    setInterrupcoes(data.interrupcoes || [])
     startedAtRef.current = Date.now()
   }, !!sessaoId || ativo)
 
@@ -131,6 +269,12 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       resetTimer,
       advancePhase,
       startedAtRef,
+      screen, setScreen,
+      interrupcoes, setInterrupcoes,
+      contexto, setContexto,
+      audioCtxRef,
+      saveHeartbeat,
+      clearHeartbeat,
     }}>
       {children}
     </PomodoroContext.Provider>

@@ -10,6 +10,239 @@
 
 ---
 
+### Pastas: collapse/expand + botão excluir (Ideias)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Header de Pastas trocado de `<span>` estático para `<button>` colapsável com `ChevronUp`/`ChevronDown` + ícone `Folder` + contagem quando recolhido — alinhado com Favoritos e Tags. Cada item de pasta ganhou botão `X` com `absolute right-0.5 top-0.5 opacity-0 group-hover:opacity-100 text-danger` (mesmo estilo de excluir nota). ConfirmModal com destructive state.
+
+**Arquivos envolvidos:**
+- `frontend/src/api/notas.ts` — nova função `deletePasta(id)`
+- `frontend/src/pages/Ideias.tsx` — `pastasExpanded`, `confirmDeletePasta`, `deletePastaMut`, header colapsável, X button, ConfirmModal
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~20min.
+
+---
+
+### Sistema de notificação global (toast)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** `NotificationProvider` + `useNotify()` criado em `store/notification.tsx`. Toast flutuante no canto inferior direito com animação `slide-up`, auto-dismiss 4s, suporte a `error`/`success`. Aplicado em 13 catch blocks críticos: export, save nota, extrair bloco, criar sessão pomodoro, restaurar sessão, criar livre, interrupções inbox, criar nota consultas, reordenar itens, criar tarefa rotina.
+
+**Arquivos envolvidos:**
+- `frontend/src/store/notification.tsx` (novo)
+- `frontend/src/App.tsx` — export
+- `frontend/src/components/Sidebar.tsx` — export
+- `frontend/src/pages/Ideias.tsx` — save + extrair
+- `frontend/src/components/PomodoroTimer.tsx` — 4 blocos
+- `frontend/src/pages/Consultas.tsx` — create + reorder
+- `frontend/src/pages/Rotina.tsx` — create tarefa
+- `frontend/src/index.css` — animação `slide-up`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h.
+
+---
+
+### N+1 query em batch_edit (queries.py)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** `batch_edit()` em `queries.py:142` fazia `session.get(model_class, item_id)` em loop. Trocado para `session.exec(select(model_class).where(model_class.id.in_(batch.ids)))` — 1 SELECT em vez de N. Itens faltantes reportados como 404 com lista de IDs.
+
+**Arquivos envolvidos:**
+- `backend/routers/queries.py` — `batch_edit()` refatorado
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Diário duplicado no Dashboard (race condition)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** `useEffect` em `Dashboard.tsx:49-55` criava nota de diário sem cancelamento de promise. Em Strict Mode ou navegação rápida, `createNota` executava 2x. Corrigido com `useRef` `diarioCreating` que trava criação concorrente.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/Dashboard.tsx` — `useRef` `diarioCreating`, reset no `.then()`/`.catch()`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Pomodoro: badge global inclui modo livre
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** `PomodoroBadge` em `App.tsx` só exibia para `screen === 'running' || 'pausado'`. Adicionado `screen === 'livre'` para que o badge `⚡ MM:SS` apareça também durante sessões livres.
+
+**Arquivos envolvidos:**
+- `frontend/src/App.tsx` — condição no `PomodoroBadge`
+
+**Dependências:** Nenhuma.
+
+**Observações:** 1 linha.
+
+---
+
+### Pomodoro: som em background + sessão livre
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Três melhorias no Pomodoro:
+1. **Som em background:** `Notification.requestPermission()` no mount, listener `visibilitychange` → `ctx.resume()`, guard `state !== 'closed'` para evitar erro de contexto fechado.
+2. **Sessão livre:** screen `'livre'`, botão "Livre", `handleFree()`, `canTransition` inclui `'livre'`, cronômetro crescente (sem alarme, sem fases).
+3. **PomodoroBadge** independente do `PomodoroTimer`.
+
+**Arquivos envolvidos:**
+- `frontend/src/store/pomodoro.tsx` — `'livre'` na `PomodoroScreen`, Notification, visibilitychange
+- `frontend/src/components/PomodoroTimer.tsx` — `handleFree()`, tick count-up
+- `frontend/src/App.tsx` — `PomodoroBadge` com `usePomodoroContext()`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min.
+
+---
+
+### `--port` + fallback automático (start.py)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** `resolve_port()` em `start.py`: se `--port` explícito → respeita (sem fallback); se não → tenta 8000, 8001, 8002... até achar porta livre. Todas as funções (abrir navegador, uvicorn, etc.) recebem `port` como parâmetro.
+
+**Arquivos envolvidos:**
+- `start.py` — `resolve_port()`, CLI `--port`, propagação do parâmetro
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~15min.
+
+---
+
+### start.py resiliente sem Git + Export 500 + Query 422
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Três correções de robustez:
+1. **start.py sem Git:** `ensure_pre_commit()` checa `git --version` + try/except, warning + continue sem travar startup.
+2. **Export nota 500:** `n.titulo or '(sem titulo)'` em `notas.py:394` — título `None` não quebra mais `Content-Disposition`.
+3. **Query 422:** `if mes and q.campo_agrupamento:` em `queries.py:104` — filtro de mês ignorado se query não tem campo_agrupamento.
+
+**Arquivos envolvidos:**
+- `start.py` — git check + try/except
+- `backend/routers/notas.py` — `n.titulo or '(sem titulo)'`
+- `backend/routers/queries.py` — guard `if mes and q.campo_agrupamento`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~10min.
+
+---
+
+### Criação de nota em Ideias (correção)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Criação de nota na página Ideias não funcionava devido a erro no mapeamento da lista de Notas Favoritas — duplicação/erro de sintaxe corrigido. Ícone `ChevronUp` adicionado ao import do `lucide-react`.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/Ideias.tsx` — correção no mapeamento, import ChevronUp
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Setas da Revisão Semanal (encoding)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Setas de navegação entre semanas na Revisão Semanal apareciam como `?` devido a encoding incorreto. Corrigido com normalização UTF-8 ou substituição por caracteres compatíveis.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/RevisaoSemanal.tsx`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~5min.
+
+---
+
+### Normalização de espaçamento CRLF (19 arquivos)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** 19 arquivos apresentavam espaçamento duplo/desalinhamento CRLF. Corrigido com normalização de fim de linha.
+
+**Arquivos envolvidos:** 19 arquivos (backend + frontend)
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~10min.
+
+---
+
+### Sidebar: ícones lucide-react + tamanho + colapsável
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Três correções na Sidebar:
+1. Ícones de texto (◉, ○, ☰, ◷, ◇) substituídos por componentes `lucide-react`.
+2. Tamanho dos botões corrigido de `w-10 h-10` para `w-11 h-11` (padrão de acessibilidade 44px).
+3. Navegação colapsável "Mais..." para itens secundários com `ChevronUp`/`ChevronDown`.
+
+**Arquivos envolvidos:**
+- `frontend/src/components/Sidebar.tsx` — import lucide, classes, estado `showMore`
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~30min.
+
+---
+
+### Pomodoro: contexto global + heartbeat + interrupções
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Refatoração completa do gerenciamento de estado do Pomodoro:
+- Contexto global (`PomodoroProvider`) com `PomodoroScreen` (screen), histórico de interrupções, contexto da tarefa ativa.
+- Lógica de persistência: `saveHeartbeat()` / `clearHeartbeat()` no localStorage a cada tick.
+- Restore no mount: prompt "Continuar sessão?" se heartbeat detectado (< 2h).
+- Timer não é mais resetado ao navegar para outra tela.
+
+**Arquivos envolvidos:**
+- `frontend/src/store/pomodoro.tsx` — contexto global, heartbeat, restore
+- `frontend/src/components/PomodoroTimer.tsx` — consumir contexto
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~1h.
+
+---
+
+### lucide-react + imports em Ideias.tsx + package.json
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Dependência `lucide-react` adicionada ao `package.json` e instalada. `Ideias.tsx` refatorado para usar componentes `lucide-react` (Plus, FileText, Star, Folder, X, Tag, CheckSquare, ChevronDown/Up/Right, etc.) em vez de caracteres de texto/emojis.
+
+**Arquivos envolvidos:**
+- `frontend/package.json` — adicionado `lucide-react`
+- `frontend/src/pages/Ideias.tsx` — import e uso de lucide-react
+
+**Dependências:** `lucide-react` (adicionado ao package.json).
+
+**Observações:** ~30min.
+
+---
+
+### Dashboard: emojis + useFocusTrap
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Botões no Dashboard usavam seta de texto `→`; trocado para emoji `➕`. Modal Command Palette e modais da sidebar agora integram `useFocusTrap` para acessibilidade de teclado.
+
+**Arquivos envolvidos:**
+- `frontend/src/pages/Dashboard.tsx` — emoji ➕
+- `frontend/src/components/CommandPalette.tsx` — useFocusTrap
+- `frontend/src/components/Sidebar.tsx` — useFocusTrap
+
+**Dependências:** Nenhuma.
+
+**Observações:** ~15min.
+
+---
+
+### Aplicação do Stash (merge sem conflitos)
+**Status:** ✅ Implementado (v1.2.11)
+**Descrição:** Todo o estado do código avançado em `stash@{0}` foi mesclado com sucesso na árvore de trabalho atual sem nenhum conflito.
+
+**Arquivos envolvidos:** Múltiplos arquivos (working tree).
+
+**Observações:** Stash aplicado.
+
+---
+
 ### read_text() sem proteção (logs.py)
 **Status:** ✅ Implementado (v1.2.10)
 **Descrição:** `get_logs` em `logs.py:23` chamava `read_text()` sem try/except. Se o arquivo de log estivesse corrompido (disco cheio, gravação concorrente), o modal de Logs crashava com 500.

@@ -2,7 +2,8 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
-import { PomodoroProvider } from './store/pomodoro'
+import { PomodoroProvider, usePomodoroContext } from './store/pomodoro'
+import { NotificationProvider, useNotify } from './store/notification'
 import { useBackendOnline } from './hooks/useBackendOnline'
 import Sidebar from './components/Sidebar'
 import CommandPalette from './components/CommandPalette'
@@ -36,6 +37,7 @@ function Layout() {
   const navigate = useNavigate()
   const location = useLocation()
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [showPalette, setShowPalette] = useState(false)
   const [paletteMode, setPaletteMode] = useState<'comando' | 'nota'>('comando')
   const [inboxOpen, setInboxOpen] = useState(false)
@@ -84,12 +86,13 @@ function Layout() {
         URL.revokeObjectURL(url)
       } catch (e) {
         console.error('[Export]', e)
+        notify('Erro ao exportar dados')
       }
     }},
   ]
 
   useEffect(() => {
-    document.title = `MindFlow — ${page.charAt(0).toUpperCase() + page.slice(1)}`
+    document.title = `MindFlow 🧠 ${page.charAt(0).toUpperCase() + page.slice(1)}`
   }, [page])
 
   useEffect(() => {
@@ -130,7 +133,7 @@ function Layout() {
       <main className="flex-1 overflow-y-auto animate-fade-in">
           {!online && (
             <div className="sticky top-0 z-40 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
-              Servidor offline — alguns dados podem não estar disponíveis
+              Servidor offline ⚠️ alguns dados podem não estar disponíveis
             </div>
           )}
           <Suspense fallback={<div className="flex items-center justify-center h-full text-text-muted text-sm animate-pulse">Carregando...</div>}>
@@ -163,6 +166,19 @@ function Layout() {
       {logsOpen && <LogsModal onClose={() => setLogsOpen(false)} />}
       <InboxModal isOpen={inboxOpen} onClose={() => setInboxOpen(false)} />
       <SwUpdateBanner />
+      <PomodoroBadge />
+    </div>
+  )
+}
+
+function PomodoroBadge() {
+  const { screen, minutos, segundos } = usePomodoroContext()
+  if (screen !== 'running' && screen !== 'pausado' && screen !== 'livre') return null
+  const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
+  return (
+    <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-accent/15 text-accent text-sm font-mono font-semibold px-3 py-1.5 rounded-full shadow-lg border border-accent/30 animate-fade-in">
+      <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
+      {display}
     </div>
   )
 }
@@ -189,7 +205,9 @@ export default function App() {
         <ErrorBoundary>
           <BrowserRouter>
             <PomodoroProvider>
-              <Layout />
+              <NotificationProvider>
+                <Layout />
+              </NotificationProvider>
             </PomodoroProvider>
           </BrowserRouter>
         </ErrorBoundary>

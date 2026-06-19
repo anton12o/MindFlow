@@ -2,27 +2,22 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos, createTipo, updateTipo, deleteTipo } from '../api/tipos'
 import ConfirmModal from '../components/ConfirmModal'
-
-const ICONES = ['📄', '✅', '📋', '👤', '🔗', '📝', '🎯', '📌', '💡', '📊']
-
+const ICONES = ['📝', '✅', '📋', '👤', '🔗', '🎯', '📖', '💡', '🔖', '📌']
 export default function Tipos() {
   const queryClient = useQueryClient()
   const [editing, setEditing] = useState<number | null>(null)
-  const [form, setForm] = useState({ nome: '', icone: '📄' })
+  const [form, setForm] = useState({ nome: '', icone: '📝' })
   const [formError, setFormError] = useState('')
   const [editError, setEditError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
-
   const { data: tipos, isLoading, isError } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
-
   const createMut = useMutation({
     mutationFn: () => createTipo({ nome: form.nome, icone: form.icone }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tipos'] })
-      setForm({ nome: '', icone: '📄' })
+      setForm({ nome: '', icone: '📝' })
     },
   })
-
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { nome: string; icone: string } }) => updateTipo(id, data),
     onSuccess: () => {
@@ -30,16 +25,13 @@ export default function Tipos() {
       setEditing(null)
     },
   })
-
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteTipo(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['tipos'] }),
   })
-
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Tipos de Objeto</h1>
-
       {!editing && (
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Novo tipo</h2>
@@ -56,7 +48,6 @@ export default function Tipos() {
         </div>
       </div>
       )}
-
       <div className="space-y-2">
         {isLoading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
         {isError && <p className="text-sm text-danger py-8 text-center">Erro ao carregar tipos</p>}
@@ -99,7 +90,6 @@ export default function Tipos() {
           </div>
         ))}
       </div>
-
       {confirmDelete !== null && (
         <ConfirmModal
           titulo="Excluir tipo"

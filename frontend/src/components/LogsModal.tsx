@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { getLogs, clearLogs, type LogEntryResponse } from '../api/logs'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import ConfirmModal from './ConfirmModal'
 
 interface Props {
   onClose: () => void
@@ -10,6 +11,7 @@ export default function LogsModal({ onClose }: Props) {
   const [entries, setEntries] = useState<LogEntryResponse[]>([])
   const [levelFilter, setLevelFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
+  const [confirmClear, setConfirmClear] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useFocusTrap(ref, true)
 
@@ -45,7 +47,7 @@ export default function LogsModal({ onClose }: Props) {
               <option value="INFO">INFO</option>
             </select>
             <button onClick={load} className="px-3 py-1 bg-bg-tertiary text-text-primary text-xs rounded-lg hover:bg-bg-hover">Recarregar</button>
-            <button onClick={() => clearLogs().then(load)} className="px-3 py-1 bg-danger/20 text-danger text-xs rounded-lg hover:bg-danger/30">Limpar</button>
+            <button onClick={() => setConfirmClear(true)} className="px-3 py-1 bg-danger/20 text-danger text-xs rounded-lg hover:bg-danger/30">Limpar</button>
             <button onClick={onClose} className="px-3 py-1 bg-bg-tertiary text-text-primary text-xs rounded-lg hover:bg-bg-hover">Fechar</button>
           </div>
         </div>
@@ -64,6 +66,16 @@ export default function LogsModal({ onClose }: Props) {
           ))}
         </div>
       </div>
+      {confirmClear && (
+        <ConfirmModal
+          titulo="Limpar logs"
+          mensagem="Tem certeza que deseja limpar todos os logs? Esta ação não pode ser desfeita."
+          destructive
+          confirmLabel="Limpar"
+          onConfirm={() => { clearLogs().then(load); setConfirmClear(false) }}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
     </div>
   )
 }
