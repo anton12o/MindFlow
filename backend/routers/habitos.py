@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from database import get_session
 from models import Habito, HabitoCreate, HabitoUpdate, HabitoRead, RegistroHabito, RegistroHabitoCreate, RegistroHabitoRead
@@ -6,9 +6,9 @@ from models import Habito, HabitoCreate, HabitoUpdate, HabitoRead, RegistroHabit
 router = APIRouter()
 
 @router.get("", response_model=list[HabitoRead])
-def list_habitos(ativos: bool = True, session: Session = Depends(get_session)):
+def list_habitos(ativos: bool = True, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(Habito).where(Habito.ativo == ativos).order_by(Habito.criado_em.desc())
-    return session.exec(stmt).all()
+    return session.exec(stmt.offset(offset).limit(limit)).all()
 
 @router.post("", response_model=HabitoRead)
 def create_habito(h: HabitoCreate, session: Session = Depends(get_session)):

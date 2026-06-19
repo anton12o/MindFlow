@@ -1,5 +1,5 @@
 from datetime import date, datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlmodel import Session, select
 from database import get_session
@@ -13,11 +13,11 @@ class FlashcardReviewInput(BaseModel):
 router = APIRouter()
 
 @router.get("", response_model=list[FlashcardRead])
-def list_flashcards(nota_id: int | None = None, session: Session = Depends(get_session)):
+def list_flashcards(nota_id: int | None = None, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(Flashcard)
     if nota_id:
         stmt = stmt.where(Flashcard.nota_id == nota_id)
-    return session.exec(stmt.order_by(Flashcard.criado_em.desc())).all()
+    return session.exec(stmt.order_by(Flashcard.criado_em.desc()).offset(offset).limit(limit)).all()
 
 @router.get("/review", response_model=list[FlashcardRead])
 def review_flashcards(session: Session = Depends(get_session)):

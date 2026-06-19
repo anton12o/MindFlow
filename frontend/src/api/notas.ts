@@ -1,12 +1,14 @@
 import request from './client'
 import type { Nota, Pasta, Tag } from '../types'
 
-export const getNotas = (q?: string, data?: string, tagIds?: number[], sort?: string) => {
+export const getNotas = (q?: string, data?: string, tagIds?: number[], sort?: string, limit?: number, offset?: number) => {
   const params = new URLSearchParams()
   if (q) params.set('q', q)
   if (data) params.set('data', data)
   if (tagIds && tagIds.length > 0) params.set('tag_ids', tagIds.join(','))
   if (sort) params.set('sort', sort)
+  if (limit) params.set('limit', String(limit))
+  if (offset) params.set('offset', String(offset))
   const qs = params.toString()
   return request<Nota[]>(`/notas${qs ? `?${qs}` : ''}`)
 }

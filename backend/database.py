@@ -1,4 +1,5 @@
 import logging
+import os
 from sqlmodel import create_engine, Session
 from sqlalchemy import text, inspect, event
 from pathlib import Path
@@ -19,7 +20,8 @@ engine = create_engine(
 def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.execute("PRAGMA journal_mode=WAL")
+    journal = os.environ.get("MFLOW_JOURNAL_MODE", "WAL")
+    cursor.execute(f"PRAGMA journal_mode={journal}")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA cache_size=-40000")
     cursor.execute("PRAGMA temp_store=MEMORY")

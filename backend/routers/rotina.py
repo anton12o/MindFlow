@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, or_, and_
 from database import get_session
 from models import BlocoRotina, BlocoRotinaCreate, BlocoRotinaUpdate, BlocoRotinaRead, Tarefa, TarefaCreate, TarefaUpdate, TarefaRead, TipoObjeto
@@ -8,7 +8,7 @@ router = APIRouter()
 
 # ─── Blocos ───
 @router.get("/blocos", response_model=list[BlocoRotinaRead])
-def list_blocos(data: str | None = None, session: Session = Depends(get_session)):
+def list_blocos(data: str | None = None, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(BlocoRotina)
     if data:
         try:
@@ -27,7 +27,7 @@ def list_blocos(data: str | None = None, session: Session = Depends(get_session)
             )
         )
         stmt = stmt.where(condicao_data | condicao_recorrente)
-    return session.exec(stmt.order_by(BlocoRotina.hora_inicio)).all()
+    return session.exec(stmt.order_by(BlocoRotina.hora_inicio).offset(offset).limit(limit)).all()
 
 @router.post("/blocos", response_model=BlocoRotinaRead)
 def create_bloco(b: BlocoRotinaCreate, session: Session = Depends(get_session)):
@@ -63,11 +63,11 @@ def delete_bloco(bloco_id: int, session: Session = Depends(get_session)):
 
 # ─── Tarefas ───
 @router.get("/tarefas", response_model=list[TarefaRead])
-def list_tarefas(data: str | None = None, session: Session = Depends(get_session)):
+def list_tarefas(data: str | None = None, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(Tarefa)
     if data:
         stmt = stmt.where(Tarefa.data == data)
-    return session.exec(stmt.order_by(Tarefa.criado_em.desc())).all()
+    return session.exec(stmt.order_by(Tarefa.criado_em.desc()).offset(offset).limit(limit)).all()
 
 @router.post("/tarefas", response_model=TarefaRead)
 def create_tarefa(t: TarefaCreate, session: Session = Depends(get_session)):
