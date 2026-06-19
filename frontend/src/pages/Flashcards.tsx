@@ -1,13 +1,12 @@
 import { useState, useRef, memo, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { Pencil, X } from 'lucide-react'
 import { getFlashcards, getReviewCards, createFlashcard, updateFlashcard, reviewFlashcard, deleteFlashcard } from '../api/flashcards'
 import ConfirmModal from '../components/ConfirmModal'
 import { getNotas } from '../api/notas'
 import type { Flashcard } from '../types'
-
 const labels = ['', 'Muito difícil', 'Difícil', 'Médio', 'Fácil', 'Muito fácil']
-
 interface FlashcardItemProps {
   fc: Flashcard
   notas: Array<{ id: number; titulo: string }> | undefined
@@ -15,11 +14,9 @@ interface FlashcardItemProps {
   onDelete: (id: number, pergunta: string) => void
   saving?: boolean
 }
-
 const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete, saving }: FlashcardItemProps) {
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
-
   function handleEdit() {
     setEditForm({
       pergunta: fc.pergunta,
@@ -28,7 +25,6 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
     })
     setEditing(true)
   }
-
   return (
     <div className="bg-bg-secondary rounded-lg border border-border px-4 py-3 flex items-start justify-between gap-4 cursor-pointer hover:scale-[1.02] transition-transform">
       {editing ? (
@@ -58,16 +54,15 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
           </div>
           <div className="flex items-center gap-1 shrink-0">
             <button onClick={handleEdit}
-              className="text-xs text-text-muted hover:text-accent">✎</button>
+              className="p-1 text-text-muted hover:text-accent transition-colors"><Pencil size={14} /></button>
             <button onClick={() => onDelete(fc.id, fc.pergunta)}
-              className="text-xs text-text-muted hover:text-danger">✕</button>
+              className="p-1 text-text-muted hover:text-danger transition-colors"><X size={14} /></button>
           </div>
         </>
       )}
     </div>
   )
 })
-
 export default function Flashcards() {
   const queryClient = useQueryClient()
   const [virado, setVirado] = useState(false)
@@ -75,13 +70,11 @@ export default function Flashcards() {
   const [form, setForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; pergunta: string } | null>(null)
   const parentRef = useRef<HTMLDivElement>(null)
-
   const { data: cards, isLoading: cardsLoad, isError: cardsErr } = useQuery({
     queryKey: ['flashcards', 'review'],
     queryFn: getReviewCards,
     staleTime: 60_000,
   })
-
   const { data: allCards, isLoading: allLoad, isError: allErr } = useQuery({
     queryKey: ['flashcards', 'all'],
     queryFn: () => getFlashcards(),
@@ -94,13 +87,11 @@ export default function Flashcards() {
     estimateSize: () => 80,
     overscan: 5,
   })
-
   const { data: notas, isLoading: notasLoad } = useQuery({
     queryKey: ['notas'],
     queryFn: () => getNotas(),
     staleTime: 60_000,
   })
-
   const reviewMut = useMutation({
     mutationFn: ({ id, qualidade }: { id: number; qualidade: number }) =>
       reviewFlashcard(id, qualidade),
@@ -109,7 +100,6 @@ export default function Flashcards() {
       setVirado(false)
     },
   })
-
   const createMut = useMutation({
     mutationFn: (data: { pergunta: string; resposta: string; nota_id?: number }) =>
       createFlashcard(data),
@@ -119,7 +109,6 @@ export default function Flashcards() {
       setShowForm(false)
     },
   })
-
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { pergunta?: string; resposta?: string; nota_id?: number | null } }) =>
       updateFlashcard(id, data),
@@ -127,23 +116,18 @@ export default function Flashcards() {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
     },
   })
-
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteFlashcard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['flashcards'] }),
   })
-
   const handleSave = useCallback((id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => {
     updateMut.mutate({ id, data })
   }, [])
-
   const handleDelete = useCallback((id: number, pergunta: string) => {
     setConfirmDelete({ id, pergunta })
   }, [])
-
   const currentCard = cards?.[0]
   const total = cards?.length || 0
-
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!form.pergunta.trim() || !form.resposta.trim()) return
@@ -153,11 +137,9 @@ export default function Flashcards() {
       nota_id: form.nota_id ? Number(form.nota_id) : undefined,
     })
   }
-
   if (cardsLoad) {
     return <div className="p-6 text-text-muted text-sm animate-pulse">Carregando...</div>
   }
-
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
@@ -170,14 +152,13 @@ export default function Flashcards() {
           {showForm ? 'Cancelar' : '+ Novo flashcard'}
         </button>
       </div>
-
       {showForm && (
         <form onSubmit={handleCreate} className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
           <div className="space-y-3">
             <input value={form.pergunta} onChange={e => setForm(f => ({ ...f, pergunta: e.target.value }))}
-              placeholder="Pergunta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+              placeholder="Pergunta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             <input value={form.resposta} onChange={e => setForm(f => ({ ...f, resposta: e.target.value }))}
-              placeholder="Resposta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+              placeholder="Resposta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             <select value={form.nota_id} onChange={e => setForm(f => ({ ...f, nota_id: e.target.value }))}
               className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none">
               <option value="">Sem nota associada</option>
@@ -189,7 +170,6 @@ export default function Flashcards() {
           </div>
         </form>
       )}
-
       {cardsLoad && <div className="bg-bg-secondary rounded-xl border border-border p-4 text-center mb-8"><p className="text-text-muted animate-pulse">Carregando...</p></div>}
       {cardsErr && <div className="bg-bg-secondary rounded-xl border border-border p-4 text-center mb-8"><p className="text-danger">Erro ao carregar flashcards</p></div>}
       {!cardsLoad && !cardsErr && currentCard ? (
@@ -205,7 +185,6 @@ export default function Flashcards() {
               {!virado && <p className="text-xs text-text-muted mt-4">Clique no card para ver a resposta</p>}
             </div>
           </div>
-
           {virado && (
             <div className="mt-6">
               <p className="text-xs text-text-muted mb-3 text-center">Como foi sua resposta?</p>
@@ -230,7 +209,6 @@ export default function Flashcards() {
           <p className="text-text-muted text-sm">Crie um novo flashcard acima ou eles aparecerão automaticamente conforme você cria notas com flashcards</p>
         </div>
       ) : null}
-
       <div>
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Todos os flashcards</h2>
         {allLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
@@ -259,7 +237,6 @@ export default function Flashcards() {
           </div>
         )}
       </div>
-
       {confirmDelete && (
         <ConfirmModal
           titulo="Remover flashcard"

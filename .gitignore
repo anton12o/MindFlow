@@ -17,3 +17,9 @@ AGENTS.md
 generate-spec.js
 /package.json
 /package-lock.json
+.aider*
+check_bits.py
+check_remaining.py
+fix_encoding.py
+fix_remaining.py
+docs/doc antigo/

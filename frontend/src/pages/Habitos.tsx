@@ -6,9 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import HabitoCalendario from '../components/HabitoCalendario'
 import { hojeLocal } from '../utils/date'
 import type { Habito } from '../types'
-
 const TIPO_LABEL: Record<string, string> = { binario: 'Sim/Não', quantitativo: 'Contagem' }
-
 export default function Habitos() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -22,16 +20,13 @@ export default function Habitos() {
   const [editFormError, setEditFormError] = useState('')
   const [feedback, setFeedback] = useState<{ id: number; texto: string } | null>(null)
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-
   useEffect(() => {
     return () => { if (feedbackTimer.current) clearTimeout(feedbackTimer.current) }
   }, [])
-
   const [editId, setEditId] = useState<number | null>(null)
   const [editForm, setEditForm] = useState({ nome: '', tipo: '' as string, categoria: '', meta: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<{ id: number; nome: string } | null>(null)
   const [calendarOpenId, setCalendarOpenId] = useState<number | null>(null)
-
   const createMut = useMutation({
     mutationFn: (data: Parameters<typeof createHabito>[0]) => createHabito(data),
     onSuccess: () => {
@@ -40,7 +35,6 @@ export default function Habitos() {
       setShowForm(false)
     },
   })
-
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
     if (!form.nome.trim()) { setFormError('Informe o nome do hábito'); return }
@@ -52,12 +46,10 @@ export default function Habitos() {
       meta: form.meta ? parseFloat(form.meta) : null,
     })
   }
-
   function handleEdit(h: Habito) {
     setEditId(h.id)
     setEditForm({ nome: h.nome, tipo: h.tipo, categoria: h.categoria || '', meta: h.meta !== null ? String(h.meta) : '' })
   }
-
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateHabito>[1] }) => updateHabito(id, data),
     onSuccess: () => {
@@ -65,7 +57,6 @@ export default function Habitos() {
       setEditId(null)
     },
   })
-
   function handleSaveEdit() {
     if (!editId) return
     if (!editForm.nome.trim()) { setEditFormError('Informe o nome do hábito'); return }
@@ -80,22 +71,19 @@ export default function Habitos() {
       },
     })
   }
-
   const checkMut = useMutation({
     mutationFn: ({ habitoId, feito }: { habitoId: number; feito: boolean }) =>
       createRegistro(habitoId, { habito_id: habitoId, data: hojeLocal(), valor: feito ? 1 : 0 }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
-      setFeedback({ id: variables.habitoId, texto: 'Feito ✓' })
+      setFeedback({ id: variables.habitoId, texto: 'Feito ✔️' })
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
       feedbackTimer.current = setTimeout(() => setFeedback(null), 1500)
     },
   })
-
   function handleCheck(habitoId: number, feito: boolean) {
     checkMut.mutate({ habitoId, feito })
   }
-
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteHabito(id),
     onSuccess: () => {
@@ -103,7 +91,6 @@ export default function Habitos() {
       queryClient.invalidateQueries({ queryKey: ['registros'] })
     },
   })
-
   return (
     <div className="p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -112,7 +99,6 @@ export default function Habitos() {
           {showForm ? 'Cancelar' : '+ Novo hábito'}
         </button>
       </div>
-
       {showForm && (
         <form onSubmit={handleCreate} className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
           <div className="flex flex-wrap gap-3 items-end">
@@ -125,7 +111,7 @@ export default function Habitos() {
             <div>
               <label className="block text-xs text-text-muted mb-1">Tipo</label>
               <select value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value as 'binario' | 'quantitativo' }))}
-                className="bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent">
+                className="bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent">
                 <option value="binario">Sim/Não (check-in diário)</option>
                 <option value="quantitativo">Contagem (vezes, minutos, páginas)</option>
               </select>
@@ -133,7 +119,7 @@ export default function Habitos() {
             <div>
               <label className="block text-xs text-text-muted mb-1">Categoria</label>
               <input value={form.categoria} onChange={e => setForm(f => ({ ...f, categoria: e.target.value }))}
-                className="bg-bg-tertiary rounded-lg px-3 py-2 text-sm w-28 outline-none focus:ring-1 focus:ring-accent" />
+                className="bg-bg-tertiary rounded-lg px-3 py-2 text-sm w-28 outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             </div>
             <button type="submit" disabled={createMut.isPending} className="px-4 py-2 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
           </div>
@@ -142,7 +128,6 @@ export default function Habitos() {
           </p>
         </form>
       )}
-
       <div className="space-y-3">
         {isLoading && <p className="text-sm text-text-muted py-8 text-center animate-pulse">Carregando...</p>}
         {isError && <p className="text-sm text-danger py-8 text-center">Erro ao carregar hábitos</p>}
@@ -191,7 +176,7 @@ export default function Habitos() {
                   <button onClick={() => handleCheck(h.id, true)}
                     disabled={checkMut.isPending}
                     className="w-7 h-7 rounded-lg border border-border hover:bg-accent/20 hover:border-accent flex items-center justify-center text-xs transition-colors disabled:opacity-50"
-                    title="Marcar como feito hoje">{checkMut.isPending ? '...' : '✓'}</button>
+                    title="Marcar como feito hoje">{checkMut.isPending ? '...' : '✔️'}</button>
                 )}
                 {!editing && h.tipo === 'quantitativo' && (
                   <button onClick={() => handleCheck(h.id, true)}
@@ -209,11 +194,11 @@ export default function Habitos() {
                     <button onClick={() => setCalendarOpenId(calendarOpenId === h.id ? null : h.id)}
                       className="text-xs text-text-muted hover:text-accent" title="Ver calendário">📅</button>
                     <button onClick={() => navigate(`/pomodoro?contexto_tipo=habito&contexto_id=${h.id}&nome=${encodeURIComponent(h.nome)}`)}
-                      className="text-xs text-text-muted hover:text-accent" title="Iniciar Pomodoro">▶</button>
+                      className="text-xs text-text-muted hover:text-accent" title="Iniciar Pomodoro">⏱️</button>
                     <span className="w-px h-4 bg-border mx-0.5" />
-                    <button onClick={() => handleEdit(h)} className="text-xs text-text-muted hover:text-accent">✎</button>
+                    <button onClick={() => handleEdit(h)} className="text-xs text-text-muted hover:text-accent">✏️</button>
                     <button onClick={() => setConfirmDeleteId({ id: h.id, nome: h.nome })}
-                      className="text-xs text-text-muted hover:text-danger ml-1">✕</button>
+                      className="text-xs text-text-muted hover:text-danger ml-1">🗑️</button>
                   </>
                 )}
               </div>
@@ -225,7 +210,6 @@ export default function Habitos() {
           </div>
         )})}
       </div>
-
       {confirmDeleteId && (
         <ConfirmModal
           titulo="Remover hábito"

@@ -41,7 +41,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
       <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">Criar a partir de template</span>
-          <button onClick={onClose} className="text-text-muted hover:text-text-primary">✕</button>
+          <button onClick={onClose} className="text-text-muted hover:text-text-primary" title="Fechar" aria-label="Fechar">?</button>
         </div>
         <div className="p-4 space-y-2">
           {isLoading && <p className="text-sm text-text-muted text-center py-4 animate-pulse">Carregando...</p>}

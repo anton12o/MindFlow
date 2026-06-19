@@ -938,6 +938,12 @@ netstat -tlnp | grep 8000
 
 # Kill process
 kill -9 <PID>
+
+# Ou use --port para porta específica
+python start.py --port 3000
+
+# O script tenta automaticamente 8001, 8002... se 8000 estiver ocupado
+# (a menos que --port seja explicitamente definido — nesse caso, falha se ocupado)
 ```
 
 #### Database Locked
@@ -992,5 +998,5 @@ tail -f /var/log/mindflow/app.log
 
 ---
 
-*Última atualização: 16 de junho de 2026*
-*Versão: v1.2.3*
+*Última atualização: 19 de junho de 2026*
+*Versão: v1.2.11*

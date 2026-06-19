@@ -8,6 +8,7 @@ import { sql } from '@codemirror/lang-sql'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { defaultKeymap, indentWithTab } from '@codemirror/commands'
 import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
+import { useTheme } from '../store/theme'
 
 interface Props {
   value: string
@@ -16,6 +17,7 @@ interface Props {
 }
 
 const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, notas }: Props) {
+  const { theme } = useTheme()
   const ref = useRef<HTMLDivElement>(null)
   const viewRef = useRef<EditorView | null>(null)
   const onChangeRef = useRef(onChange)
@@ -36,7 +38,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         python(),
         javascript(),
         sql(),
-        oneDark,
+        theme === 'dark' ? oneDark : [],
         keymap.of([...defaultKeymap, indentWithTab]),
         EditorView.updateListener.of(update => {
           if (update.docChanged) onChangeRef.current(update.state.doc.toString())
@@ -44,8 +46,8 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         EditorView.theme({
           '&': { backgroundColor: 'transparent' },
           '.cm-scroller': { fontFamily: '"Inter", system-ui, -apple-system, sans-serif', fontSize: '15px', lineHeight: '1.7', overflow: 'auto' },
-          '.cm-content': { caretColor: '#5B8DEF', padding: '12px 0' },
-          '.cm-cursor': { borderLeftColor: '#5B8DEF' },
+          '.cm-content': { caretColor: 'var(--color-accent)', padding: '12px 0' },
+          '.cm-cursor': { borderLeftColor: 'var(--color-accent)' },
           '.cm-gutters': { display: 'none' },
         }),
         autocompletion({
@@ -73,7 +75,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
       viewRef.current?.destroy()
       viewRef.current = null
     }
-  }, [])
+  }, [theme])
 
   useEffect(() => {
     const view = viewRef.current

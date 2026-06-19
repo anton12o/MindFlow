@@ -31,9 +31,11 @@ python --version  # Deve ser 3.12.0 ou superior
 node --version     # Deve ser 18.0.0 ou superior
 npm --version      # Deve ser 8.0.0 ou superior
 
-# Git (versionamento)
+# Git 2.x+
 git --version
 ```
+
+**⚠ Windows:** `npx tsc` pode falhar por Execution Policy. Use `node node_modules/typescript/bin/tsc --noEmit` diretamente.
 
 ### Estrutura do Projeto
 ```
@@ -184,6 +186,11 @@ pip install -r requirements-dev.txt
 # Rodar servidor com hot reload
 cd backend
 python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+
+# Rodar com porta específica
+python start.py --port 3000
+
+# Se a porta 8000 estiver ocupada, start.py tenta 8001, 8002... automaticamente
 
 # Rodar testes
 python -m pytest tests/ -q
@@ -563,6 +570,26 @@ console.log('Request:', {
 console.log('Response:', response);
 ```
 
+#### Notificações para o Usuário
+Use o hook `useNotify()` do `store/notification.tsx` para mostrar feedback visual em catch blocks:
+
+```typescript
+import { useNotify } from '../store/notification'
+
+function MeuComponente() {
+  const notify = useNotify()
+  
+  try {
+    await operacao()
+  } catch (e) {
+    console.error('[contexto]', e)
+    notify('Erro ao realizar operação')  // toast automático
+  }
+}
+```
+
+O provider `NotificationProvider` já está ativo em `App.tsx`. Toast aparece no canto inferior direito com auto-dismiss em 4s.
+
 ---
 
 ## 📦 Build e Deployment
@@ -854,5 +881,5 @@ sqlite3 mindflow.db "PRAGMA integrity_check;"
 
 ---
 
-*Última atualização: 16 de junho de 2026*
-*Versão: v1.2.3*
+*Última atualização: 19 de junho de 2026*
+*Versão: v1.2.11*

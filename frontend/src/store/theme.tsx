@@ -41,7 +41,7 @@ const ThemeContext = createContext<{
 }>({ mode: 'dark', theme: 'dark', cycleTheme: () => {} })
 
 const NEXT_MODE: Record<ThemeMode, ThemeMode> = { dark: 'light', light: 'system', system: 'dark' }
-const MODE_ICON: Record<ThemeMode, string> = { dark: '☾', light: '☀', system: '💻' }
+const MODE_ICON: Record<ThemeMode, string> = { dark: '🌙', light: '☀️', system: '🖥️' }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(loadTheme)
