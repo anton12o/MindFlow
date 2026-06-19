@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from database import get_session
 from models import InboxItem, InboxItemCreate, InboxItemUpdate, InboxItemRead
@@ -6,9 +6,9 @@ from models import InboxItem, InboxItemCreate, InboxItemUpdate, InboxItemRead
 router = APIRouter()
 
 @router.get("", response_model=list[InboxItemRead])
-def list_inbox(arquivado: bool = False, session: Session = Depends(get_session)):
+def list_inbox(arquivado: bool = False, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     stmt = select(InboxItem).where(InboxItem.arquivado == arquivado).order_by(InboxItem.criado_em.desc())
-    return session.exec(stmt).all()
+    return session.exec(stmt.offset(offset).limit(limit)).all()
 
 @router.post("", response_model=InboxItemRead)
 def create_inbox(item: InboxItemCreate, session: Session = Depends(get_session)):

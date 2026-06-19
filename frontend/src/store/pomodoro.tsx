@@ -27,7 +27,7 @@ function loadConfig(): PomodoroConfig {
       const parsed = JSON.parse(stored)
       return { ...DEFAULT_CONFIG, ...parsed }
     }
-  } catch {}
+    } catch (e) { console.error('[pomodoro.loadConfig]', e) }
   return DEFAULT_CONFIG
 }
 
@@ -137,7 +137,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
-    } catch {}
+    } catch (e) { console.error('[pomodoro.persist]', e) }
   }, [config])
 
   // Reset timer to current phase duration
@@ -182,9 +182,9 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         contextoId: contexto?.id || null,
         contextoNome: contexto?.nome || null,
       }))
-    } catch {}
+    } catch (e) { console.error('[pomodoro.saveHeartbeat]', e) }
   }
-  const clearHeartbeat = () => { try { localStorage.removeItem(HB_KEY) } catch {} }
+  const clearHeartbeat = () => { try { localStorage.removeItem(HB_KEY) } catch (e) { console.error('[pomodoro.clearHeartbeat]', e) } }
 
   // Tick loop
   useEffect(() => {

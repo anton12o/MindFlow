@@ -351,34 +351,28 @@
 ---
 
 ### Validadores Pydantic para campos enum-like
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** `HabitoBase.tipo` aceita qualquer string (deveria ser `"binario" | "quantitativo"`), `TarefaBase.prioridade` (deveria ser `"baixa" | "normal" | "alta" | "urgente"`), `TarefaBase.status` (deveria ser `"pendente" | "em_andamento" | "feito"`). Adicionar `@field_validator` do Pydantic — `Literal` não funciona com SQLModel 0.0.38.
+**Descrição:** `@field_validator` adicionado em `HabitoBase.tipo`, `TarefaBase.prioridade` e `TarefaBase.status` com mensagens de erro descritivas. `Literal` não funciona com SQLModel 0.0.38 (`issubclass()` falha).
 
 **Arquivos envolvidos:**
-- `backend/models.py` — adicionar `@field_validator` em `TarefaBase` e `HabitoBase`
-- `backend/tests/test_api.py` — testar rejeição de valores inválidos
+- `backend/models.py` — `@field_validator` em 3 classes + `QuerySalva.visualizacao`
 
-**Dependências:** Nenhuma.
-
-**Observações:** ~2h. `field_validator` roda na camada Pydantic (que o SQLModel usa por baixo), então funciona sem quebrar o schema SQL. Teria prevenido o bug do `"concluida"` vs `"feito"` em stats.py — qualquer valor inválido daria 422 na origem.
+**Observações:** ~2h. `field_validator` roda na camada Pydantic.
 
 ---
 
 ### Validação de comprimento em campos de texto
-**Status:** ✅ Implementado (Jun/2026)
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** `InboxItemBase.conteudo`, `NotaBase.titulo`, `FlashcardBase.pergunta/resposta` não têm `min_length`. Strings vazias passam na validação. Adicionar `min_length=1` em campos obrigatórios e `max_length` razoável (títulos 500 chars, conteúdo 10MB).
+**Descrição:** `min_length=1` adicionado em `TarefaUpdate.titulo`, `NotaUpdate.titulo`, `HabitoUpdate.nome`, `BlocoRotinaUpdate.titulo`, `FlashcardUpdate.pergunta+resposta`.
 
 **Arquivos envolvidos:**
-- `backend/models.py` — adicionar `min_length`/`max_length`
-- `backend/routers/queries.py` — `BatchInput.ids` com `max_length=100`
+- `backend/models.py` — 5 modelos com `Field(default=None, min_length=1)`
 
-**Dependências:** Nenhuma.
-
-**Observações:** ~1h. Mudança backward-compatible.
+**Observações:** Mudança backward-compatible. `exclude_unset` no PATCH garante que `min_length` só valida quando campo é enviado.
 
 ---
 
@@ -553,12 +547,12 @@
 ---
 
 ### Detecção de WAL + cloud sync no startup
-**Status:** ✅ Implementado (Jun/2026)
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise DeepSeek (Jun/2026)
 
-**Descrição:** `start.py` verifica se o caminho do `.db` contém "onedrive", "dropbox", "icloud" ou "syncthing" e exibe alerta. WAL mode + nuvem corrompe o banco.
+**Descrição:** `start.py` detecta OneDrive/Dropbox/iCloud/Syncthing/Google Drive/Box Sync e força `journal_mode=DELETE` via env var `MFLOW_JOURNAL_MODE`. `database.py` lê env var no pragma setup.
 
-**Arquivos:** `start.py`
+**Arquivos:** `start.py`, `backend/database.py`
 
 ---
 
@@ -619,37 +613,32 @@
 ---
 
 ### Invalidação de cache React Query entre páginas
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Várias mutations invalidam cache de uma página mas não de páginas relacionadas. `checkHabitoMut` no Dashboard não invalida `['registros']`. Criar nota com wikilinks não invalida `['grafo']`. Adicionar/remover tags não invalida `['notas']`.
+**Descrição:** Três gaps de cache fechados: `removeTagFromNotaMut` (+`['notas']`), `batchMut` (+`['notas']`), `checkHabitoMut` (+`['registros', habitoId]`).
 
 **Arquivos envolvidos:**
-- `frontend/src/pages/Dashboard.tsx` — invalidar registros + hábitos
-- `frontend/src/pages/Habitos.tsx` — invalidar chaves do Dashboard
-- `frontend/src/pages/Ideias.tsx` — invalidar grafo + notas após tags
+- `frontend/src/pages/Ideias.tsx` — `['notas']` em `removeTagFromNotaMut`
+- `frontend/src/pages/Consultas.tsx` — `['notas']` em `batchMut`
+- `frontend/src/pages/Dashboard.tsx` — `['registros', habitoId]` em `checkHabitoMut`
 
-**Dependências:** Nenhuma.
-
-**Observações:** ~3h.
+**Observações:** ~30min.
 
 ---
 
 ### Erros silenciosos no frontend (swallowed errors)
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Export falha e usuário não sabe, `createSessao` falha silenciosamente, `getLogs` falha e mostra lista vazia, arquivos não-.json ignorados sem aviso. Corrigir todos para exibir feedback visível.
+**Descrição:** `console.error('[contexto]', e)` adicionado em 7 catch blocks vazios: `loadConfig`, `persist config`, `saveHeartbeat`, `clearHeartbeat` (pomodoro store), restore e save config (PomodoroTimer), tooltip preview (Ideias).
 
 **Arquivos envolvidos:**
-- `frontend/src/components/Sidebar.tsx:64-66` — toast de erro no export
-- `frontend/src/components/PomodoroTimer.tsx:103-106` — feedback de erro
-- `frontend/src/components/LogsModal.tsx:18` — mensagem de erro
-- `frontend/src/components/ImportModal.tsx:34` — "tipo não suportado"
+- `frontend/src/store/pomodoro.tsx` — 4 catch blocks
+- `frontend/src/components/PomodoroTimer.tsx` — 2 catch blocks
+- `frontend/src/pages/Ideias.tsx` — 1 catch block
 
-**Dependências:** Componente Toast.
-
-**Observações:** ~2h.
+**Observações:** ~15min.
 
 ---
 
@@ -756,7 +745,7 @@
 ---
 
 ### No pagination em endpoints de listagem
-**Status:** ⏳ Planejado
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
 **Descrição:** Além de `GET /notas`, endpoints sem paginação: `GET /registros`, `GET /flashcards/review`, `GET /sessoes`, `GET /tarefas`. Adicionar `limit/offset`.
@@ -915,20 +904,17 @@
 
 ---
 
-### Paginação server-side em GET /notas
-**Status:** ⏳ Planejado
+### Paginação server-side em endpoints de listagem
+**Status:** ✅ Implementado (v1.2.12)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** `GET /notas` retorna tudo sem limite. Adicionar `?limit=50&offset=0` no backend e `useInfiniteQuery` no frontend.
+**Descrição:** `limit/offset` adicionado em 6 routers (notas, habitos, flashcards, pomodoro, rotina, inbox) com default limit=200, max=1000. Frontend `getNotas()` aceita params.
 
 **Arquivos envolvidos:**
-- `backend/routers/notas.py` — parâmetros `limit`/`offset`
-- `frontend/src/api/notas.ts` — suportar paginação
-- `frontend/src/pages/Ideias.tsx` — `useInfiniteQuery`
+- `backend/routers/notas.py`, `habitos.py`, `flashcards.py`, `pomodoro.py`, `rotina.py`, `inbox.py`
+- `frontend/src/api/notas.ts`
 
-**Dependências:** Nenhuma.
-
-**Observações:** ~4h. Preparação para escala.
+**Observações:** ~2h.
 
 ---
 

@@ -32,7 +32,7 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
         const plain = (nota.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
         previewCache.current.set(target.id, plain)
         setTooltipContent(plain)
-      } catch { return }
+      } catch (e) { console.error('[Ideias] tooltip preview', e); return }
     } else {
       const plain = (target.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
       previewCache.current.set(target.id, plain)
@@ -279,6 +279,7 @@ export default function Ideias() {
       request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'DELETE' }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['notaTags', variables.notaId] })
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
   })
   function selectNota(n: Nota) {

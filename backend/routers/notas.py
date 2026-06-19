@@ -1,6 +1,6 @@
 import re
 import logging
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select, or_, SQLModel
 from sqlalchemy import func
 from sqlalchemy import text
@@ -116,7 +116,7 @@ def create_tag(t: TagCreate, session: Session = Depends(get_session)):
 
 # ─── Notas ───
 @router.get("", response_model=list[NotaRead])
-def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, sort: str | None = None, session: Session = Depends(get_session)):
+def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | None = None, sort: str | None = None, limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
     tag_id_list = []
     if tag_ids:
         for t in tag_ids.split(","):
@@ -153,7 +153,7 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
             stmt = select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
             valid_nota_ids = set(session.exec(stmt).all())
             notas = [n for n in notas if n.id in valid_nota_ids]
-        return notas
+            return notas[offset:offset + limit]
     
     stmt = select(Nota)
     if data:
@@ -168,7 +168,7 @@ def list_notas(q: str | None = None, data: str | None = None, tag_ids: str | Non
         order = Nota.acessos.desc().nullslast()
     elif sort == 'titulo':
         order = Nota.titulo.asc()
-    return session.exec(stmt.order_by(order)).all()
+    return session.exec(stmt.order_by(order).offset(offset).limit(limit)).all()
 
 @router.post("", response_model=NotaRead)
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):

@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.11"
+VERSION = "1.2.12"
 VENV_DIR = Path(ROOT) / "venv"
 
 
@@ -130,7 +130,7 @@ def ensure_frontend():
 
 
 def check_cloud_sync():
-    """Alerta se o banco estiver dentro de pasta sincronizada (WAL + cloud = corrupção)."""
+    """Desativa WAL mode se o banco estiver dentro de pasta sincronizada (WAL + cloud = corrupção)."""
     src = os.path.join(BACKEND, "mindflow.db")
     abspath = os.path.abspath(src).lower()
     keywords = ["onedrive", "dropbox", "icloud", "syncthing", "google drive", "box sync"]
@@ -138,7 +138,9 @@ def check_cloud_sync():
         if kw in abspath:
             print(f" ⚠ AVISO: O banco SQLite está em {kw.title()} ({abspath})")
             print(" ⚠ WAL mode + sincronização de nuvem pode CORROMPER o banco.")
-            print(" ⚠ Use 'python start.py --backup' para backup manual antes de prosseguir.")
+            print(" ⚠ Desativando WAL mode — usando journal_mode=DELETE para segurança.")
+            os.environ["MFLOW_JOURNAL_MODE"] = "DELETE"
+            return
 
 
 def ensure_venv():
