@@ -70,13 +70,14 @@ cd MindFlow
 python start.py
 ```
 
-O app abrirá automaticamente em `http://localhost:8000`.
+O app abrirá automaticamente em `http://localhost:8000` (ou porta disponível). Use `python start.py --port 3000` para porta personalizada.
 
 ### Primeira Execução
 
 1. **Dashboard**: Visão geral com seus hábitos, tarefas e insights
-2. **Sidebar**: Navegação rápida entre módulos
+2. **Sidebar**: Navegação rápida entre módulos (use "Mais..." para páginas secundárias)
 3. **Tema**: Clique no ícone de sol/lua no canto inferior esquerdo
+4. **Badge Pomodoro**: Quando o timer estiver ativo, um badge `⚡ MM:SS` aparece no canto superior direito visível em todas as páginas
 
 ### Menu Inicial
 
@@ -274,10 +275,27 @@ O Pomodoro ajuda você a focar em tarefas com tempo limitado.
 
 ### Usar Timer
 
-1. Clique em **Iniciar**
-2. Acompanhe o timer visualmente
-3. Timer soa quando concluído
+1. Clique em **Iniciar** para ciclo foco/pausa
+2. Acompanhe o timer visualmente (badge `⚡ MM:SS` no canto superior direito)
+3. Timer soa quando concluído (3 beeps)
 4. Clique em **Parar** manualmente
+
+### Modo Livre
+
+Cronômetro crescente sem alarme ou fases — ideal para tarefas abertas:
+
+1. Clique em **Livre**
+2. O tempo conta para cima
+3. Badge `⚡ MM:SS` aparece globalmente
+4. Clique em **Parar** para encerrar
+
+### Badge Global
+
+Quando o timer estiver ativo (foco, pausa ou livre), um badge `⚡ MM:SS` aparece no canto superior direito do app, visível em todas as páginas — você nunca perde o tempo de vista mesmo navegando.
+
+### Notificações
+
+O Pomodoro solicita permissão para notificações nativas do navegador. Se concedida, você recebe um alerta quando o timer chegar a zero mesmo com a aba em segundo plano. Caso contrário, o som de 3 beeps é usado como fallback.
 
 ### Gerar Nota de Resumo
 
@@ -352,18 +370,31 @@ O sistema de notas é o coração do MindFlow — sua base de conhecimento.
 
 ### Estrutura de Pastas
 
+O painel de pastas na página Ideias fica à esquerda da lista de notas.
+
+**Colapsar/expandir**:
+- Clique no cabeçalho **Pastas** com o ícone de pasta para recolher ou expandir a seção
+- Quando recolhido, mostra a contagem total de pastas
+
 **Criar pasta**:
-1. Vá na página **Ideias**
-2. Clique no botão **+ Pasta**
-3. Preencha o nome
+1. Passe o mouse sobre o cabeçalho **Pastas**
+2. Clique no botão **+ Nova**
+3. Digite o nome e pressione Enter
 
-**Aninhamento**:
-- Pastas podem ter subpastas
-- Selecione uma pasta no dropdown
+**Subpastas**:
+- Passe o mouse sobre uma pasta e clique no botão **+** para criar subpasta
+- Use ▶/▼ para expandir/recolher subpastas
+- Indentação visual mostra a hierarquia
 
-**Breadcrumb**:
-- Caminho até a pasta atual
-- Clique para navegar para cima
+**Excluir pasta**:
+- Passe o mouse sobre uma pasta
+- Clique no botão **X** que aparece no canto direito
+- Confirme a exclusão
+- Notas na pasta não são excluídas — apenas removidas da pasta
+
+**Filtrar por pasta**:
+- Clique em uma pasta para filtrar as notas
+- Clique novamente para limpar o filtro
 
 ### Títulos e Conteúdo
 
@@ -734,7 +765,9 @@ A Revisão Semanal ajuda você a analisar sua produtividade semanal com score co
 
 **App não abre?**
 - Verifique se a porta 8000 está livre
-- Teste: `curl http://localhost:8000/health`
+- Se estiver ocupada, o app tenta 8001, 8002... automaticamente
+- Para porta específica: `python start.py --port 3000`
+- Teste: `curl http://localhost:[porta]/health`
 
 **Nota não salva?**
 - Verifique editor de texto
@@ -767,5 +800,5 @@ A Revisão Semanal ajuda você a analisar sua produtividade semanal com score co
 
 ---
 
-*Documentação criada em 16 de junho de 2026*
-*Versão: v1.2.3*
+*Documentação atualizada em 19 de junho de 2026*
+*Versão: v1.2.11*

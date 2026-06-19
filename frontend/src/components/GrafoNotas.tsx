@@ -23,7 +23,7 @@ const TIPO_CORES: Record<string, string> = {
 }
 
 const TIPO_ICONES: Record<string, string> = {
-  Nota: '📄',
+  Nota: '📝',
   Tarefa: '✅',
   Projeto: '📋',
   Pessoa: '👤',
@@ -37,7 +37,7 @@ function getNodeColor(node: SimNode): string {
 
 function getNodeIcon(node: SimNode): string {
   if (node.tipo_nome && TIPO_ICONES[node.tipo_nome]) return TIPO_ICONES[node.tipo_nome]
-  return '📄'
+  return '📝'
 }
 
 export default function GrafoNotas({ onSelectNota }: Props) {
@@ -134,14 +134,14 @@ export default function GrafoNotas({ onSelectNota }: Props) {
           {usedTipos.map(tipo => (
             <div key={tipo} className="flex items-center gap-1 text-xs text-text-muted">
               <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: TIPO_CORES[tipo!] || 'var(--color-accent)' }} />
-              {TIPO_ICONES[tipo!] || '📄'} {tipo}
+              {TIPO_ICONES[tipo!] || '📝'} {tipo}
             </div>
           ))}
         </div>
       )}
       {hoveredNode && (
         <div className="mt-1 px-2 text-xs text-accent">
-          {getNodeIcon(hoveredNode)} {hoveredNode.label}{hoveredNode.tipo_nome ? ` — ${hoveredNode.tipo_nome}` : ''}
+          {getNodeIcon(hoveredNode)} {hoveredNode.label}{hoveredNode.tipo_nome ? ` · ${hoveredNode.tipo_nome}` : ''}
         </div>
       )}
     </div>

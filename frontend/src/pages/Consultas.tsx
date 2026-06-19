@@ -4,28 +4,27 @@ import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
 import { updateNota, createNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
+import { useNotify } from '../store/notification'
+import { X, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useSortable, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-
 interface SchemaField {
   type: 'text' | 'number' | 'date' | 'url' | 'select'
   options?: string[]
 }
-
 interface FormularioViewProps {
   query: { tipo_objeto_id: number }
   tipo: { icone?: string; nome?: string; schema_campos: Record<string, SchemaField> } | undefined
   onClose: () => void
   onCreate: () => void
 }
-
 function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps) {
+  const notify = useNotify()
   const schema = tipo?.schema_campos || {}
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [titulo, setTitulo] = useState('')
   const [saving, setSaving] = useState(false)
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!titulo.trim()) return
@@ -45,10 +44,9 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
         onCreate()
         onClose()
       })
-      .catch(err => console.error('[Formulario] create failed:', err))
+      .catch(err => { console.error('[Formulario] create failed:', err); notify('Erro ao criar nota') })
       .finally(() => setSaving(false))
   }
-
   if (!Object.keys(schema).length) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-muted">
@@ -57,15 +55,14 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
       </div>
     )
   }
-
   return (
     <div className="max-w-xl mx-auto p-6 bg-bg-secondary rounded-xl border border-border">
-      <h3 className="text-lg font-semibold mb-4">Nova nota — {tipo?.icone} {tipo?.nome}</h3>
+      <h3 className="text-lg font-semibold mb-4">Nova nota {tipo?.icone} {tipo?.nome}</h3>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-xs text-text-muted mb-1">Título *</label>
           <input value={titulo} onChange={e => setTitulo(e.target.value)}
-            className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" required />
+            className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" required />
         </div>
         {Object.entries(schema).map(([key, field]) => (
           <div key={key}>
@@ -74,7 +71,7 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
               <select
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent"
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
                 <option value="">Selecione...</option>
                 {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
@@ -83,22 +80,22 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
               <input type="date"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             ) : field.type === 'number' ? (
               <input type="number"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             ) : field.type === 'url' ? (
               <input type="url"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="https://..." />
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" placeholder="https://..." />
             ) : (
               <input type="text"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             )}
           </div>
         ))}
@@ -115,23 +112,18 @@ function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps)
     </div>
   )
 }
-
 interface CalendarioViewProps {
   query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
   result: { dados: Array<{ id: number; titulo: string; [key: string]: unknown }> } | undefined
   resLoad: boolean
   resErr: boolean
   onRefresh: () => void
+  mesAtual: string
+  onMesChange: (mes: string) => void
+  errorMsg?: string
 }
-
-function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: CalendarioViewProps) {
-  const [mesAtual, setMesAtual] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
-
+function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh, mesAtual, onMesChange, errorMsg }: CalendarioViewProps) {
   const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-
   function getDiasDoMes(anoMes: string) {
     const [ano, mes] = anoMes.split('-').map(Number)
     const primeiroDia = new Date(ano, mes - 1, 1)
@@ -143,11 +135,9 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh 
     for (let d = 1; d <= diasNoMes; d++) dias.push(d)
     return dias
   }
-
   const dias = getDiasDoMes(mesAtual)
   const semanas = []
   for (let i = 0; i < dias.length; i += 7) semanas.push(dias.slice(i, i + 7))
-
   const notasPorDia: Record<number, Array<{ id: number; titulo: string }>> = {}
   if (result?.dados) {
     for (const nota of result.dados) {
@@ -162,27 +152,24 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh 
       }
     }
   }
-
   const mesLabel = new Date(mesAtual + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-
   if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
-  if (resErr) return <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+  if (resErr) return <p className="text-danger text-sm text-center py-8">{errorMsg || 'Erro ao executar consulta'}</p>
   if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de data (campo_agrupamento) na consulta</p>
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setMesAtual(mesStr => {
-          const [a, mesNum] = mesStr.split('-').map(Number)
+        <button onClick={() => {
+          const [a, mesNum] = mesAtual.split('-').map(Number)
           const d = new Date(a, mesNum - 2, 1)
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        })} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover">‹</button>
+          onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronLeft size={16} /></button>
         <h3 className="text-lg font-semibold capitalize">{mesLabel}</h3>
-        <button onClick={() => setMesAtual(mesStr => {
-          const [a, mesNum] = mesStr.split('-').map(Number)
+        <button onClick={() => {
+          const [a, mesNum] = mesAtual.split('-').map(Number)
           const d = new Date(a, mesNum, 1)
-          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-        })} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover">›</button>
+          onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronRight size={16} /></button>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {diasSemana.map(d => <div key={d} className="text-center text-xs font-semibold text-text-muted py-1">{d}</div>)}
@@ -213,20 +200,18 @@ function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh 
     </div>
   )
 }
-
 interface GanttViewProps {
   query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
   result: { dados: Array<{ id: number; titulo: string; propriedades?: Record<string, unknown>; [key: string]: unknown }>; total?: number } | undefined
   resLoad: boolean
   resErr: boolean
   onRefresh: () => void
+  errorMsg?: string
 }
-
-function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: GanttViewProps) {
+function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh, errorMsg }: GanttViewProps) {
   const [scale, setScale] = useState<'day' | 'week' | 'month'>('day')
   const total = result?.total || 0
   const truncated = total > 100
-
   const getDateRange = () => {
     if (!result?.dados || !query.campo_agrupamento) return { min: new Date(), max: new Date() }
     let min = new Date('2099-12-31')
@@ -252,23 +237,19 @@ function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: Ga
     max = new Date(max.getFullYear(), max.getMonth() + 1, 0)
     return { min, max }
   }
-
   const { min, max } = getDateRange()
   const daysDiff = Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24))
   const dayWidth = scale === 'day' ? 40 : scale === 'week' ? 200 : 600
   const totalWidth = Math.max(daysDiff * dayWidth, 800)
-
   const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-
   if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
-  if (resErr) return <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
-  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de data (campo_agrupamento) na consulta</p>
+  if (resErr) return <p className="text-danger text-sm text-center py-8">{errorMsg || 'Erro ao executar consulta'}</p>
+  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de agrupamento (campo_agrupamento) na consulta</p>
   if (!result?.dados?.length) return <p className="text-text-muted text-center py-8">Nenhum item com data_inicio e data_fim</p>
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Gantt — {result.dados.length} itens {truncated && <span className="text-warning text-sm">(limitado a 100 de {total})</span>}</h3>
+        <h3 className="text-lg font-semibold">Gantt · {result.dados.length} itens {truncated && <span className="text-warning text-sm">(limitado a 100 de {total})</span>}</h3>
         <div className="flex gap-2">
           <select value={scale} onChange={e => setScale(e.target.value as any)}
             className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
@@ -356,16 +337,13 @@ function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh }: Ga
     </div>
   )
 }
-
 interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; [key: string]: unknown }
-
 interface SortableItemProps {
   item: CardItem
   tipos: Array<{ id: number; icone?: string }> | undefined
   selectedIds: Set<number>
   toggleSelect: (id: number) => void
 }
-
 const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds, toggleSelect }: SortableItemProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id })
   const style = {
@@ -379,7 +357,7 @@ const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds
     <li ref={setNodeRef} style={style} {...attributes} {...listeners}
       className={`bg-bg-secondary rounded-lg border p-2 cursor-grab transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
       <div className="flex items-center gap-2">
-        <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent">⋮⋮</div>
+        <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent"><GripVertical size={14} /></div>
         <input type="checkbox" checked={selectedIds.has(item.id)}
           onChange={() => toggleSelect(item.id)} className="accent-accent" />
         {tipo && <span className="text-sm">{tipo.icone}</span>}
@@ -395,9 +373,9 @@ const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds
     </li>
   )
 })
-
 export default function Consultas() {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [selectedQuery, setSelectedQuery] = useState<number | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
   const [newName, setNewName] = useState('')
@@ -408,27 +386,23 @@ export default function Consultas() {
   const [queryGroupError, setQueryGroupError] = useState('')
   const [batchField, setBatchField] = useState('')
   const [batchValue, setBatchValue] = useState('')
-  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
-  const [mesAtual, _setMesAtual] = useState(() => {
+  const [calendarioMes, setCalendarioMes] = useState(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
-
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
   const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
-
   const queryAtual = queries?.find(q => q.id === selectedQuery)
-
-  const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr } = useQuery({
-    queryKey: ['query-result', selectedQuery, queryAtual?.visualizacao],
+  const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr, error: resError } = useQuery({
+    queryKey: ['query-result', selectedQuery, queryAtual?.visualizacao, queryAtual?.visualizacao === 'calendario' ? calendarioMes : undefined],
     queryFn: () => executarQuery(
       selectedQuery!,
-      queryAtual?.visualizacao === 'calendario' ? mesAtual : undefined,
+      queryAtual?.visualizacao === 'calendario' ? calendarioMes : undefined,
       queryAtual?.visualizacao === 'gantt'
     ),
     enabled: !!selectedQuery,
   })
-
   const createMut = useMutation({
     mutationFn: () => createQuery({ nome: newName, tipo_objeto_id: newTipoId, visualizacao: newView, campo_agrupamento: newGroup || undefined }),
     onSuccess: () => {
@@ -436,7 +410,6 @@ export default function Consultas() {
       setNewName('')
     },
   })
-
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteQuery(id),
     onSuccess: (_data, id) => {
@@ -444,7 +417,6 @@ export default function Consultas() {
       setSelectedQuery(prev => prev === id ? null : prev)
     },
   })
-
   const batchMut = useMutation({
     mutationFn: () => batchEdit(selectedQuery!, [...selectedIds], { [batchField]: batchValue }),
     onSuccess: () => {
@@ -452,7 +424,6 @@ export default function Consultas() {
       setSelectedIds(new Set())
     },
   })
-
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -461,7 +432,6 @@ export default function Consultas() {
       return next
     })
   }, [])
-
   function renderCard(item: CardItem) {
     return (
       <div key={item.id} onClick={() => toggleSelect(item.id)}
@@ -483,13 +453,10 @@ export default function Consultas() {
     )
   }
 
-
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   )
-
   async function handleDragEnd(e: DragEndEvent) {
     const over = e.over
     if (!over || e.active.id === over.id || !result) return
@@ -498,11 +465,9 @@ export default function Consultas() {
     const activeIndex = result.dados.findIndex(d => d.id === activeId)
     const overIndex = result.dados.findIndex(d => d.id === overId)
     if (activeIndex === -1 || overIndex === -1) return
-
     const newDados = [...result.dados]
     const [moved] = newDados.splice(activeIndex, 1)
     newDados.splice(overIndex, 0, moved)
-
     // Update ordem for affected items
     for (let i = 0; i < newDados.length; i++) {
       if (newDados[i].ordem !== i) {
@@ -510,21 +475,21 @@ export default function Consultas() {
           await updateNota(newDados[i].id, { ordem: i })
         } catch (err) {
           console.error('[Consultas] ordem update failed:', err)
+          notify('Erro ao reordenar itens')
         }
       }
     }
-
     // Optimistic update - we'll refetch
     refetchResult()
   }
-
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6">Consultas</h1>
-
         <form onSubmit={e => { e.preventDefault(); setQueryFormError(''); setQueryGroupError('')
           if (!newName.trim()) { setQueryFormError('Informe o nome'); return }
+          if (newView === 'calendario' && !newGroup) { setQueryGroupError('Selecione um campo de data'); return }
+          if (newView === 'gantt' && !newGroup) { setQueryGroupError('Selecione um campo de agrupamento'); return }
           if (newView === 'kanban' && !newGroup) { setQueryGroupError('Selecione um campo de agrupamento'); return }
           createMut.mutate()
         }} className="mb-4 flex flex-col gap-2">
@@ -535,7 +500,7 @@ export default function Consultas() {
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
           </select>
-          <select value={newView} onChange={e => { setNewView(e.target.value); if (queryGroupError) setQueryGroupError('') }}
+          <select value={newView} onChange={e => { setNewView(e.target.value); setNewGroup(''); if (queryGroupError) setQueryGroupError('') }}
             className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
             <option value="grid">Grid (cards)</option>
             <option value="kanban">Kanban (colunas)</option>
@@ -545,15 +510,29 @@ export default function Consultas() {
             <option value="calendario">Calendário (mensal)</option>
             <option value="gantt">Gantt (cronograma)</option>
           </select>
-          {newView === 'kanban' && (
+          {(newView === 'kanban' || newView === 'calendario' || newView === 'gantt') && (
             <div>
               <select value={newGroup} onChange={e => { setNewGroup(e.target.value); if (queryGroupError) setQueryGroupError('') }}
                 className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none ${queryGroupError ? 'ring-1 ring-danger border-danger' : ''}`}>
-                <option value="">Campo para agrupar...</option>
-                <option value="status">Status</option>
-                <option value="prioridade">Prioridade</option>
-                <option value="tipo_id">Tipo</option>
-                <option value="data">Data</option>
+                {newView === 'calendario' ? (
+                  <>
+                    <option value="">Campo de data...</option>
+                    <option value="criado_em">Criado em</option>
+                    <option value="atualizado_em">Atualizado em</option>
+                    <option value="data_inicio">Data início</option>
+                    <option value="data_fim">Data fim</option>
+                    <option value="vencimento">Vencimento</option>
+                    <option value="lido_em">Lido em</option>
+                  </>
+                ) : (
+                  <>
+                    <option value="">Campo para agrupar...</option>
+                    <option value="status">Status</option>
+                    <option value="prioridade">Prioridade</option>
+                    <option value="tipo_id">Tipo</option>
+                    <option value="data">Data</option>
+                  </>
+                )}
               </select>
               {queryGroupError && <p className="text-xs text-danger">{queryGroupError}</p>}
             </div>
@@ -561,7 +540,6 @@ export default function Consultas() {
           <button type="submit" disabled={createMut.isPending}
             className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
         </form>
-
         <div className="space-y-1">
           {qLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
           {qErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar consultas</p>}
@@ -576,12 +554,11 @@ export default function Consultas() {
                 <div className="text-xs text-text-muted">{q.visualizacao}{q.visualizacao === 'kanban' ? ` por ${q.campo_agrupamento}` : ''}</div>
               </button>
               <button onClick={() => setConfirmDeleteId(q.id)}
-                className="text-xs text-text-muted hover:text-danger">✕</button>
+                className="text-xs text-text-muted hover:text-danger"><X size={12} /></button>
             </div>
           ))}
         </div>
       </div>
-
       <div className="flex-1 p-6 overflow-y-auto">
         {queryAtual ? <div>
             <div className="flex items-center justify-between mb-4">
@@ -605,12 +582,11 @@ export default function Consultas() {
                 </div>
               )}
             </div>
-
             {queryAtual.visualizacao === 'kanban' ? (
               resLoad ? (
                 <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
                 <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
               ) : (
@@ -644,7 +620,7 @@ export default function Consultas() {
               resLoad ? (
                 <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
                 <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
               ) : (
@@ -662,7 +638,7 @@ export default function Consultas() {
               resLoad ? (
                 <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">Erro ao executar consulta</p>
+                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
                 <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
               ) : (
@@ -711,6 +687,9 @@ export default function Consultas() {
                 resLoad={resLoad}
                 resErr={resErr}
                 onRefresh={refetchResult}
+                mesAtual={calendarioMes}
+                onMesChange={setCalendarioMes}
+                errorMsg={resError instanceof Error ? resError.message : undefined}
               />
             ) : queryAtual.visualizacao === 'formulario' ? (
               <FormularioView
@@ -726,6 +705,7 @@ export default function Consultas() {
                 resLoad={resLoad}
                 resErr={resErr}
                 onRefresh={refetchResult}
+                errorMsg={resError instanceof Error ? resError.message : undefined}
               />
             ) : null}
           </div>
@@ -735,7 +715,6 @@ export default function Consultas() {
           </div>
         )}
       </div>
-
       {confirmDeleteId !== null && (
         <ConfirmModal
           titulo="Remover consulta"

@@ -5,7 +5,7 @@ from sqlmodel import Session, select, or_, SQLModel
 from sqlalchemy import func
 from sqlalchemy import text
 from database import get_session
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
     Pasta, PastaCreate, PastaRead,
@@ -391,8 +391,8 @@ def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
     body = n.conteudo or ""
     result = "\n".join(yaml_lines) + "\n\n" + body
     from fastapi import Response
-    safe_filename = n.titulo.replace('"', "'").replace('\n', '')
-    headers = {"Content-Disposition": f"attachment; filename=\"{safe_filename}.md\""}
+    safe_filename = (n.titulo or '(sem titulo)').replace('"', "'").replace('\n', '').strip()
+    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(safe_filename)}.md"}
     return Response(content=result, media_type="text/markdown", headers=headers)
 
 class ExtrairInput(SQLModel):

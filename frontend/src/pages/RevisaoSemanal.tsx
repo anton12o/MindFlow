@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWeeklyStats, type DiaStats, type PeriodoStats } from '../api/stats'
 import { createNota } from '../api/notas'
 import { useNavigate } from 'react-router-dom'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function formatData(iso: string) {
   const d = new Date(iso + 'T12:00:00')
@@ -18,16 +19,16 @@ function formatRange(inicio: string, fim: string) {
 }
 
 function pct(atual: number, passada: number): string {
-  if (passada === 0 && atual === 0) return '—'
+  if (passada === 0 && atual === 0) return '➖'
   if (passada === 0) return '(novo)'
   const v = Math.round(((atual - passada) / passada) * 100)
   return v >= 0 ? `+${v}%` : `${v}%`
 }
 
 function arrow(passada: number, atual: number): string {
-  if (atual > passada) return '↑'
-  if (atual < passada) return '↓'
-  return '→'
+  if (atual > passada) return '📈'
+  if (atual < passada) return '📉'
+  return '\u2796'
 }
 
 function barWidth(valor: number, max: number) {
@@ -36,9 +37,9 @@ function barWidth(valor: number, max: number) {
 
 function ComparativoMetrica({ label, atual, passada, suffix = '' }: { label: string; atual: number; passada: number; suffix?: string }) {
   const v = passada === 0 && atual === 0 ? null : passada === 0 ? 9999 : Math.round(((atual - passada) / passada) * 100)
-  const seta = atual > passada ? '↑' : atual < passada ? '↓' : '→'
+  const seta = atual > passada ? '📈' : atual < passada ? '📉' : '➖'
   const cor = atual > passada ? 'text-success' : atual < passada ? 'text-danger' : 'text-text-muted'
-  const labelVariacao = v === null ? '—' : v === 9999 ? '(novo)' : v >= 0 ? `+${v}%` : `${v}%`
+  const labelVariacao = v === null ? '➖' : v === 9999 ? '(novo)' : v >= 0 ? `+${v}%` : `${v}%`
   return (
     <div className="flex items-center gap-3 text-sm" title={`Semana passada: ${passada}${suffix}`}>
       <span className="w-28 shrink-0 text-text-muted">{label}</span>
@@ -79,7 +80,7 @@ function MetricCard({ label, value, passada, suffix = '', title }: {
   const diff = val - passada
   const diffLabel = diff > 0 ? `+${diff}` : diff === 0 ? '0' : `${diff}`
   const diffColor = diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-text-muted'
-  const pctLabel = passada === 0 && val === 0 ? '—' : pct(val, passada)
+  const pctLabel = passada === 0 && val === 0 ? '➖' : pct(val, passada)
   const seta = passada === 0 && val === 0 ? '' : arrow(val, passada)
   return (
     <div className="bg-bg-secondary/50 rounded-xl p-4" title={title}>
@@ -104,9 +105,9 @@ function downloadBlob(content: string, filename: string, mime: string) {
 
 function gerarMD(semana: PeriodoStats, passada: PeriodoStats, streak: number, habitosAtivos: number) {
   const cabecalho = [
-    `# Revisão Semanal — ${formatRange(semana.inicio, semana.fim)}`,
+    `# Revisão Semanal \U0001f4dd ${formatRange(semana.inicio, semana.fim)}`,
     '',
-    `> Gerado em ${new Date().toLocaleDateString('pt-BR')} · Streak: ${streak} dia${streak === 1 ? '' : 's'}`,
+    `> Gerado em ${new Date().toLocaleDateString('pt-BR')} ? Streak: ${streak} dia${streak === 1 ? '' : 's'}`,
     '',
     '## Resumo',
     '| Métrica | Esta semana | Semana passada | Variação |',
@@ -117,7 +118,7 @@ function gerarMD(semana: PeriodoStats, passada: PeriodoStats, streak: number, ha
     `| Minutos de foco | ${semana.total_minutos_foco} | ${passada.total_minutos_foco} | ${pct(semana.total_minutos_foco, passada.total_minutos_foco)} |`,
     habitosAtivos > 0
       ? `| Taxa de hábitos | ${Math.round(semana.taxa_habitos * 100)}% | ${Math.round(passada.taxa_habitos * 100)}% | ${pct(Math.round(semana.taxa_habitos * 100), Math.round(passada.taxa_habitos * 100))} |`
-      : '| Taxa de hábitos | — (sem hábitos ativos) | — | — |',
+      : '| Taxa de hábitos | ? (sem hábitos ativos) | ? | ? |',
     '',
     '## Detalhamento diário',
     '| Dia | Notas | Tarefas | Pomodoros | Foco |',
@@ -158,7 +159,7 @@ export default function RevisaoSemanal() {
       if (!data) throw new Error('Sem dados')
       const { semana, semana_passada } = data
       const conteudo = [
-        `# Revisão Semanal — ${formatRange(semana.inicio, semana.fim)}`,
+        `# Revisão Semanal \U0001f4dd ${formatRange(semana.inicio, semana.fim)}`,
         '',
         '## Resumo',
         `- **Notas criadas:** ${semana.total_notas} (${pct(semana.total_notas, semana_passada.total_notas)} vs semana passada)`,
@@ -173,7 +174,7 @@ export default function RevisaoSemanal() {
         '- Qual foi o aprendizado mais importante?',
         '- O que você quer focar na próxima semana?',
       ].join('\n')
-      return createNota({ titulo: `Revisão Semanal — ${semana.inicio}`, conteudo })
+      return createNota({ titulo: `Revisão Semanal \U0001f4dd ${semana.inicio}`, conteudo })
     },
     onSuccess: (nota) => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
@@ -197,7 +198,7 @@ export default function RevisaoSemanal() {
           linhas.push(`## ${perguntasReflexao[i]}`, '', r, '')
         }
       })
-      return createNota({ titulo: `Reflexão Semanal — ${semana.inicio}`, conteudo: linhas.join('\n') })
+      return createNota({ titulo: `Reflexão Semanal \U0001f4dd ${semana.inicio}`, conteudo: linhas.join('\n') })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
@@ -258,10 +259,10 @@ export default function RevisaoSemanal() {
           <div className="flex items-center gap-1">
             <button
               onClick={() => setOffset(o => o - 1)}
-              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors text-sm"
+              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
               title="Semana anterior"
             >
-              ‹
+              <ChevronLeft size={16} />
             </button>
             <span className="text-xs text-text-muted tabular-nums w-28 text-center">
               {formatRange(semana.inicio, semana.fim)}
@@ -269,10 +270,10 @@ export default function RevisaoSemanal() {
             <button
               onClick={() => setOffset(o => o + 1)}
               disabled={offset >= 0}
-              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors text-sm"
+              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               title="Próxima semana"
             >
-              ›
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
@@ -285,7 +286,7 @@ export default function RevisaoSemanal() {
             className="px-3 py-1.5 text-sm bg-bg-hover text-text-primary rounded-lg hover:bg-bg-secondary transition-colors"
             title="Exportar como Markdown"
           >
-            ↓ .md
+            🗥 .md
           </button>
           <button
             onClick={() => criarRevisao.mutate()}
@@ -318,7 +319,7 @@ export default function RevisaoSemanal() {
         {total_habitos_ativos === 0 ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="w-28 shrink-0 text-text-muted">Taxa de hábitos</span>
-            <span className="text-text-muted italic">— (sem hábitos ativos)</span>
+            <span className="text-text-muted italic">? (sem hábitos ativos)</span>
           </div>
         ) : (
           <ComparativoMetrica
@@ -348,7 +349,7 @@ export default function RevisaoSemanal() {
           ))}
         </div>
         {celebration && (
-          <p className="text-sm text-success font-medium">Semana produtiva! Continue assim 🎉</p>
+          <p className="text-sm text-success font-medium">Semana produtiva! Continue assim ?</p>
         )}
       </section>
 
@@ -431,7 +432,7 @@ export default function RevisaoSemanal() {
             {salvarReflexao.isPending ? 'Salvando...' : 'Salvar reflexão'}
           </button>
           {salvarReflexao.isSuccess && (
-            <span className="text-xs text-success animate-fade-in">✓ Nota criada!</span>
+            <span className="text-xs text-success animate-fade-in">✅ Nota criada!</span>
           )}
         </div>
       </section>

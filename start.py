@@ -19,7 +19,7 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.10"
+VERSION = "1.2.11"
 VENV_DIR = Path(ROOT) / "venv"
 
 
@@ -47,14 +47,23 @@ def ensure_pre_commit():
     if git_hooks.exists():
         return
     try:
+        subprocess.run(["git", "--version"], capture_output=True, check=True)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        print(" ⚠ Git nao encontrado — hooks pre-commit ignorados.")
+        print(" ⚠ Instale git para ativar verificacao automatica.")
+        return
+    try:
         subprocess.run([sys.executable, "-m", "pre_commit", "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         subprocess.run(
             [sys.executable, "-m", "pip", "install", "pre-commit"],
             capture_output=True, check=True,
         )
-    subprocess.run([sys.executable, "-m", "pre_commit", "install"], cwd=ROOT, capture_output=True, check=True)
-    print(" ✓ Pre-commit hooks configurados")
+    try:
+        subprocess.run([sys.executable, "-m", "pre_commit", "install"], cwd=ROOT, capture_output=True, check=True)
+        print(" ✓ Pre-commit hooks configurados")
+    except subprocess.CalledProcessError:
+        print(" ⚠ Falha ao configurar hooks pre-commit — ignorando.")
 
 
 def precisa_rebuildar() -> bool:
@@ -88,8 +97,17 @@ def ensure_frontend():
     try:
         subprocess.run([npm, "--version"], capture_output=True, check=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
-        print(" ✗ npm nao encontrado. Instale Node.js 18+ ou execute manualmente:")
-        print("  cd frontend && npm install && npm run build")
+        print(" ✗ npm (Node.js) nao encontrado.")
+        print("")
+        print("  O frontend precisa de Node.js 18+ para o primeiro build.")
+        print("  Baixe em: https://nodejs.org/ (escolha a versao LTS)")
+        print("")
+        print("  Apos instalar, execute manualmente:")
+        print("    cd frontend")
+        print("    npm install")
+        print("    npm run build")
+        print("")
+        print("  Em seguida, rode start.py novamente.")
         sys.exit(1)
 
     if not os.path.exists(node_modules):
@@ -170,55 +188,63 @@ def cold_backup():
         print(f" ⚠ Aviso: não foi possível fazer backup ({e})")
 
 
-def check_port():
-    """Verifica se a porta 8000 já está em uso e aborta se sim."""
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(1)
-        result = sock.connect_ex(('localhost', 8000))
-        sock.close()
-        if result == 0:
-            print(" ✗ Porta 8000 já está em uso. Pare o outro processo ou use uma porta diferente.")
-            print("  Para usar porta alternativa: uvicorn main:app --port <PORTA>")
+def resolve_port(requested: int, explicit: bool = False) -> int:
+    """Retorna a primeira porta disponível a partir de requested.
+    Se explicit=True e a porta estiver ocupada, aborta com erro."""
+    port = requested
+    for _ in range(100):
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(0.5)
+            result = sock.connect_ex(('localhost', port))
+            sock.close()
+            if result != 0:
+                return port
+        except OSError:
+            return port
+        if explicit:
+            print(f" ✗ Porta {port} ja esta em uso. Use --port <NUM> para escolher outra.")
             sys.exit(1)
-    except OSError as e:
-        print(f" ⚠ Não foi possível verificar a porta 8000: {e}")
+        print(f" ⚠ Porta {port} ocupada, tentando {port + 1}...")
+        port += 1
+    print(f" ✗ Nenhuma porta disponivel apos 100 tentativas.")
+    sys.exit(1)
 
 
-def start_server():
-    print(" ↻ Iniciando MindFlow em http://localhost:8000")
+def start_server(port: int):
+    print(f" ↻ Iniciando MindFlow em http://localhost:{port}")
     print(" ↻ Pressione Ctrl+C para parar...\n")
 
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"],
+        [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", str(port)],
         cwd=BACKEND,
     )
 
     time.sleep(2)
 
     if proc.poll() is not None:
-        print(" ✗ Servidor nao iniciou. Verifique se a porta 8000 esta livre.")
+        print(f" ✗ Servidor nao iniciou. Verifique se a porta {port} esta livre.")
         sys.exit(1)
 
     return proc
 
 
-def open_browser():
-    webbrowser.open("http://localhost:8000")
-    print(" ✓ Navegador aberto em http://localhost:8000")
+def open_browser(port: int):
+    webbrowser.open(f"http://localhost:{port}")
+    print(f" ✓ Navegador aberto em http://localhost:{port}")
 
 
-def do_backup():
+def do_backup(port: int = 8000):
     """Exporta dados via API e salva como JSON."""
     import json, urllib.request
     print(" ↻ Exportando dados...")
     try:
-        proc = start_server()
+        proc = start_server(port)
         time.sleep(2)
         if proc.poll() is not None:
             print(" ✗ Servidor nao iniciou para backup.")
             return
-        req = urllib.request.Request("http://localhost:8000/api/export")
+        req = urllib.request.Request(f"http://localhost:{port}/api/export")
         with urllib.request.urlopen(req, timeout=30) as resp:
             data = json.loads(resp.read().decode())
         now = time.strftime("%Y-%m-%d_%H-%M-%S")
@@ -249,7 +275,9 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="MindFlow — Seu segundo cérebro local-first, open-source e keyboard-driven")
     parser.add_argument("--backup", action="store_true", help="Exportar dados para JSON e sair (backup a frio)")
+    parser.add_argument("--port", type=int, default=8000, help="Porta do servidor (padrao: 8000)")
     args = parser.parse_args()
+    explicit_port = any(a.startswith('--port') for a in sys.argv[1:])
 
     if sys.platform == "win32":
         sys.stdout.reconfigure(encoding='utf-8')
@@ -258,7 +286,8 @@ def main():
         ensure_venv()
         check_python()
         install_backend_deps()
-        do_backup()
+        port = resolve_port(args.port, explicit_port)
+        do_backup(port)
         return
 
     ensure_venv()
@@ -269,7 +298,9 @@ def main():
     print("  Fase 1/3: Ambiente")
     print("═" * 60)
     check_python()
-    check_port()
+    port = resolve_port(args.port, explicit_port)
+    if port != args.port:
+        print(f" ⚠ Usando porta {port} (a {args.port} estava ocupada)")
     print()
 
     print("═" * 60)
@@ -285,13 +316,13 @@ def main():
     print("═" * 60)
     print("  Fase 3/3: Servidor")
     print("═" * 60)
-    proc = start_server()
-    open_browser()
+    proc = start_server(port)
+    open_browser(port)
     print()
 
     db_path = os.path.join(BACKEND, "mindflow.db")
     print(f" ✓ Banco: {db_path}")
-    print(" ✓ Modo: Produção (porta 8000)")
+    print(f" ✓ Modo: Producao (porta {port})")
     print(" ✓ Dica: Ctrl+I captura ideias, Ctrl+K abre comandos")
     print(" ✓ Pressione Ctrl+C para encerrar")
 
@@ -301,8 +332,8 @@ def main():
         proc.terminate()
         proc.wait()
     finally:
-        print("\n ✓ Servidor encerrado com segurança")
-        print("   Até logo!")
+        print("\n ✓ Servidor encerrado com seguranca")
+        print("   Ate logo!")
 
 
 if __name__ == "__main__":

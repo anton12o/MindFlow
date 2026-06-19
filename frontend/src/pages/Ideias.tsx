@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, createPasta, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
+import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, createPasta, deletePasta, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
 import request from '../api/client'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
@@ -14,7 +14,8 @@ import ConfirmModal from '../components/ConfirmModal'
 import type { Nota, Tag, Pasta } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-
+import { useNotify } from '../store/notification'
+import { Plus, FileText, Link2, Square, Star, Folder, Scissors, X, Flame, Lightbulb, Tag as TagIcon, CheckSquare, ArrowRight, ArrowLeft, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
 function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: string; notas: Nota[]; onSelect: (n: Nota) => void; selectedId?: number | null }) {
   const [tooltipContent, setTooltipContent] = useState('')
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
@@ -22,7 +23,6 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
   const previewCache = useRef<Map<number, string>>(new Map())
   const hoverTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
-
   const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
     if (previewCache.current.has(target.id)) {
       setTooltipContent(previewCache.current.get(target.id)!)
@@ -41,15 +41,12 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
     setTooltipPos({ x: e.clientX, y: e.clientY })
     setTooltipVisible(true)
   }, [selectedId])
-
   const hideTooltip = useCallback(() => {
     clearTimeout(hoverTimeout.current)
     setTooltipVisible(false)
     setTooltipContent('')
   }, [])
-
   useEffect(() => () => clearTimeout(hoverTimeout.current), [])
-
   return (
     <>
       {parts.map((part, i) => {
@@ -79,9 +76,9 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
     </>
   )
 }
-
 export default function Ideias() {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [editando, setEditando] = useState(false)
   const [titulo, setTitulo] = useState('')
@@ -96,15 +93,32 @@ export default function Ideias() {
   const [slashQuery, setSlashQuery] = useState('')
   const [tags, setTags] = useState<Tag[]>([])
   const [tagFilter, setTagFilter] = useState<number[]>([])
+  const [tagsExpanded, setTagsExpanded] = useState(true)
+  const [favoritesExpanded, setFavoritesExpanded] = useState(true)
   const [sortBy, setSortBy] = useState('')
   const [showTagModal, setShowTagModal] = useState(false)
   const [editingTag, setEditingTag] = useState<Tag | null>(null)
+  const [pastasExpanded, setPastasExpanded] = useState(true)
+  const [confirmDeletePasta, setConfirmDeletePasta] = useState<number | null>(null)
   const [newTagNome, setNewTagNome] = useState('')
   const [newTagCor, setNewTagCor] = useState('#6B7280')
   const slashRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<HTMLDivElement>(null)
   const tagModalRef = useRef<HTMLDivElement>(null)
   useFocusTrap(tagModalRef, showTagModal)
+  useEffect(() => {
+    if (!showTagModal) return
+    function handler(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setShowTagModal(false)
+        setEditingTag(null)
+        setNewTagNome('')
+        setNewTagCor('#6B7280')
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [showTagModal])
   const [propriedades, setPropriedades] = useState<Record<string, string>>({})
   const [novaPropKey, setNovaPropKey] = useState('')
   const [novaPropVal, setNovaPropVal] = useState('')
@@ -119,7 +133,6 @@ export default function Ideias() {
   const [subFolderName, setSubFolderName] = useState('')
   const selectedIdRef = useRef(selectedId)
   useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
-
   // --- save state (Bugs 25/26/27) ---
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
   const [dirty, setDirty] = useState(false)
@@ -150,24 +163,19 @@ export default function Ideias() {
       if (successTimerRef.current) clearTimeout(successTimerRef.current)
     }
   }, [])
-
   const [searchParams] = useSearchParams()
   const searchDebounced = useDebounce(search, 300)
-
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
     queryKey: ['notas', searchDebounced, tagFilter, sortBy],
     queryFn: () => getNotas(searchDebounced || undefined, undefined, tagFilter.length > 0 ? tagFilter : undefined, sortBy || undefined),
     staleTime: 60_000,
   })
-
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
   const { data: pastas } = useQuery({ queryKey: ['pastas'], queryFn: getPastas, staleTime: 300_000 })
   const { data: tagsData } = useQuery({ queryKey: ['tags'], queryFn: getTags, staleTime: 300_000 })
-
   useEffect(() => {
     if (tagsData) setTags(tagsData)
   }, [tagsData])
-
   useEffect(() => {
     const notaId = searchParams.get('nota_id')
     if (notaId && !selectedId && notas) {
@@ -175,22 +183,18 @@ export default function Ideias() {
       if (target) selectNota(target)
     }
   }, [searchParams, notas, selectedId])
-
   const { data: conexoes } = useQuery({
     queryKey: ['conexoes', selectedId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
     enabled: !!selectedId,
     staleTime: 120_000,
   })
-
   const { data: notaTagsData } = useQuery({
     queryKey: ['notaTags', selectedId],
     queryFn: ({ queryKey }) => getNotaTags(queryKey[1] as number),
     enabled: !!selectedId,
   })
-
   const notaAtual = notas?.find(n => n.id === selectedId) || null
-
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Nota> }) => updateNota(id, data),
     onSuccess: () => {
@@ -203,11 +207,11 @@ export default function Ideias() {
     },
     onError: (e) => {
       console.error('[Ideias]', e)
+      notify('Erro ao salvar nota')
       setSaveStatus('error')
       setTimeout(() => setSaveStatus('idle'), 3000)
     },
   })
-
   const createMut = useMutation({
     mutationFn: (data: Partial<Nota>) => createNota(data),
     onSuccess: (n) => {
@@ -216,7 +220,6 @@ export default function Ideias() {
       setEditando(true)
     },
   })
-
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteNota(id),
     onSuccess: () => {
@@ -225,7 +228,6 @@ export default function Ideias() {
       setSelectedId(null)
     },
   })
-
   const batchDeleteMut = useMutation({
     mutationFn: (ids: number[]) => batchDeleteNotas(ids),
     onSuccess: () => {
@@ -236,14 +238,19 @@ export default function Ideias() {
       setSelectedId(null)
     },
   })
-
+  const deletePastaMut = useMutation({
+    mutationFn: (id: number) => deletePasta(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pastas'] })
+      setConfirmDeletePasta(null)
+    },
+  })
   const favoritarMut = useMutation({
     mutationFn: (id: number) => favoritarNota(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
   })
-
   const createTagMut = useMutation({
     mutationFn: (data: Partial<Tag>) => createTag(data),
     onSuccess: () => {
@@ -253,7 +260,6 @@ export default function Ideias() {
       setShowTagModal(false)
     },
   })
-
   const updateTagMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Tag> }) => updateTag(id, data),
     onSuccess: () => {
@@ -262,14 +268,12 @@ export default function Ideias() {
       setEditingTag(null)
     },
   })
-
   const createPastaMut = useMutation({
     mutationFn: (data: Partial<Pasta>) => createPasta(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pastas'] })
     },
   })
-
   const removeTagFromNotaMut = useMutation({
     mutationFn: ({ notaId, tagId }: { notaId: number; tagId: number }) =>
       request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'DELETE' }),
@@ -277,7 +281,6 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['notaTags', variables.notaId] })
     },
   })
-
   function selectNota(n: Nota) {
     if (dirty && editando && selectedId) {
       saveNote()
@@ -291,16 +294,13 @@ export default function Ideias() {
     setDirty(false)
     setSaveStatus('idle')
   }
-
   async function handleSave() {
     saveNote()
     setEditando(false)
   }
-
   async function handleCreate() {
-    createMut.mutate({ titulo: 'Nova nota', conteudo: '' })
+    createMut.mutate({ titulo: '(sem título)', conteudo: '', pasta_id: pastaFilter ?? null })
   }
-
   // Auto-save debounce (Bug 26)
   useEffect(() => {
     if (!editando || !selectedId || !dirty) return
@@ -310,7 +310,6 @@ export default function Ideias() {
     }, 2000)
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [titulo, conteudo, propriedades, editando, selectedId, dirty])
-
   // beforeunload when dirty (Bug 27)
   useEffect(() => {
     if (!dirty) return
@@ -321,22 +320,18 @@ export default function Ideias() {
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [dirty])
-
   function handleConfirmDelete() {
     if (!confirmDelete) return
     deleteMut.mutate(confirmDelete)
     setConfirmDelete(null)
   }
-
   function handleDelete() {
     if (!selectedId) return
     setConfirmDelete(selectedId)
   }
-
   function handleBatchDelete() {
     setBatchDeleteConfirm(true)
   }
-
   function toggleSelect(id: number) {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -345,7 +340,6 @@ export default function Ideias() {
       return next
     })
   }
-
   function addPropriedade() {
     if (!novaPropKey.trim()) return
     setPropriedades(p => ({ ...p, [novaPropKey.trim()]: novaPropVal }))
@@ -353,7 +347,6 @@ export default function Ideias() {
     setNovaPropKey('')
     setNovaPropVal('')
   }
-
   function removePropriedade(key: string) {
     setPropriedades(p => {
       const next = { ...p }
@@ -362,21 +355,17 @@ export default function Ideias() {
     })
     setDirty(true)
   }
-
   // --- Tag helpers ---
   function toggleTagFilter(tagId: number) {
     setTagFilter(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId])
   }
-
   function clearTagFilter() {
     setTagFilter([])
   }
-
   const PRESET_COLORS = [
     '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E',
     '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#8B5CF6',
   ]
-
   const handleContentChange = useCallback((val: string) => {
     setConteudo(val)
     setDirty(true)
@@ -388,18 +377,15 @@ export default function Ideias() {
       setShowSlash(false)
     }
   }, [editando])
-
   const slashCommands = [
-    { icon: '📄', label: 'Inserir template /resumo', insert: '/resumo' },
-    { icon: '📅', label: 'Inserir data', insert: `**Data:** ${new Date().toLocaleDateString('pt-BR')}` },
-    { icon: '🔗', label: 'Link rápido [[', insert: '[[' },
-    { icon: '📝', label: 'Checklist - [ ] ', insert: '- [ ] ' },
-    { icon: '💡', label: 'Dica > ', insert: '> ' },
-    { icon: '🏷️', label: 'Propriedade ::', insert: '\n::' },
+    { icon: <FileText size={14} />, label: 'Inserir template /resumo', insert: '/resumo' },
+    { icon: <span className="text-xs">📅</span>, label: 'Inserir data', insert: `**Data:** ${new Date().toLocaleDateString('pt-BR')}` },
+    { icon: <Link2 size={14} />, label: 'Link rápido [[', insert: '[[' },
+    { icon: <CheckSquare size={14} />, label: 'Checklist - [ ] ', insert: '- [ ] ' },
+    { icon: <Lightbulb size={14} />, label: 'Dica > ', insert: '> ' },
+    { icon: <TagIcon size={14} />, label: 'Propriedade ::', insert: '\n::' },
   ].filter(c => c.label.toLowerCase().includes(slashQuery.toLowerCase()))
-
   const filtered = notas || []
-
   const parentRef = useRef<HTMLDivElement>(null)
   const visibleItems = useMemo(
     () => filtered.filter(n => !pastaFilter || n.pasta_id === pastaFilter),
@@ -408,16 +394,14 @@ export default function Ideias() {
   const virtualizer = useVirtualizer({
     count: visibleItems.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 56,
+    estimateSize: () => 64,
   })
-
   const saida = notas?.filter(n =>
     conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
   ) || []
   const entrada = notas?.filter(n =>
     conexoes?.some(c => c.nota_destino_id === selectedId && c.nota_origem_id === n.id)
   ) || []
-
   const flatTree = useMemo(() => {
     const result: { pasta: Pasta; depth: number }[] = []
     function walk(parentId: number | null, depth: number) {
@@ -430,7 +414,6 @@ export default function Ideias() {
     walk(null, 0)
     return result
   }, [pastas, expandedFolders])
-
   function toggleExpanded(id: number) {
     setExpandedFolders(prev => {
       const next = new Set(prev)
@@ -438,30 +421,52 @@ export default function Ideias() {
       return next
     })
   }
-
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-x-hidden">
-        <div className="flex items-center gap-1 w-full mb-2 shrink-0">
+        <div className="flex items-center justify-between mb-2 shrink-0">
+          <h1 className="text-2xl font-bold text-text-primary">Notas</h1>
+          <button onClick={handleCreate} disabled={createMut.isPending}
+              className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover rounded-lg shrink-0 disabled:opacity-50 transition-colors"
+            title="Nova nota em branco">
+            {createMut.isPending ? <span className="text-xs">...</span> : <Plus size={18} />}
+          </button>
+        </div>
+        <div className="flex items-center gap-1 w-full mb-3 shrink-0">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por conteúdo..."
-            className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
+            placeholder="Buscar..."
+            className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none border border-border/50 focus-visible:ring-2 focus-visible:ring-accent"
           />
-          <button onClick={handleCreate} disabled={createMut.isPending} className="px-2 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover shrink-0 disabled:opacity-50" title="Nova nota em branco">{createMut.isPending ? '...' : '+'}</button>
-          <button onClick={() => setShowTemplateModal(true)} className="px-2 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover shrink-0" title="Criar nota a partir de um modelo pré-definido (template)">📋</button>
-          <button onClick={() => setShowGrafo(!showGrafo)} className={`px-2 py-1.5 text-sm rounded-lg shrink-0 ${showGrafo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`} title="Grafo de conexões entre notas">🔗</button>
-          <button onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()) }}
-            className={`px-2 py-1.5 text-sm rounded-lg shrink-0 ${selectMode ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-primary hover:bg-bg-hover'}`}
-            title="Selecionar múltiplas notas">☐</button>
+        </div>
+        <div className="flex items-center justify-between mb-3 shrink-0">
+          <div className="flex items-center gap-1">
+            <button onClick={() => setShowTemplateModal(true)}
+              className="w-8 h-8 flex items-center justify-center bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover hover:text-text-primary shrink-0 transition-colors"
+              title="Criar nota a partir de modelo (template)">
+              <FileText size={14} />
+            </button>
+            <button onClick={() => setShowGrafo(!showGrafo)}
+              className={`w-8 h-8 flex items-center justify-center rounded-md shrink-0 transition-colors ${showGrafo ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
+              title="Grafo de conexões entre notas">
+              <Link2 size={14} />
+            </button>
+            <button onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()) }}
+              className={`w-8 h-8 flex items-center justify-center rounded-md shrink-0 transition-colors ${selectMode ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
+              title="Selecionar múltiplas notas">
+              <Square size={14} />
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-1 mb-3 shrink-0">
+          {notas?.some(n => (n.acessos || 0) > 0) && (
           <button onClick={() => setSortBy(sortBy === 'acessos' ? '' : 'acessos')}
-            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'acessos' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}
-            title="Ordenar por mais acessadas">🔥 Mais acessadas</button>
+            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'acessos' ? 'bg-accent/20 text-accent' : 'bg-transparent border border-border text-text-muted hover:border-accent/50 hover:text-text-primary'}`}
+            title="Ordenar por mais acessadas"><Flame size={12} /> Mais acessadas</button>
+          )}
           <button onClick={() => setSortBy(sortBy === 'titulo' ? '' : 'titulo')}
-            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'titulo' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}
+            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'titulo' ? 'bg-accent/20 text-accent' : 'bg-transparent border border-border text-text-muted hover:border-accent/50 hover:text-text-primary'}`}
             title="Ordenar por título">A-Z</button>
           {sortBy && <button onClick={() => setSortBy('')} className="text-xs text-danger hover:underline">Limpar</button>}
         </div>
@@ -487,47 +492,62 @@ export default function Ideias() {
           <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
             {notas && (
               <div className="mb-3">
-                <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">⭐ Favoritos</span>
-                {notas.filter(n => n.favoritado).length > 0 ? (
-                <div className="flex flex-col gap-0.5 mt-1">
-                  {notas.filter(n => n.favoritado).map(n => {
-                    const tipo = tipos?.find(t => t.id === n.tipo_id)
-                    return (
-                      <div key={n.id} className="group relative">
-                        <button onClick={() => selectMode ? toggleSelect(n.id) : selectNota(n)}
-                          className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1 ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
-                          {selectMode && (
-                            <input type="checkbox" checked={selectedIds.has(n.id)} readOnly
-                              className="accent-accent w-3.5 h-3.5 shrink-0" />
-                          )}
-                          {tipo && <span className="text-xs">{tipo.icone}</span>}
-                          <span className="truncate flex-1">{n.titulo}</span>
-                          <button onClick={e => { e.stopPropagation(); favoritarMut.mutate(n.id) }}
-                            className="text-xs text-yellow-500 hover:scale-110 transition-transform">★</button>
-                        </button>
-                        {!selectMode && (
-                        <button onClick={e => { e.stopPropagation(); setConfirmDelete(n.id) }}
-                          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity"
-                          title="Excluir nota">✕</button>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-text-muted mt-1">Nenhuma nota favoritada. Clique na ⭐ em uma nota.</p>
-              )}
-              </div>
+                 <button onClick={() => setFavoritesExpanded(!favoritesExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
+                   {favoritesExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                   <Star size={12} /> Favoritos
+                   {!favoritesExpanded && <span className="font-normal">{notas.filter(n => n.favoritado).length}</span>}
+                 </button>
+                 {favoritesExpanded && (
+                   <>
+                     {notas.filter(n => n.favoritado).length > 0 ? (
+                       <div className="flex flex-col gap-0.5 mt-1">
+                         {notas.filter(n => n.favoritado).map(n => {
+                           const tipo = tipos?.find(t => t.id === n.tipo_id)
+                           return (
+                             <div key={n.id} className="group relative">
+                               <button onClick={() => selectMode ? toggleSelect(n.id) : selectNota(n)}
+                                 className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1 ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
+                                 {selectMode && (
+                                   <input type="checkbox" checked={selectedIds.has(n.id)} readOnly
+                                     className="accent-accent w-3.5 h-3.5 shrink-0" />
+                                 )}
+                                 {tipo && <span className="text-xs">{tipo.icone}</span>}
+                                 <span className="truncate flex-1">{n.titulo || <span className="text-text-muted italic">(sem título)</span>}</span>
+                                 <button onClick={e => { e.stopPropagation(); favoritarMut.mutate(n.id) }}
+                                   className="text-yellow-500 hover:scale-110 transition-transform shrink-0">
+                                   <Star size={12} fill="currentColor" />
+                                 </button>
+                               </button>
+                               {!selectMode && (
+                               <button onClick={e => { e.stopPropagation(); setConfirmDelete(n.id) }}
+                                 className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity"
+                                 title="Excluir nota"><X size={12} /></button>
+                               )}
+                             </div>
+                           )
+                         })}
+                       </div>
+                     ) : (
+                       <p className="text-xs text-text-muted mt-1">Nenhuma nota favoritada. Clique na estrela em uma nota.</p>
+                     )}
+                   </>
+                 )}
+               </div>
             )}
             {pastas && (
               <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Pastas</span>
-                  <button onClick={() => { setCreatingFolder(true) }} className="text-xs text-accent hover:underline">+ Nova</button>
+                  <button onClick={() => setPastasExpanded(!pastasExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
+                    {pastasExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    <Folder size={12} /> Pastas
+                    {!pastasExpanded && <span className="font-normal">{pastas.length}</span>}
+                  </button>
+                  <button onClick={() => { setCreatingFolder(true) }} className="text-xs text-text-muted hover:text-accent ml-auto"><Plus size={12} className="inline mr-0.5" />Nova</button>
                 </div>
+                {pastasExpanded && (<>
                 {creatingFolder && (
                   <div className="flex items-center gap-1 mb-1 pl-2">
-                    <span className="text-xs">📁</span>
+                    <Folder size={14} className="text-text-muted shrink-0" />
                     <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
                       onKeyDown={e => {
                         if (e.key === 'Enter' && newFolderName.trim()) {
@@ -537,7 +557,7 @@ export default function Ideias() {
                         if (e.key === 'Escape') { setNewFolderName(''); setCreatingFolder(false) }
                       }}
                       placeholder="Nome da pasta (ex: Projetos)"
-                      className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                      className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent"
                     />
                   </div>
                 )}
@@ -549,22 +569,26 @@ export default function Ideias() {
                     const count = notas?.filter(n => n.pasta_id === p.id).length || 0
                     return (
                       <div key={p.id}>
-                        <div className="flex items-center group" style={{ paddingLeft: `${depth * 16}px` }}>
+                        <div className="group relative flex items-center" style={{ paddingLeft: `${depth * 16}px` }}>
                           <button onClick={() => hasChildren && toggleExpanded(p.id)} className="w-4 shrink-0 text-[10px] text-text-muted">
                             {hasChildren ? (expandedFolders.has(p.id) ? '▼' : '▶') : ''}
                           </button>
                           <button onClick={() => setPastaFilter(pastaFilter === p.id ? null : p.id)}
                             className={`flex-1 text-left px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 min-w-0 ${pastaFilter === p.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-muted hover:text-text-primary'}`}>
-                            <span className="truncate flex-1">📁 {p.nome}</span>
+                            <Folder size={14} className="shrink-0 text-text-muted" />
+                            <span className="truncate flex-1">{p.nome}</span>
                             {count > 0 && <span className="text-[10px] text-text-muted tabular-nums shrink-0">{count}</span>}
                           </button>
                           <button onClick={() => { setCreatingSubIn(p.id); setSubFolderName('') }}
                             className="opacity-0 group-hover:opacity-100 text-xs text-text-muted hover:text-accent shrink-0 px-1 transition-opacity"
-                            title="Nova subpasta">+</button>
+                            title="Nova subpasta"><Plus size={12} /></button>
+                          <button onClick={e => { e.stopPropagation(); setConfirmDeletePasta(p.id) }}
+                            className="absolute right-0.5 top-0.5 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity"
+                            title="Excluir pasta"><X size={12} /></button>
                         </div>
                         {creatingSubIn === p.id && (
                           <div className="flex items-center gap-1 mt-0.5 mb-0.5" style={{ paddingLeft: `${(depth + 1) * 16 + 16}px` }}>
-                            <span className="text-xs">📁</span>
+                            <Folder size={14} className="text-text-muted shrink-0" />
                             <input autoFocus value={subFolderName} onChange={e => setSubFolderName(e.target.value)}
                               onKeyDown={e => {
                                 if (e.key === 'Enter' && subFolderName.trim()) {
@@ -575,7 +599,7 @@ export default function Ideias() {
                                 if (e.key === 'Escape') { setSubFolderName(''); setCreatingSubIn(null) }
                               }}
                               placeholder="Nome da subpasta..."
-                              className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent"
+                              className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent"
                             />
                           </div>
                         )}
@@ -583,16 +607,21 @@ export default function Ideias() {
                     )
                   })}
                 </div>
+              </>)}
               </div>
             )}
-
             {tags.length > 0 && (
               <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Tags</span>
+                  <button onClick={() => setTagsExpanded(!tagsExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
+                    {tagsExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    Tags
+                    {!tagsExpanded && <span className="font-normal">{tags.length}</span>}
+                  </button>
                   <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                    className="text-xs text-accent hover:underline">+ Nova</button>
+                    className="text-xs text-text-muted hover:text-accent ml-auto"><Plus size={12} className="inline mr-0.5" />Nova</button>
                 </div>
+                {tagsExpanded && (<>
                 {tagFilter.length > 0 && (
                   <div className="flex items-center gap-1 mb-1">
                     <span className="text-xs text-text-muted">Filtro: {tagFilter.length} tag{tagFilter.length > 1 ? 's' : ''}</span>
@@ -605,13 +634,15 @@ export default function Ideias() {
                     const cor = tag.cor || '#6B7280'
                     return (
                       <button key={tag.id} onClick={() => toggleTagFilter(tag.id)}
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium transition-all max-w-full overflow-hidden text-ellipsis whitespace-nowrap inline-flex ${isActive ? 'ring-2 ring-accent' : ''}`}
-                          style={{ backgroundColor: `${cor}33`, color: cor, border: `1px solid ${cor}66` }}>
+                        className={`text-xs px-2 py-0.5 rounded-full transition-all max-w-full overflow-hidden text-ellipsis whitespace-nowrap inline-flex items-center gap-1 ${isActive ? 'bg-accent/10 ring-2 ring-accent text-accent font-medium' : 'text-text-muted hover:text-text-primary'}`}
+                        title="Clique para filtrar por esta tag">
+                        <span style={{ color: cor }}>●</span>
                         {tag.nome}
                       </button>
                     )
                   })}
                 </div>
+                </>)}
               </div>
             )}
             {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
@@ -633,21 +664,25 @@ export default function Ideias() {
                         className="group relative">
                         <button onClick={() => selectMode ? toggleSelect(n.id) : selectNota(n)}
                           className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
-                          <div className="flex items-center gap-1 w-full">
+                          <div className="flex items-center gap-1 w-full min-w-0">
                             {selectMode && (
                               <input type="checkbox" checked={selectedIds.has(n.id)} readOnly
                                 className="accent-accent w-3.5 h-3.5 shrink-0" />
                             )}
-                            <span className={`text-xs ${n.favoritado ? 'text-yellow-500' : 'text-text-muted'}`}>{n.favoritado ? '★' : '☆'}</span>
-                            {tipo && <span className="text-xs">{tipo.icone}</span>}
-                            <span className="font-medium truncate">{n.titulo}</span>
+                            <span className={`shrink-0 flex items-center ${n.favoritado ? 'text-yellow-500' : 'text-text-muted'}`}>
+                              <Star size={12} fill={n.favoritado ? 'currentColor' : 'none'} />
+                            </span>
+                            {tipo && <span className="text-xs shrink-0">{tipo.icone}</span>}
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <span className="font-medium truncate">{n.titulo || <span className="text-text-muted italic">(sem título)</span>}</span>
+                              <span className="text-xs text-text-muted/60 tabular-nums">{new Date(n.atualizado_em).toLocaleDateString('pt-BR')}</span>
+                            </div>
                           </div>
-                          <div className="text-xs text-text-muted truncate mt-0.5">{new Date(n.atualizado_em).toLocaleDateString('pt-BR')}</div>
                         </button>
                         {!selectMode && (
                         <button onClick={e => { e.stopPropagation(); setConfirmDelete(n.id) }}
-                          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-1 rounded transition-opacity"
-                          title="Excluir nota">✕</button>
+                          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 p-0.5 rounded transition-opacity"
+                          title="Excluir nota"><X size={12} /></button>
                         )}
                       </div>
                     )
@@ -658,7 +693,6 @@ export default function Ideias() {
           </div>
         )}
       </div>
-
       <div className="flex-1 p-6 overflow-y-auto">
         {notaAtual ? (
           <div>
@@ -694,7 +728,7 @@ export default function Ideias() {
                     <span>{tipos.find(t => t.id === notaAtual.tipo_id)!.icone} {tipos.find(t => t.id === notaAtual.tipo_id)!.nome}</span>
                   )}
                   {notaAtual.pasta_id && pastas?.find(p => p.id === notaAtual.pasta_id) && (
-                    <span>📁 {pastas.find(p => p.id === notaAtual.pasta_id)!.nome}</span>
+                    <span><Folder size={14} className="inline mr-0.5" />{pastas.find(p => p.id === notaAtual.pasta_id)!.nome}</span>
                   )}
                 </>
               )}
@@ -705,41 +739,40 @@ export default function Ideias() {
                   {notaTagsData.map(tag => {
                     const bg = tag.cor || '#6B7280'
                     return (
-                      <span key={tag.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs font-medium"
-                        style={{ backgroundColor: `${bg}33`, color: bg, border: `1px solid ${bg}66` }}>
+                      <span key={tag.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm text-text-primary"
+                        style={{ backgroundColor: `${bg}15`, border: `1px solid ${bg}44` }}>
                         {tag.nome}
                         {editando && (
                           <button onClick={() => removeTagFromNotaMut.mutate({ notaId: selectedId!, tagId: tag.id })}
-                            className="ml-0.5 hover:opacity-70">✕</button>
+                            className="ml-0.5 hover:opacity-70"><X size={10} /></button>
                         )}
                       </span>
                     )
                   })}
                   {editando && (
                     <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                      className="px-1.5 py-0.5 text-xs text-accent hover:underline rounded-full border border-dashed border-accent/50">+ Tag</button>
+                      className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
                   )}
                 </span>
               )}
               {editando && (!notaTagsData || notaTagsData.length === 0) && (
                 <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                  className="px-1.5 py-0.5 text-xs text-accent hover:underline rounded-full border border-dashed border-accent/50">+ Tag</button>
+                  className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
               )}
             </div>
-
             <div className="flex items-center justify-between mb-4">
               <div className="flex-1 flex items-center gap-3">
                 {editando ? (
                   <input value={titulo} onChange={e => { setTitulo(e.target.value); setDirty(true) }}
-                    className="flex-1 text-xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
+                    className="flex-1 text-2xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
                 ) : (
-                  <h1 className="text-xl font-bold">{notaAtual.titulo}</h1>
+                  <h1 className="text-2xl font-bold">{notaAtual.titulo}</h1>
                 )}
               </div>
               <div className="flex gap-1 items-center shrink-0">
                 {editando ? (
                   <>
-                    <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover" title="Extrair trecho como nova nota">✂ Extrair</button>
+                    <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover inline-flex items-center gap-1.5" title="Extrair trecho como nova nota"><Scissors size={14} /> Extrair</button>
                     <div className="flex items-center gap-2">
                       {saveStatus === 'saving' && <span className="text-xs text-text-muted animate-pulse">Salvando...</span>}
                       {saveStatus === 'success' && <span className="text-xs text-success animate-fade-in">Salvo!</span>}
@@ -764,7 +797,7 @@ export default function Ideias() {
                   <button onClick={() => { if (selectedId) favoritarMut.mutate(selectedId) }}
                     className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover hover:text-text-primary'}`}
                     title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
-                    {notaAtual.favoritado ? '★' : '☆'}
+                    <Star size={14} fill={notaAtual.favoritado ? 'currentColor' : 'none'} />
                   </button>
                 </div>
                 <button onClick={handleDelete} disabled={deleteMut.isPending}
@@ -773,7 +806,6 @@ export default function Ideias() {
                 </button>
               </div>
             </div>
-
             <div className="flex gap-6">
               <div className="flex-1 min-w-0">
                 {editando ? (
@@ -805,29 +837,36 @@ export default function Ideias() {
                   </div>
                 )}
               </div>
-
               {showExtract && editando && (
                 <div className="mb-4 p-3 bg-bg-tertiary rounded-lg">
                   <p className="text-xs text-text-muted mb-2">Extrair trecho como nova nota:</p>
                   <textarea value={extractText} onChange={e => setExtractText(e.target.value)}
                     className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none mb-2 min-h-[60px]" placeholder="Cole o trecho aqui..." />
                   <div className="flex gap-2">
-                    <button onClick={() => {
-                      if (!extractText.trim() || !selectedId) return
-                      extrairBloco(selectedId, extractText.trim(), notaAtual?.tipo_id).then((nova) => {
-                        queryClient.invalidateQueries({ queryKey: ['notas'] })
-                        selectNota(nova)
-                        setShowExtract(false)
-                        setExtractText('')
-                      }).catch(e => console.error('[Ideias] extrair', e))
-                    }} disabled={!extractText.trim()}
-                      className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">Extrair</button>
+                     <button onClick={() => {
+ 
+                       if (!extractText.trim() || !selectedId) return
+ 
+                       extrairBloco(selectedId, extractText.trim(), notaAtual?.tipo_id, pastaFilter ?? null).then((nova) => {
+ 
+                         queryClient.invalidateQueries({ queryKey: ['notas'] })
+ 
+                         selectNota(nova)
+ 
+                         setShowExtract(false)
+ 
+                         setExtractText('')
+ 
+                        }).catch(e => { console.error('[Ideias] extrair', e); notify('Erro ao extrair bloco') })
+ 
+                     }} disabled={!extractText.trim()}
+ 
+                       className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">Extrair</button>
                     <button onClick={() => { setShowExtract(false); setExtractText('') }}
                       className="px-3 py-1 bg-bg-secondary text-text-primary text-xs rounded-lg">Cancelar</button>
                   </div>
                 </div>
               )}
-
               {(Object.keys(propriedades).length > 0 || editando) && (
                 <div className="w-56 shrink-0">
                   <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Propriedades</h3>
@@ -837,7 +876,7 @@ export default function Ideias() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-muted font-medium">{k}</span>
                           {editando && (
-                            <button onClick={() => removePropriedade(k)} className="text-xs text-danger">✕</button>
+                            <button onClick={() => removePropriedade(k)} className="text-xs text-danger"><X size={12} /></button>
                           )}
                         </div>
                         {editando ? (
@@ -861,7 +900,6 @@ export default function Ideias() {
                 </div>
               )}
             </div>
-
             {(entrada.length > 0 || saida.length > 0) && (
               <div className="mt-8 pt-4 border-t border-border">
                 {saida.length > 0 && (
@@ -870,8 +908,8 @@ export default function Ideias() {
                     <div className="flex flex-wrap gap-2">
                       {saida.map(n => (
                         <button key={n.id} onClick={() => selectNota(n)}
-                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent">
-                          → {n.titulo}
+                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent inline-flex items-center gap-1">
+                          <ArrowRight size={14} /> {n.titulo}
                         </button>
                       ))}
                     </div>
@@ -883,8 +921,8 @@ export default function Ideias() {
                     <div className="flex flex-wrap gap-2">
                       {entrada.map(n => (
                         <button key={n.id} onClick={() => selectNota(n)}
-                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent">
-                          ← {n.titulo}
+                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent inline-flex items-center gap-1">
+                          <ArrowLeft size={14} /> {n.titulo}
                         </button>
                       ))}
                     </div>
@@ -899,7 +937,6 @@ export default function Ideias() {
           </div>
         )}
       </div>
-
       {showTemplateModal && (
         <TemplateModal
           onClose={() => setShowTemplateModal(false)}
@@ -910,7 +947,6 @@ export default function Ideias() {
           }}
         />
       )}
-
       {showTagModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowTagModal(false)}>
           <div ref={tagModalRef} className="bg-bg-secondary rounded-xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
@@ -919,7 +955,7 @@ export default function Ideias() {
               <div>
                 <label className="block text-xs text-text-muted mb-1">Nome</label>
                 <input value={newTagNome} onChange={e => setNewTagNome(e.target.value)}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" placeholder="Nome da tag (ex: #urgente)" />
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" placeholder="Nome da tag (ex: #urgente)" />
               </div>
               <div>
                 <label className="block text-xs text-text-muted mb-1">Cor</label>
@@ -971,6 +1007,16 @@ export default function Ideias() {
           onCancel={() => setBatchDeleteConfirm(false)}
           destructive
           disabled={batchDeleteMut.isPending}
+        />
+      )}
+      {confirmDeletePasta !== null && (
+        <ConfirmModal
+          titulo="Excluir pasta"
+          mensagem={`Tem certeza que deseja excluir a pasta "${pastas?.find(p => p.id === confirmDeletePasta)?.nome || ''}"? As notas serão removidas da pasta, mas não excluídas.`}
+          onConfirm={() => { deletePastaMut.mutate(confirmDeletePasta) }}
+          onCancel={() => setConfirmDeletePasta(null)}
+          destructive
+          disabled={deletePastaMut.isPending}
         />
       )}
     </div>

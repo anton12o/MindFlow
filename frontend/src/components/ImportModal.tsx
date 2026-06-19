@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useImport } from '../hooks/useImport'
 import { useFocusTrap } from '../hooks/useFocusTrap'
-
 interface Props {
   onClose: () => void
   onSuccess: () => void
 }
-
 export default function ImportModal({ onClose, onSuccess }: Props) {
   const { mutate, isLoading, resultado, erro, reset } = useImport()
   const [step, setStep] = useState<'select' | 'confirm' | 'result'>('select')
@@ -19,7 +17,6 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
   const onSuccessRef = useRef(onSuccess)
   onCloseRef.current = onClose
   onSuccessRef.current = onSuccess
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') handleClose()
@@ -27,57 +24,47 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [])
-
   function handleClose() {
     reset()
     onCloseRef.current()
   }
-
   function handleFile(f: File) {
     if (!f.name.endsWith('.json')) return
     setFile(f)
     setStep('confirm')
   }
-
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(false)
     const f = e.dataTransfer.files[0]
     if (f) handleFile(f)
   }
-
   function handleDragOver(e: React.DragEvent) {
     e.preventDefault()
     setDragOver(true)
   }
-
   function handleDragLeave() {
     setDragOver(false)
   }
-
   async function handleImport() {
     if (!file) return
     setStep('result')
     await mutate(file)
   }
-
   function handleResultClose() {
     if (resultado?.sucesso) {
       onSuccessRef.current()
     }
     handleClose()
   }
-
   function formatSize(bytes: number): string {
     if (bytes < 1024) return `${bytes} B`
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
-
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={handleClose}>
       <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-lg mx-4 animate-fade-in" onClick={e => e.stopPropagation()}>
-
         {step === 'select' && (
           <>
             <div className="p-4 border-b border-border">
@@ -98,7 +85,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 className="hidden"
                 onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }}
               />
-              <div className="text-3xl mb-2 text-text-muted">📁</div>
+              <div className="text-3xl mb-2 text-text-muted">📄</div>
               <p className="text-sm text-text-muted">
                 Arraste um arquivo <span className="text-accent">.json</span> aqui ou clique para selecionar
               </p>
@@ -111,7 +98,6 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             </div>
           </>
         )}
-
         {step === 'confirm' && file && (
           <>
             <div className="p-4 border-b border-border">
@@ -123,7 +109,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 <p><span className="text-text-muted">Tamanho:</span> {formatSize(file.size)}</p>
               </div>
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-sm text-warning">
-                Os dados existentes serão mesclados. Nenhum dado será apagado.
+                Os dados existentes serão mesclados. Nenhum dado ser? apagado.
               </div>
             </div>
             <div className="flex justify-end gap-2 px-5 pb-4">
@@ -138,12 +124,11 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             </div>
           </>
         )}
-
         {step === 'result' && (
           <>
             <div className="p-4 border-b border-border">
               <h3 className="text-base font-semibold">
-                {isLoading ? 'Importando…' : resultado ? 'Importação concluída' : 'Erro na importação'}
+                {isLoading ? 'Importando...' : resultado ? 'Importação concluída' : 'Erro na importação'}
               </h3>
             </div>
             <div className="p-4">
@@ -188,7 +173,6 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             </div>
           </>
         )}
-
       </div>
     </div>
   )

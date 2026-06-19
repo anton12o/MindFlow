@@ -7,11 +7,9 @@ import { getTarefas } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
 import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal } from '../utils/date'
-
 export default function PomodoroPage() {
   const [searchParams] = useSearchParams()
   const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | undefined>()
-
   useEffect(() => {
     const tipo = searchParams.get('contexto_tipo')
     const id = searchParams.get('contexto_id')
@@ -20,20 +18,15 @@ export default function PomodoroPage() {
       setContexto({ tipo, id: Number(id), nome: decodeURIComponent(nome) })
     }
   }, [searchParams])
-
   const [showCleanup, setShowCleanup] = useState(false)
   const [cleanupDate, setCleanupDate] = useState('')
   const [confirmCleanup, setConfirmCleanup] = useState(false)
-
   const queryClient = useQueryClient()
-
   const hoje = hojeLocal()
-
   const { data: sessoes, isLoading: sLoad, isError: sErr } = useQuery({
     queryKey: ['pomodoro', 'sessoes'],
     queryFn: getSessoes,
   })
-
   const cleanupMut = useMutation({
     mutationFn: () => deleteSessoes(cleanupDate || undefined),
     onSuccess: () => {
@@ -43,25 +36,20 @@ export default function PomodoroPage() {
       setConfirmCleanup(false)
     },
   })
-
   const { data: habitos, isLoading: hLoad, isError: hErr } = useQuery({
     queryKey: ['habitos'],
     queryFn: () => getHabitos(true),
   })
-
   const { data: tarefas, isLoading: tLoad, isError: tErr } = useQuery({
     queryKey: ['tarefas', hoje],
     queryFn: () => getTarefas(hoje),
   })
-
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-2xl font-bold mb-6">Pomodoro + Foco</h1>
-
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6 text-center">
         <PomodoroTimer contexto={contexto} onFinalizar={() => setContexto(undefined)} />
       </div>
-
       {!contexto && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
@@ -78,7 +66,6 @@ export default function PomodoroPage() {
               </button>
             ))}
           </div>
-
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de uma tarefa</h2>
             {tLoad && <p className="text-sm text-text-muted py-2 animate-pulse">Carregando...</p>}
@@ -95,13 +82,11 @@ export default function PomodoroPage() {
           </div>
         </div>
       )}
-
       {contexto && (
         <button onClick={() => setContexto(undefined)} className="mt-4 text-sm text-accent hover:underline">
           Limpar contexto
         </button>
       )}
-
       <div className="mt-8">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
           Sessões anteriores ({sessoes?.length || 0})
@@ -119,7 +104,7 @@ export default function PomodoroPage() {
               <div className="flex items-center gap-3">
                 <span>{s.contexto_tipo || 'Livre'} · {s.duracao_min}min</span>
                 {s.resumo_nota_id && (
-                  <span className="text-xs text-accent">📝 resumo salvo</span>
+                  <span className="text-xs text-accent">✅ resumo salvo</span>
                 )}
               </div>
               <span className="text-text-muted text-xs">{new Date(s.iniciado_em).toLocaleString('pt-BR')}</span>

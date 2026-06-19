@@ -4,8 +4,8 @@ import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTar
 import CalendarioSemanal from '../components/CalendarioSemanal'
 import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal } from '../utils/date'
+import { useNotify } from '../store/notification'
 import type { BlocoRotina, Tarefa } from '../types'
-
 function statusBloco(horaInicio: string, horaFim: string): { label: string; cor: string } | null {
   const agora = new Date()
   const h = String(agora.getHours()).padStart(2, '0')
@@ -15,9 +15,9 @@ function statusBloco(horaInicio: string, horaFim: string): { label: string; cor:
   if (agoraStr > horaFim) return { label: 'Concluído', cor: 'bg-text-muted/10 text-text-muted' }
   return { label: 'Previsto', cor: 'bg-accent/10 text-accent' }
 }
-
 export default function Rotina() {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [view, setView] = useState<'lista' | 'semana'>('lista')
   const [novaTarefa, setNovaTarefa] = useState('')
   const [showBlocoForm, setShowBlocoForm] = useState(false)
@@ -29,17 +29,14 @@ export default function Rotina() {
   const [confirmDelete, setConfirmDelete] = useState<{ type: 'bloco' | 'tarefa'; id: number; label: string } | null>(null)
   const hoje = hojeLocal()
   const queryKey = ['rotina', 'tarefas', hoje] as const
-
   const { data: blocos, isLoading: blocosLoad, isError: blocosErr } = useQuery({
     queryKey: ['rotina', 'blocos', hoje],
     queryFn: () => getBlocos(hoje),
   })
-
   const { data: tarefas, isLoading: tarefasLoad, isError: tarefasErr } = useQuery({
     queryKey,
     queryFn: () => getTarefas(hoje),
   })
-
   const createTarefaMut = useMutation({
     mutationFn: (titulo: string) => createTarefa({ titulo, data: hoje }),
     onMutate: async (titulo) => {
@@ -62,16 +59,15 @@ export default function Rotina() {
     },
     onError: (err, _titulo, context) => {
       console.error('[Rotina]', err)
+      notify('Erro ao criar tarefa')
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey }),
   })
-
   const toggleTarefaMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] }),
   })
-
   const createBlocoMut = useMutation({
     mutationFn: (data: Partial<BlocoRotina>) => createBloco({ ...data, data_especifica: hoje }),
     onSuccess: () => {
@@ -80,12 +76,10 @@ export default function Rotina() {
       setBlocoForm({ titulo: '', hora_inicio: '', hora_fim: '' })
     },
   })
-
   const deleteBlocoMut = useMutation({
     mutationFn: (id: number) => deleteBloco(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rotina', 'blocos'] }),
   })
-
   const updateBlocoMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<BlocoRotina> }) => updateBloco(id, data),
     onSuccess: () => {
@@ -93,7 +87,6 @@ export default function Rotina() {
       setEditBloco(null)
     },
   })
-
   const updateTarefaMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Tarefa> }) => updateTarefa(id, data),
     onSuccess: () => {
@@ -101,23 +94,19 @@ export default function Rotina() {
       setEditTarefa(null)
     },
   })
-
   const deleteTarefaMut = useMutation({
     mutationFn: (id: number) => deleteTarefa(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] }),
   })
-
   function handleAddTarefa(e: React.FormEvent) {
     e.preventDefault()
     if (!novaTarefa.trim()) { setTarefaErrors('Digite o nome da tarefa'); return }
     setTarefaErrors('')
     createTarefaMut.mutate(novaTarefa.trim())
   }
-
   function handleToggleTarefa(t: Tarefa) {
     toggleTarefaMut.mutate({ id: t.id, status: t.status === 'feito' ? 'pendente' : 'feito' })
   }
-
   function handleCreateBloco(e: React.FormEvent) {
     e.preventDefault()
     const errors: Record<string, string> = {}
@@ -128,7 +117,6 @@ export default function Rotina() {
     if (Object.keys(errors).length > 0) return
     createBlocoMut.mutate(blocoForm)
   }
-
   return (
     <div className="p-6 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
@@ -144,7 +132,6 @@ export default function Rotina() {
           </button>
         </div>
       </div>
-
       {view === 'semana' ? (
         <CalendarioSemanal />
       ) : (
@@ -154,7 +141,6 @@ export default function Rotina() {
               <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Blocos de tempo</h2>
               <button onClick={() => setShowBlocoForm(!showBlocoForm)} className="text-xs text-accent hover:underline">+ bloco</button>
             </div>
-
             {showBlocoForm && (
               <form onSubmit={handleCreateBloco} className="flex flex-wrap gap-2 mb-4 p-3 bg-bg-tertiary rounded-lg">
                 <div className="flex-1 min-w-[120px]">
@@ -175,7 +161,6 @@ export default function Rotina() {
                 <button type="submit" disabled={createBlocoMut.isPending} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createBlocoMut.isPending ? '...' : 'OK'}</button>
               </form>
             )}
-
             <div className="space-y-1">
               {blocosLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
               {blocosErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar blocos</p>}
@@ -198,16 +183,16 @@ export default function Rotina() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-text-secondary w-24">{b.hora_inicio}–{b.hora_fim}</span>
+                        <span className="text-xs font-mono text-text-secondary w-24">{b.hora_inicio}?{b.hora_fim}</span>
                         <span className="text-sm" style={{ color: b.cor || undefined }}>{b.titulo}</span>
                         {s && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${s.cor}`}>{s.label}</span>}
                       </div>
                     )}
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditBloco({ id: b.id, titulo: b.titulo, hora_inicio: b.hora_inicio, hora_fim: b.hora_fim })}
-                        className="text-xs text-text-muted hover:text-accent">✎</button>
+                        className="text-xs text-text-muted hover:text-accent">✏️</button>
                       <button onClick={() => setConfirmDelete({ type: 'bloco', id: b.id, label: b.titulo })}
-                        className="text-xs text-text-muted hover:text-danger">✕</button>
+                        className="text-xs text-text-muted hover:text-danger">🗑️</button>
                     </div>
                   </div>
                 )
@@ -215,10 +200,8 @@ export default function Rotina() {
               {!blocosLoad && !blocosErr && (!blocos || blocos.length === 0) && <p className="text-sm text-text-muted py-4 text-center">Nenhum bloco definido</p>}
             </div>
           </div>
-
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">Tarefas do dia</h2>
-
             <form onSubmit={handleAddTarefa} className="mb-4">
               <input
                 value={novaTarefa}
@@ -228,7 +211,6 @@ export default function Rotina() {
               />
               {tarefaErrors && <p className="text-xs text-danger mt-0.5">{tarefaErrors}</p>}
             </form>
-
             <div className="space-y-1">
               {tarefasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
               {tarefasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar tarefas</p>}
@@ -257,9 +239,9 @@ export default function Rotina() {
                         {t.prioridade}
                       </span>
                       <button onClick={() => setEditTarefa({ id: t.id, titulo: t.titulo })}
-                        className="text-xs text-text-muted hover:text-accent">✎</button>
+                        className="text-xs text-text-muted hover:text-accent">✏️</button>
                       <button onClick={() => setConfirmDelete({ type: 'tarefa', id: t.id, label: t.titulo })}
-                        className="text-xs text-text-muted hover:text-danger">✕</button>
+                        className="text-xs text-text-muted hover:text-danger">🗑️</button>
                     </>
                   )}
                 </div>
@@ -269,7 +251,6 @@ export default function Rotina() {
           </div>
         </div>
       )}
-
       {confirmDelete && (
         <ConfirmModal
           titulo={`Remover ${confirmDelete.type === 'bloco' ? 'bloco' : 'tarefa'}`}

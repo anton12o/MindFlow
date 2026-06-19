@@ -16,6 +16,8 @@ CAMPOS_AGRUPAMENTO = frozenset({
     "vencimento", "estimativa", "data_inicio", "data_fim", "cover_url",
 })
 
+COLUNAS_DATA_NOTA = frozenset({"criado_em", "atualizado_em", "ultimo_acesso"})
+
 @router.get("", response_model=list[QuerySalvaRead])
 def list_queries(session: Session = Depends(get_session)):
     return session.exec(select(QuerySalva)).all()
@@ -40,13 +42,9 @@ def get_query(query_id: int, session: Session = Depends(get_session)):
 TAREFA_NOME = "Tarefa"
 TAREFA_CAMPOS_PERMITIDOS = {"status", "prioridade", "titulo", "data", "tempo_estimado", "bloco_id", "tipo_id", "propriedades"}
 NOTA_CAMPOS_PERMITIDOS = {"titulo", "conteudo", "pasta_id", "tipo_id", "propriedades"}
-
-
 def _tipo_eh_tarefa(tipo_objeto_id: int, session: Session) -> bool:
     tipo = session.get(TipoObjeto, tipo_objeto_id)
     return tipo is not None and tipo.nome == TAREFA_NOME
-
-
 @router.delete("/{query_id}")
 def delete_query(query_id: int, session: Session = Depends(get_session)):
     db = session.get(QuerySalva, query_id)
@@ -55,13 +53,9 @@ def delete_query(query_id: int, session: Session = Depends(get_session)):
     session.delete(db)
     session.commit()
     return {"ok": True}
-
-
 class ExecutarResult(SQLModel):
     tipo: str
     dados: list[Any]
-
-
 @router.post("/{query_id}/executar")
 def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, session: Session = Depends(get_session)):
     q = session.get(QuerySalva, query_id)
@@ -105,18 +99,19 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
                         stmt = stmt.where(1 == 0)
         if filtros.get("tipo_id"):
             stmt = stmt.where(Nota.tipo_id == filtros["tipo_id"])
-        # Calendar view: filter by month on campo_agrupamento (must be date property)
-        if mes:
-            if not q.campo_agrupamento:
-                raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para filtro por mês")
+        # Calendar view: filter by month on campo_agrupamento
+        if mes and q.campo_agrupamento:
             campo = q.campo_agrupamento
             if campo not in CAMPOS_AGRUPAMENTO:
                 raise HTTPException(status_code=422, detail="campo_agrupamento inválido")
-            stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
+            if campo in COLUNAS_DATA_NOTA:
+                stmt = stmt.where(text(f"notas.{campo} LIKE :mes")).params(mes=f"{mes}%")
+            else:
+                stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
         # Gantt view: filter only notes with both data_inicio and data_fim
         if gantt:
             if not q.campo_agrupamento:
-                raise HTTPException(status_code=422, detail="campo_agrupamento é obrigatório para Gantt")
+                raise HTTPException(status_code=422, detail="Query precisa de campo_agrupamento. Clique em Editar para configurar.")
             campo_inicio = "data_inicio"
             campo_fim = "data_fim"
             stmt = stmt.where(
@@ -127,13 +122,9 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
         if gantt:
             dados = dados[:100]  # hard limit 100
         return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id} for d in dados], "total": total}
-
-
 class BatchInput(SQLModel):
     ids: list[int]
     alteracoes: dict[str, Any]
-
-
 @router.patch("/{query_id}/batch")
 def batch_edit(query_id: int, batch: BatchInput, session: Session = Depends(get_session)):
     q = session.get(QuerySalva, query_id)
@@ -146,10 +137,12 @@ def batch_edit(query_id: int, batch: BatchInput, session: Session = Depends(get_
         campos = NOTA_CAMPOS_PERMITIDOS
         model_class = Nota
     alteracoes_validas = {k: v for k, v in batch.alteracoes.items() if k in campos}
-    for item_id in batch.ids:
-        db = session.get(model_class, item_id)
-        if not db:
-            raise HTTPException(status_code=404, detail=f"{model_class.__name__} {item_id} não encontrado")
+    items = session.exec(select(model_class).where(model_class.id.in_(batch.ids))).all()
+    found = {item.id for item in items}
+    missing = [str(i) for i in batch.ids if i not in found]
+    if missing:
+        raise HTTPException(status_code=404, detail=f"{model_class.__name__}(s) não encontrado(s): {', '.join(missing)}")
+    for db in items:
         for k, v in alteracoes_validas.items():
             setattr(db, k, v)
         session.add(db)

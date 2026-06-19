@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -46,12 +46,14 @@ export default function Dashboard() {
   const pending = dash?.tarefas?.filter(t => t.status !== 'feito') || []
 
   const [diarioId, setDiarioId] = useState<number | null>(null)
+  const diarioCreating = useRef(false)
   useEffect(() => {
-    if (!dash || diarioId) return
+    if (!dash || diarioId || diarioCreating.current) return
     const d = dash.notas_hoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
     if (d) { setDiarioId(d.id); return }
+    diarioCreating.current = true
     const dataBR = new Date().toLocaleDateString('pt-BR')
-    createNota({ titulo: `Diário — ${dataBR}`, conteudo: '' }).then(n => setDiarioId(n.id)).catch(e => console.error('[Dashboard]', e))
+    createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { setDiarioId(n.id); diarioCreating.current = false }).catch(e => { console.error('[Dashboard]', e); diarioCreating.current = false })
   }, [dash, diarioId])
 
   const toggleTarefaMut = useMutation({
@@ -99,7 +101,7 @@ export default function Dashboard() {
 
         {/* Inbox */}
         <Card titulo="📥 Inbox" loading={isLoading} erro={isError} vazio={(dash?.inbox_count ?? 0) === 0 && !isLoading && !isError}
-          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum item pendente</p><button onClick={() => window.dispatchEvent(new Event('open-inbox'))} className="text-sm text-accent hover:underline">Abrir inbox →</button></div>}>
+          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum item pendente</p><button onClick={() => window.dispatchEvent(new Event('open-inbox'))} className="text-sm text-accent hover:underline">Abrir inbox 📥</button></div>}>
           <div className="flex items-center justify-between py-2">
             <span className="text-sm">{dash?.inbox_count ?? 0} {(dash?.inbox_count ?? 0) === 1 ? 'item pendente' : 'itens pendentes'}</span>
             <button onClick={() => window.dispatchEvent(new Event('open-inbox'))}
@@ -110,11 +112,11 @@ export default function Dashboard() {
         </Card>
 
         {/* Blocos do dia */}
-        <Card titulo="⏰ Blocos do dia" loading={isLoading} erro={isError} vazio={(!dash?.blocos || dash.blocos.length === 0) && !isLoading && !isError}
-          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum bloco hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar bloco →</button></div>}>
+        <Card titulo="📋 Blocos do dia" loading={isLoading} erro={isError} vazio={(!dash?.blocos || dash.blocos.length === 0) && !isLoading && !isError}
+          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum bloco hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar bloco ➕</button></div>}>
           {dash?.blocos?.map(b => (
             <div key={b.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
-              <span className="text-xs font-mono text-text-secondary w-20 shrink-0">{b.hora_inicio}–{b.hora_fim}</span>
+              <span className="text-xs font-mono text-text-secondary w-20 shrink-0">{b.hora_inicio}-{b.hora_fim}</span>
               <span className="text-sm truncate" style={{ color: b.cor || undefined }}>{b.titulo}</span>
             </div>
           ))}
@@ -122,7 +124,7 @@ export default function Dashboard() {
 
         {/* Tarefas de hoje */}
         <Card titulo="✅ Tarefas de hoje" loading={isLoading} erro={isError} vazio={pending.length === 0 && !isLoading && !isError}
-          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhuma tarefa hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar tarefa →</button></div>}>
+          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhuma tarefa hoje</p><button onClick={() => navigate('/rotina')} className="text-sm text-accent hover:underline">Criar tarefa ➕</button></div>}>
           {dash?.tarefas?.map(t => (
             <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2">
               <button onClick={() => handleToggleTarefa(t)}
@@ -137,13 +139,13 @@ export default function Dashboard() {
             </div>
           ))}
           {dash?.tarefas && dash?.tarefas.length > 0 && pending.length === 0 && (
-            <p className="text-xs text-success mt-2">Todas as tarefas concluídas ✓</p>
+            <p className="text-xs text-success mt-2">Todas as tarefas conclu\u00eddas ?</p>
           )}
         </Card>
 
-        {/* Hábitos */}
-        <Card titulo="🎯 Hábitos" loading={isLoading} erro={isError} vazio={(!dash?.habitos || dash?.habitos?.filter(h => h.ativo).length === 0) && !isLoading && !isError}
-          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum hábito ativo</p><button onClick={() => navigate('/habitos')} className="text-sm text-accent hover:underline">Criar hábito →</button></div>}>
+        {/* H\u00e1bitos */}
+        <Card titulo="📊 Hábitos" loading={isLoading} erro={isError} vazio={(!dash?.habitos || dash?.habitos?.filter(h => h.ativo).length === 0) && !isLoading && !isError}
+          vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum hábito ativo</p><button onClick={() => navigate('/habitos')} className="text-sm text-accent hover:underline">Criar hábito ➕</button></div>}>
           {dash?.habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} onCheck={handleCheckHabito} />)}
         </Card>
 
@@ -161,19 +163,19 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold mb-4">Bem-vindo ao MindFlow</h2>
             <div className="space-y-3 mb-6">
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">📥</span>
+                <span className="text-xl shrink-0">\U0001f4dd</span>
                 <div><p className="text-sm font-medium">Captura rápida</p><p className="text-xs text-text-muted">Use Ctrl+I ou o botão Inbox na sidebar para capturar ideias sem perder o foco.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">📝</span>
-                <div><p className="text-sm font-medium">Notas + Wikis</p><p className="text-xs text-text-muted">Crie notas com Markdown, use [[links]] para conectar ideias, e veja o grafo de conexões.</p></div>
+                <span className="text-xl shrink-0">\U0001f4dd</span>
+                <div><p className="text-sm font-medium">Notas + Wikis</p><p className="text-xs text-text-muted">Crie notas com Markdown, use [[links]] para conectar ideias, e veja o grafo de conex?es.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">⏱️</span>
+                <span className="text-xl shrink-0">🍅🧠</span>
                 <div><p className="text-sm font-medium">Pomodoro + Hábitos</p><p className="text-xs text-text-muted">Timer de foco com ciclos automáticos. Registre hábitos e associe sessões de foco a tarefas.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">💾</span>
+                <span className="text-xl shrink-0">\U0001f4dd</span>
                 <div><p className="text-sm font-medium">Tudo local</p><p className="text-xs text-text-muted">Seus dados ficam no seu computador. Exporte e importe quando quiser.</p></div>
               </div>
             </div>
@@ -200,11 +202,11 @@ function HabitItem({ h, onCheck }: { h: DashboardStats['habitos'][number]; onChe
       </div>
       <div className="flex items-center gap-1 shrink-0">
         {h.feito_hoje ? (
-          <span className="text-xs text-success">✓</span>
+          <span className="text-xs text-success">✅</span>
         ) : (
           <button onClick={() => onCheck(h.id)}
             className="w-6 h-6 rounded border border-border hover:bg-accent/20 hover:border-accent flex items-center justify-center text-xs transition-colors"
-            title="Marcar hoje">✓</button>
+            title="Marcar hoje">✅</button>
         )}
       </div>
     </div>
