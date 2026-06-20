@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa } from '../api/rotina'
 import CalendarioSemanal from '../components/CalendarioSemanal'
 import ConfirmModal from '../components/ConfirmModal'
-import { hojeLocal } from '../utils/date'
+import { hojeLocal, agoraLocal } from '../utils/date'
 import { useNotify } from '../store/notification'
 import type { BlocoRotina, Tarefa } from '../types'
 function statusBloco(horaInicio: string, horaFim: string): { label: string; cor: string } | null {
@@ -51,7 +51,7 @@ export default function Rotina() {
         tempo_estimado: null,
         bloco_id: null,
         tipo_id: null,
-        criado_em: new Date().toISOString(),
+        criado_em: agoraLocal(),
       }
       queryClient.setQueryData<Tarefa[]>(queryKey, old => [...(old || []), optimistic])
       setNovaTarefa('')
@@ -183,7 +183,7 @@ export default function Rotina() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-3">
-                        <span className="text-xs font-mono text-text-secondary w-24">{b.hora_inicio}?{b.hora_fim}</span>
+                        <span className="text-xs font-mono text-text-secondary w-24">{b.hora_inicio}→{b.hora_fim}</span>
                         <span className="text-sm" style={{ color: b.cor || undefined }}>{b.titulo}</span>
                         {s && <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${s.cor}`}>{s.label}</span>}
                       </div>
