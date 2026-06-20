@@ -812,25 +812,25 @@
 ---
 
 ### CI: eslint + vitest + coverage
-**Status:** ⏳ Planejado
+**Status:** ⏳ Planejado (partial — vitest ✅, eslint + coverage pendentes)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** CI pula eslint, vitest e coverage. Adicionar steps e threshold mínimo de cobertura.
+**Descrição:** CI pulava eslint, vitest e coverage. Vitest já adicionado no workflow.
 
 **Arquivos envolvidos:**
-- `.github/workflows/ci.yml` — adicionar `npm run lint`, `npm run test`, `pytest --cov`
+- `.github/workflows/ci.yml` — adicionar `npm run lint`, `pytest --cov`
 
-**Dependências:** Nenhuma.
+**Dependências:** eslint tem 33 erros no código atual — precisa de limpeza antes de ativar no CI.
 
 **Observações:** ~3h.
 
 ---
 
 ### Release ZIP com sujeira (exclusões insuficientes)
-**Status:** ⏳ Planejado
+**Status:** ✅ Concluído (v1.2.12+)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** `release.yml` inclui `frontend/src/`, `backend/data/`, `__pycache__`, `.venv/` no ZIP. Expandir lista de exclusões.
+**Descrição:** `release.yml` incluía `frontend/src/`, `backend/data/`, `__pycache__`, `.venv/` no ZIP. Expandir lista de exclusões.
 
 **Arquivos envolvidos:**
 - `.github/workflows/release.yml` — expandir exclusões
@@ -842,14 +842,14 @@
 ---
 
 ### timeout-minutes nos jobs do CI
-**Status:** ⏳ Planejado
+**Status:** ✅ Concluído (partial — CI pronto, release pendente)
 **Origem:** Análise técnica (Jun/2026)
 
-**Descrição:** Nenhum job tem `timeout-minutes`. Adicionar `timeout-minutes: 10` em cada job.
+**Descrição:** Nenhum job tinha `timeout-minutes`. Adicionar `timeout-minutes: 10` nos jobs do CI e `timeout-minutes: 15` no release.
 
 **Arquivos envolvidos:**
-- `.github/workflows/ci.yml` — `timeout-minutes: 10`
-- `.github/workflows/release.yml` — `timeout-minutes: 15`
+- `.github/workflows/ci.yml` — `timeout-minutes: 10` ✅
+- `.github/workflows/release.yml` — `timeout-minutes: 15` ⏳ ainda pendente
 
 **Dependências:** Nenhuma.
 
@@ -1435,6 +1435,45 @@
 **Dependências:** Módulo de Contexto Ambiental.
 
 **Observações:** ~2h.
+
+---
+
+### CQS — 15 POSTs retornam objeto criado
+**Status:** ⏳ Planejado
+**Origem:** Checklist de qualidade (Jun/2026)
+
+**Descrição:** 15 de 22 POST endpoints criam um recurso E retornam o objeto completo no response. Isso acopla o cliente ao formato do objeto pós-criação. Refatorar para retornar apenas ID + status, e o cliente busca o objeto via GET se precisar.
+
+**Prioridade:** Baixa — quebraria o frontend inteiro se mudado agora.
+
+**Observações:** ~4h. Fazer apenas se houver versão 2.0 da API.
+
+---
+
+### Idempotência em POST endpoints
+**Status:** ⏳ Planejado
+**Origem:** Checklist de qualidade (Jun/2026)
+
+**Descrição:** Sem token de idempotência, requisições duplicadas (rede lenta, duplo clique antes de `isPending`) criam recursos duplicados. Adicionar header `Idempotency-Key` opcional.
+
+**Prioridade:** Média. Overkill para single-user local-first, mas bom para resiliência com rede lenta.
+
+**Observações:** ~45min com middleware + tabela. Solução simples de rate em <1s primeiro.
+
+---
+
+### Criptografia do SQLite (mindflow.db)
+**Status:** ⏳ Planejado
+**Origem:** Checklist de qualidade (Jun/2026)
+
+**Descrição:** `backend/mindflow.db` é um arquivo SQLite puro — qualquer pessoa com acesso ao sistema lê todo o conteúdo. Opções:
+- SQLCipher (trocar driver SQLite → SQLCipher, complexo)
+- Diretório com permissão restrita (`chmod 600`)
+- Warning + documentation (atual)
+
+**Prioridade:** Baixa. App local-first de produtividade pessoal — o threat model não justifica criptografia forte. Manter warning no startup.
+
+**Observações:** SQLCipher exigiria rebuild de dependências e re-teste de todos os 60 testes.
 
 ---
 
