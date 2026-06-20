@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useMutateNotify } from '../hooks/useMutateNotify'
 import { updateTarefa } from '../api/rotina'
 import { createRegistro } from '../api/habitos'
 import { createNota } from '../api/notas'
@@ -28,6 +29,8 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const hoje = hojeLocal()
   const queryClient = useQueryClient()
+  const onErrorTarefa = useMutateNotify('alternar tarefa')
+  const onErrorHabito = useMutateNotify('registrar hábito')
   const [onboardingOpen, setOnboardingOpen] = useState(false)
   const onbRef = React.useRef<HTMLDivElement>(null)
   useFocusTrap(onbRef, onboardingOpen)
@@ -62,6 +65,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] })
       queryClient.invalidateQueries({ queryKey: ['tarefas'] })
     },
+    ...onErrorTarefa,
   })
 
   const checkHabitoMut = useMutation({
@@ -71,6 +75,7 @@ export default function Dashboard() {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
       queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
     },
+    ...onErrorHabito,
   })
 
   function handleToggleTarefa(t: DashboardStats['tarefas'][number]) {
@@ -142,11 +147,11 @@ export default function Dashboard() {
             </div>
           ))}
           {dash?.tarefas && dash?.tarefas.length > 0 && pending.length === 0 && (
-            <p className="text-xs text-success mt-2">Todas as tarefas conclu\u00eddas ?</p>
+            <p className="text-xs text-success mt-2">Todas as tarefas concluídas ✅</p>
           )}
         </Card>
 
-        {/* H\u00e1bitos */}
+        {/* Hábitos */}
         <Card titulo="📊 Hábitos" loading={isLoading} erro={isError} vazio={(!dash?.habitos || dash?.habitos?.filter(h => h.ativo).length === 0) && !isLoading && !isError}
           vazioChildren={<div className="text-center py-4"><p className="text-sm text-text-muted mb-2">Nenhum hábito ativo</p><button onClick={() => navigate('/habitos')} className="text-sm text-accent hover:underline">Criar hábito ➕</button></div>}>
           {dash?.habitos?.filter(h => h.ativo).slice(0, 6).map(h => <HabitItem key={h.id} h={h} onCheck={handleCheckHabito} />)}
@@ -166,19 +171,19 @@ export default function Dashboard() {
             <h2 className="text-lg font-bold mb-4">Bem-vindo ao MindFlow</h2>
             <div className="space-y-3 mb-6">
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">\U0001f4dd</span>
+                <span className="text-xl shrink-0">📝</span>
                 <div><p className="text-sm font-medium">Captura rápida</p><p className="text-xs text-text-muted">Use Ctrl+I ou o botão Inbox na sidebar para capturar ideias sem perder o foco.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">\U0001f4dd</span>
-                <div><p className="text-sm font-medium">Notas + Wikis</p><p className="text-xs text-text-muted">Crie notas com Markdown, use [[links]] para conectar ideias, e veja o grafo de conex?es.</p></div>
+                <span className="text-xl shrink-0">📝</span>
+                <div><p className="text-sm font-medium">Notas + Wikis</p><p className="text-xs text-text-muted">Crie notas com Markdown, use [[links]] para conectar ideias, e veja o grafo de conexões.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
                 <span className="text-xl shrink-0">🍅🧠</span>
                 <div><p className="text-sm font-medium">Pomodoro + Hábitos</p><p className="text-xs text-text-muted">Timer de foco com ciclos automáticos. Registre hábitos e associe sessões de foco a tarefas.</p></div>
               </div>
               <div className="flex gap-3 bg-bg-tertiary rounded-lg p-3">
-                <span className="text-xl shrink-0">\U0001f4dd</span>
+                <span className="text-xl shrink-0">📝</span>
                 <div><p className="text-sm font-medium">Tudo local</p><p className="text-xs text-text-muted">Seus dados ficam no seu computador. Exporte e importe quando quiser.</p></div>
               </div>
             </div>

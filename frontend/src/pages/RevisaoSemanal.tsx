@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWeeklyStats, type DiaStats, type PeriodoStats } from '../api/stats'
 import { createNota } from '../api/notas'
 import { useNavigate } from 'react-router-dom'
+import { useNotify } from '../store/notification'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 function formatData(iso: string) {
@@ -105,9 +106,9 @@ function downloadBlob(content: string, filename: string, mime: string) {
 
 function gerarMD(semana: PeriodoStats, passada: PeriodoStats, streak: number, habitosAtivos: number) {
   const cabecalho = [
-    `# Revisão Semanal \U0001f4dd ${formatRange(semana.inicio, semana.fim)}`,
+    `# Revisão Semanal 📝 ${formatRange(semana.inicio, semana.fim)}`,
     '',
-    `> Gerado em ${new Date().toLocaleDateString('pt-BR')} ? Streak: ${streak} dia${streak === 1 ? '' : 's'}`,
+    `> Gerado em ${new Date().toLocaleDateString('pt-BR')} → Streak: ${streak} dia${streak === 1 ? '' : 's'}`,
     '',
     '## Resumo',
     '| Métrica | Esta semana | Semana passada | Variação |',
@@ -118,7 +119,7 @@ function gerarMD(semana: PeriodoStats, passada: PeriodoStats, streak: number, ha
     `| Minutos de foco | ${semana.total_minutos_foco} | ${passada.total_minutos_foco} | ${pct(semana.total_minutos_foco, passada.total_minutos_foco)} |`,
     habitosAtivos > 0
       ? `| Taxa de hábitos | ${Math.round(semana.taxa_habitos * 100)}% | ${Math.round(passada.taxa_habitos * 100)}% | ${pct(Math.round(semana.taxa_habitos * 100), Math.round(passada.taxa_habitos * 100))} |`
-      : '| Taxa de hábitos | ? (sem hábitos ativos) | ? | ? |',
+      : '| Taxa de hábitos | ➖ (sem hábitos ativos) | ➖ | ➖ |',
     '',
     '## Detalhamento diário',
     '| Dia | Notas | Tarefas | Pomodoros | Foco |',
@@ -147,6 +148,7 @@ export default function RevisaoSemanal() {
   const [offset, setOffset] = useState(0)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const notify = useNotify()
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['stats-weekly', offset],
@@ -159,7 +161,7 @@ export default function RevisaoSemanal() {
       if (!data) throw new Error('Sem dados')
       const { semana, semana_passada } = data
       const conteudo = [
-        `# Revisão Semanal \U0001f4dd ${formatRange(semana.inicio, semana.fim)}`,
+        `# Revisão Semanal 📝 ${formatRange(semana.inicio, semana.fim)}`,
         '',
         '## Resumo',
         `- **Notas criadas:** ${semana.total_notas} (${pct(semana.total_notas, semana_passada.total_notas)} vs semana passada)`,
@@ -174,12 +176,13 @@ export default function RevisaoSemanal() {
         '- Qual foi o aprendizado mais importante?',
         '- O que você quer focar na próxima semana?',
       ].join('\n')
-      return createNota({ titulo: `Revisão Semanal \U0001f4dd ${semana.inicio}`, conteudo })
+      return createNota({ titulo: `Revisão Semanal 📝 ${semana.inicio}`, conteudo })
     },
     onSuccess: (nota) => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       navigate(`/ideias?nota_id=${nota.id}`)
     },
+    onError: () => notify('Erro ao criar revisão semanal'),
   })
 
   const [respostas, setRespostas] = useState(['', '', '', ''])
@@ -198,11 +201,12 @@ export default function RevisaoSemanal() {
           linhas.push(`## ${perguntasReflexao[i]}`, '', r, '')
         }
       })
-      return createNota({ titulo: `Reflexão Semanal \U0001f4dd ${semana.inicio}`, conteudo: linhas.join('\n') })
+      return createNota({ titulo: `Reflexão Semanal 📝 ${semana.inicio}`, conteudo: linhas.join('\n') })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
+    onError: () => notify('Erro ao salvar reflexão'),
   })
 
   if (isLoading) {
@@ -319,7 +323,7 @@ export default function RevisaoSemanal() {
         {total_habitos_ativos === 0 ? (
           <div className="flex items-center gap-3 text-sm">
             <span className="w-28 shrink-0 text-text-muted">Taxa de hábitos</span>
-            <span className="text-text-muted italic">? (sem hábitos ativos)</span>
+            <span className="text-text-muted italic">➖ (sem hábitos ativos)</span>
           </div>
         ) : (
           <ComparativoMetrica
@@ -349,7 +353,7 @@ export default function RevisaoSemanal() {
           ))}
         </div>
         {celebration && (
-          <p className="text-sm text-success font-medium">Semana produtiva! Continue assim ?</p>
+          <p className="text-sm text-success font-medium">Semana produtiva! Continue assim 💪</p>
         )}
       </section>
 

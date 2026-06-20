@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme, MODE_ICON } from '../store/theme'
 import { exportAll } from '../api/export'
 import { usePomodoroContext } from '../store/pomodoro'
+import { formatDateLocal } from '../utils/date'
 import { useNotify } from '../store/notification'
 import ConfirmModal from './ConfirmModal'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -52,7 +53,12 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
 
     const controller = new AbortController()
     shutdownAbortRef.current = controller
-    fetch('/api/shutdown', { method: 'POST', signal: controller.signal }).catch(e => console.error('[Sidebar]', e))
+    const doShutdown = async () => {
+      try {
+        await fetch('/api/shutdown', { method: 'POST', signal: controller.signal })
+      } catch (e) { console.error('[Sidebar]', e) }
+    }
+    doShutdown()
 
     const timer = (count: number) => {
       if (count <= 0) {
@@ -141,7 +147,7 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
               const url = URL.createObjectURL(blob)
               const a = document.createElement('a')
               a.href = url
-              a.download = `mindflow-export-${new Date().toISOString().slice(0, 10)}.json`
+              a.download = `mindflow-export-${formatDateLocal(new Date())}.json`
               a.click()
               URL.revokeObjectURL(url)
             } catch (e) {
@@ -153,7 +159,7 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
           className="w-11 h-11 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
           title="Exportar dados"
         >
-          {exporting ? <span className="text-xs">?</span> : <Download size={18} />}
+          {exporting ? <span className="text-xs">⏳</span> : <Download size={18} />}
         </button>
         <button
           onClick={cycleTheme}
@@ -204,7 +210,7 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
       {shutdownDone && (
         <div ref={doneRef} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
-            <div className="text-4xl">?</div>
+            <div className="text-4xl">✅</div>
             <p className="text-base font-medium text-text-primary">Servidor encerrado</p>
             <p className="text-sm text-text-muted">Você pode fechar esta aba.</p>
           </div>

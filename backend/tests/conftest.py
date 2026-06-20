@@ -33,6 +33,27 @@ def setup_db():
 
 
 @pytest.fixture
+def nota_payload():
+    def _make(**overrides):
+        default = {"titulo": "Nota teste", "conteudo": "Conteudo teste"}
+        return {**default, **overrides}
+    return _make
+
+@pytest.fixture
+def tarefa_payload():
+    def _make(**overrides):
+        default = {"titulo": "Tarefa teste", "status": "pendente"}
+        return {**default, **overrides}
+    return _make
+
+@pytest.fixture
+def habito_payload():
+    def _make(**overrides):
+        default = {"nome": "Habito teste", "tipo": "binario"}
+        return {**default, **overrides}
+    return _make
+
+@pytest.fixture
 def session():
     with Session(TEST_ENGINE) as s:
         yield s
