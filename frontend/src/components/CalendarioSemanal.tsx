@@ -165,8 +165,8 @@ export default function CalendarioSemanal() {
       {showRecurrentModal && (
         <ConfirmModal
           titulo="Bloco recorrente"
-          mensagem="Mover s? este dia (cria exceção) ou todos os dias recorrentes?"
-          confirmLabel="S? este dia"
+          mensagem="Mover só este dia (cria exceção) ou todos os dias recorrentes?"
+          confirmLabel="Só este dia"
           cancelLabel="Todos os dias"
           onConfirm={() => {
             if (showRecurrentModal) {
@@ -213,7 +213,7 @@ const SortableItem = React.memo(function SortableItem({ bloco }: { bloco: BlocoR
       {...listeners}
       className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent' : ''}`}
     >
-      <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">??</div>
+      <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">⠿</div>
       {bloco.titulo}
     </div>
   )
