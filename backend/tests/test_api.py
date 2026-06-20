@@ -317,6 +317,31 @@ def test_pastas_com_hierarquia(client):
     assert r.json()["pai_id"] == pai_id
 
 
+def test_cria_nota_titulo_vazio_422(client, nota_payload):
+    r = client.post("/api/notas", json=nota_payload(titulo=""))
+    assert r.status_code == 422
+
+
+def test_cria_tarefa_titulo_vazio_422(client, tarefa_payload):
+    r = client.post("/api/rotina/tarefas", json=tarefa_payload(titulo=""))
+    assert r.status_code == 422
+
+
+def test_cria_habito_sem_nome_422(client, habito_payload):
+    r = client.post("/api/habitos", json=habito_payload(nome=""))
+    assert r.status_code == 422
+
+
+def test_cria_habito_tipo_invalido_422(client, habito_payload):
+    r = client.post("/api/habitos", json=habito_payload(tipo="invalido"))
+    assert r.status_code == 422
+
+
+def test_consulta_mes_invalido_422(client):
+    r = client.post("/api/queries", json={"nome": "Q", "tipo_objeto_id": 999, "visualizacao": "grid"})
+    assert r.status_code == 404
+
+
 def test_batch_edit(client):
     r = client.get("/api/tipos")
     tipos = r.json()

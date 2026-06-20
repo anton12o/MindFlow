@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Instalar e Buildar Frontend
         working-directory: ./frontend
@@ -28,10 +28,10 @@ jobs:
       - name: Criar pacote ZIP limpo
         run: |
           VERSION=${{ github.ref_name }}
-          zip -r mindflow-$VERSION.zip . -x "node_modules/*" "frontend/node_modules/*" ".git/*" ".github/*" "backend/tests/*"
+          zip -r mindflow-$VERSION.zip . -x "node_modules/*" "frontend/node_modules/*" ".git/*" ".github/*" "backend/tests/*" "__pycache__/*" "backend/data/*" ".env" "check_*.py" "fix_*.py"
 
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v2
         with:
           files: mindflow-${{ github.ref_name }}.zip
-          generate_release_notes: false
+          generate_release_notes: true
