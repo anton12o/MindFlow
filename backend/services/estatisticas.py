@@ -8,7 +8,10 @@ logger = logging.getLogger(__name__)
 
 
 def calcular_estatisticas(mes: int, ano: int, session: Session) -> dict:
-    stmt = select(Nota).where(Nota.criado_em.like(f"{ano:04d}-{mes:02d}%"))
+    ultimo_dia = calendar.monthrange(ano, mes)[1]
+    inicio = f"{ano:04d}-{mes:02d}-01"
+    fim = f"{ano:04d}-{mes:02d}-{ultimo_dia:02d}"
+    stmt = select(Nota).where(Nota.criado_em >= inicio, Nota.criado_em < fim)
     notas = session.exec(stmt).all()
 
     por_dia: dict[str, int] = {}

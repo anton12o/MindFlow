@@ -18,6 +18,14 @@ CAMPOS_AGRUPAMENTO = frozenset({
 
 COLUNAS_DATA_NOTA = frozenset({"criado_em", "atualizado_em", "ultimo_acesso"})
 
+DATA_FILTER_MAP = {
+    "criado_em": "notas.criado_em LIKE :mes",
+    "atualizado_em": "notas.atualizado_em LIKE :mes",
+    "ultimo_acesso": "notas.ultimo_acesso LIKE :mes",
+    "data_inicio": "propriedades->>'data_inicio' LIKE :mes",
+    "data_fim": "propriedades->>'data_fim' LIKE :mes",
+}
+
 @router.get("", response_model=list[QuerySalvaRead])
 def list_queries(session: Session = Depends(get_session)):
     return session.exec(select(QuerySalva)).all()
@@ -104,10 +112,10 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             campo = q.campo_agrupamento
             if campo not in CAMPOS_AGRUPAMENTO:
                 raise HTTPException(status_code=422, detail="campo_agrupamento inválido")
-            if campo in COLUNAS_DATA_NOTA:
-                stmt = stmt.where(text(f"notas.{campo} LIKE :mes")).params(mes=f"{mes}%")
-            else:
-                stmt = stmt.where(text(f"propriedades->>'{campo}' LIKE :mes")).params(mes=f"{mes}%")
+            sql_clause = DATA_FILTER_MAP.get(campo)
+            if sql_clause is None:
+                raise HTTPException(status_code=422, detail=f"Campo '{campo}' não suportado para filtro por mês")
+            stmt = stmt.where(text(sql_clause)).params(mes=f"{mes}%")
         # Gantt view: filter only notes with both data_inicio and data_fim
         if gantt:
             if not q.campo_agrupamento:
@@ -121,7 +129,7 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
         total = len(dados)
         if gantt:
             dados = dados[:100]  # hard limit 100
-        return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id} for d in dados], "total": total}
+        return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id, "cover_url": d.cover_url} for d in dados], "total": total}
 class BatchInput(SQLModel):
     ids: list[int]
     alteracoes: dict[str, Any]

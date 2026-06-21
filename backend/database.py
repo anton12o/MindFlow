@@ -8,7 +8,7 @@ from alembic import command
 
 logger = logging.getLogger(__name__)
 
-DB_PATH = Path(__file__).parent / "mindflow.db"
+DB_PATH = Path(os.environ.get("MFLOW_DB_PATH", str(Path(__file__).parent / "mindflow.db")))
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
     connect_args={"check_same_thread": False},

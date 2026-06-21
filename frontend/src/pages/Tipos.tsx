@@ -75,7 +75,7 @@ export default function Tipos() {
                 <div className="flex items-center gap-3">
                   <span className="text-xl">{t.icone}</span>
                   <div>
-                    <p className="font-medium text-sm">{t.nome}</p>
+                    <p className="font-medium text-sm truncate max-w-[200px]">{t.nome}</p>
                     <p className="text-xs text-text-muted">{t.schema_campos && Object.keys(t.schema_campos).length} campos</p>
                   </div>
                 </div>

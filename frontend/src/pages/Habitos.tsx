@@ -5,11 +5,13 @@ import { getHabitos, createHabito, updateHabito, deleteHabito, createRegistro } 
 import ConfirmModal from '../components/ConfirmModal'
 import HabitoCalendario from '../components/HabitoCalendario'
 import { hojeLocal } from '../utils/date'
+import { useNotify } from '../store/notification'
 import type { Habito } from '../types'
 const TIPO_LABEL: Record<string, string> = { binario: 'Sim/Não', quantitativo: 'Contagem' }
 export default function Habitos() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const { data: habitos = [], isLoading, isError } = useQuery({
     queryKey: ['habitos'],
     queryFn: () => getHabitos(true),
@@ -34,6 +36,7 @@ export default function Habitos() {
       setForm({ nome: '', tipo: 'binario', categoria: '', meta: '' })
       setShowForm(false)
     },
+    onError: () => notify('Erro ao criar hábito'),
   })
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -56,6 +59,7 @@ export default function Habitos() {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
       setEditId(null)
     },
+    onError: () => notify('Erro ao atualizar hábito'),
   })
   function handleSaveEdit() {
     if (!editId) return
@@ -80,6 +84,7 @@ export default function Habitos() {
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
       feedbackTimer.current = setTimeout(() => setFeedback(null), 1500)
     },
+    onError: () => notify('Erro ao registrar hábito'),
   })
   function handleCheck(habitoId: number, feito: boolean) {
     checkMut.mutate({ habitoId, feito })
@@ -90,6 +95,7 @@ export default function Habitos() {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
       queryClient.invalidateQueries({ queryKey: ['registros'] })
     },
+    onError: () => notify('Erro ao excluir hábito'),
   })
   return (
     <div className="p-6 max-w-4xl">

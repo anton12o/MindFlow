@@ -19,7 +19,8 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BACKEND = os.path.join(ROOT, "backend")
 FRONTEND = os.path.join(ROOT, "frontend")
 FRONTEND_DIST = os.path.join(FRONTEND, "dist")
-VERSION = "1.2.12"
+sys.path.insert(0, BACKEND)
+from _version import VERSION
 VENV_DIR = Path(ROOT) / "venv"
 
 
@@ -213,12 +214,12 @@ def resolve_port(requested: int, explicit: bool = False) -> int:
     sys.exit(1)
 
 
-def start_server(port: int):
-    print(f" ↻ Iniciando MindFlow em http://localhost:{port}")
+def start_server(host: str, port: int):
+    print(f" ↻ Iniciando MindFlow em http://{host}:{port}")
     print(" ↻ Pressione Ctrl+C para parar...\n")
 
     proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", str(port)],
+        [sys.executable, "-m", "uvicorn", "main:app", "--host", host, "--port", str(port)],
         cwd=BACKEND,
     )
 
@@ -236,12 +237,12 @@ def open_browser(port: int):
     print(f" ✓ Navegador aberto em http://localhost:{port}")
 
 
-def do_backup(port: int = 8000):
+def do_backup(host: str = "0.0.0.0", port: int = 8000):
     """Exporta dados via API e salva como JSON."""
     import json, urllib.request
     print(" ↻ Exportando dados...")
     try:
-        proc = start_server(port)
+        proc = start_server(host, port)
         time.sleep(2)
         if proc.poll() is not None:
             print(" ✗ Servidor nao iniciou para backup.")
@@ -277,6 +278,7 @@ def main():
     import argparse
     parser = argparse.ArgumentParser(description="MindFlow — Seu segundo cérebro local-first, open-source e keyboard-driven")
     parser.add_argument("--backup", action="store_true", help="Exportar dados para JSON e sair (backup a frio)")
+    parser.add_argument("--host", type=str, default="0.0.0.0", help="Host do servidor (padrao: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=8000, help="Porta do servidor (padrao: 8000)")
     args = parser.parse_args()
     explicit_port = any(a.startswith('--port') for a in sys.argv[1:])
@@ -318,7 +320,7 @@ def main():
     print("═" * 60)
     print("  Fase 3/3: Servidor")
     print("═" * 60)
-    proc = start_server(port)
+    proc = start_server(args.host, port)
     open_browser(port)
     print()
 

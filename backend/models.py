@@ -331,7 +331,7 @@ class TemplateRead(TemplateBase):
 
 # ─── Tipos de Objeto (Anytype-inspired) ───
 class TipoObjetoBase(SQLModel):
-    nome: str
+    nome: str = Field(max_length=100)
     icone: str = "📄"
     schema_campos: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     schema_relacoes: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
