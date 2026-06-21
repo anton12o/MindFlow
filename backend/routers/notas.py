@@ -5,7 +5,7 @@ from sqlmodel import Session, select, or_, SQLModel
 from sqlalchemy import func
 from sqlalchemy import text
 from database import get_session
-from urllib.parse import urlparse, quote
+from urllib.parse import quote
 from models import (
     Nota, NotaCreate, NotaRead, NotaUpdate,
     Pasta, PastaCreate, PastaRead,
@@ -15,6 +15,7 @@ from models import (
     Flashcard, SessaoPomodoro,
 )
 from services import processar_wikilinks
+from services.notes import extrair_cover_url, yaml_quote, cleanup_nota_relations
 from services.estatisticas import calcular_estatisticas
 from datetime import datetime, date
 from models import TipoObjeto
@@ -25,53 +26,7 @@ class BatchDeleteRequest(BaseModel):
 
 logger = logging.getLogger(__name__)
 
-COVER_URL_REGEX = re.compile(r'!\[.*?\]\((.*?)\)')
-
-def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | None:
-    """Extrai a primeira URL de imagem do markdown. propriedades.cover_url tem precedência."""
-    def is_valid_url(url: str) -> bool:
-        try:
-            parsed = urlparse(url)
-            return bool(parsed.scheme and parsed.netloc)
-        except Exception:
-            return False
-    
-    if propriedades and propriedades.get('cover_url'):
-        url = propriedades['cover_url']
-        if is_valid_url(url):
-            return url
-    matches = COVER_URL_REGEX.findall(conteudo or '')
-    for url in matches:
-        if is_valid_url(url):
-            return url
-    return None
-
 router = APIRouter()
-
-
-def _yaml_quote(value: str) -> str:
-    if any(c in value for c in ':#{}[]&*!|>%@`"\''):
-        escaped = value.replace("'", "''")
-        return f"'{escaped}'"
-    return value
-
-
-def _cleanup_nota_relations(nota_id: int, session: Session) -> None:
-    for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():
-        session.delete(tag)
-    for fc in session.exec(select(Flashcard).where(Flashcard.nota_id == nota_id)).all():
-        fc.nota_id = None
-        session.add(fc)
-    for s in session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id == nota_id)).all():
-        s.resumo_nota_id = None
-        session.add(s)
-    conns = session.exec(
-        select(ConexaoNota).where(
-            or_(ConexaoNota.nota_origem_id == nota_id, ConexaoNota.nota_destino_id == nota_id)
-        )
-    ).all()
-    for c in conns:
-        session.delete(c)
 
 # ─── Pastas ───
 @router.get("/pastas", response_model=list[PastaRead])
@@ -310,7 +265,7 @@ def delete_nota(nota_id: int, session: Session = Depends(get_session)):
     n = session.get(Nota, nota_id)
     if not n:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
-    _cleanup_nota_relations(nota_id, session)
+    cleanup_nota_relations(nota_id, session)
     session.delete(n)
     try:
         session.commit()
@@ -382,9 +337,9 @@ def export_nota_md(nota_id: int, session: Session = Depends(get_session)):
         if isinstance(v, list):
             yaml_lines.append(f"{k}:")
             for item in v:
-                yaml_lines.append(f"  - {_yaml_quote(str(item))}")
+                yaml_lines.append(f"  - {yaml_quote(str(item))}")
         elif isinstance(v, str):
-            yaml_lines.append(f"{k}: {_yaml_quote(v)}")
+            yaml_lines.append(f"{k}: {yaml_quote(v)}")
         else:
             yaml_lines.append(f"{k}: {v}")
     yaml_lines.append("---")

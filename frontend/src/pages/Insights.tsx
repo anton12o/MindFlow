@@ -68,11 +68,11 @@ export default function Analise() {
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <button onClick={mesAnterior} className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover">?</button>
+        <button onClick={mesAnterior} className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover">&#8592;</button>
         <span className="text-lg font-semibold">
           {new Date(ano, mes - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </span>
-        <button onClick={mesSeguinte} className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover">?</button>
+        <button onClick={mesSeguinte} className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover">&#8594;</button>
       </div>
 
       {isLoading && <div className="text-center text-sm text-text-muted py-8">Carregando...</div>}
