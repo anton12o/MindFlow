@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal'
 import HabitoCalendario from '../components/HabitoCalendario'
 import { hojeLocal } from '../utils/date'
 import { useNotify } from '../store/notification'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import type { Habito } from '../types'
 const TIPO_LABEL: Record<string, string> = { binario: 'Sim/Não', quantitativo: 'Contagem' }
 export default function Habitos() {
@@ -33,10 +34,11 @@ export default function Habitos() {
     mutationFn: (data: Parameters<typeof createHabito>[0]) => createHabito(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
+      broadcastInvalidate([['habitos']])
       setForm({ nome: '', tipo: 'binario', categoria: '', meta: '' })
       setShowForm(false)
     },
-    onError: () => notify('Erro ao criar hábito'),
+    onError: (e) => { console.error('[Habitos]', e); notify('Erro ao criar hábito') },
   })
   function handleCreate(e: React.FormEvent) {
     e.preventDefault()
@@ -57,9 +59,10 @@ export default function Habitos() {
     mutationFn: ({ id, data }: { id: number; data: Parameters<typeof updateHabito>[1] }) => updateHabito(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
+      broadcastInvalidate([['habitos']])
       setEditId(null)
     },
-    onError: () => notify('Erro ao atualizar hábito'),
+    onError: (e) => { console.error('[Habitos]', e); notify('Erro ao atualizar hábito') },
   })
   function handleSaveEdit() {
     if (!editId) return
@@ -80,11 +83,12 @@ export default function Habitos() {
       createRegistro(habitoId, { habito_id: habitoId, data: hojeLocal(), valor: feito ? 1 : 0 }),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
+      broadcastInvalidate([['registros', variables.habitoId]])
       setFeedback({ id: variables.habitoId, texto: 'Feito ✔️' })
       if (feedbackTimer.current) clearTimeout(feedbackTimer.current)
       feedbackTimer.current = setTimeout(() => setFeedback(null), 1500)
     },
-    onError: () => notify('Erro ao registrar hábito'),
+    onError: (e) => { console.error('[Habitos]', e); notify('Erro ao registrar hábito') },
   })
   function handleCheck(habitoId: number, feito: boolean) {
     checkMut.mutate({ habitoId, feito })
@@ -94,8 +98,9 @@ export default function Habitos() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
       queryClient.invalidateQueries({ queryKey: ['registros'] })
+      broadcastInvalidate([['habitos'], ['registros']])
     },
-    onError: () => notify('Erro ao excluir hábito'),
+    onError: (e) => { console.error('[Habitos]', e); notify('Erro ao excluir hábito') },
   })
   return (
     <div className="p-6 max-w-4xl">

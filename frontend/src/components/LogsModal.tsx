@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, startTransition } from 'react'
 import { getLogs, clearLogs, type LogEntryResponse } from '../api/logs'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import ConfirmModal from './ConfirmModal'
@@ -23,7 +23,7 @@ export default function LogsModal({ onClose }: Props) {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [levelFilter])
+  useEffect(() => { startTransition(() => load()) }, [levelFilter])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

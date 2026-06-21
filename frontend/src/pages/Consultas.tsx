@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import { updateNota, createNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
 import { useNotify } from '../store/notification'
@@ -15,13 +16,13 @@ interface SchemaField {
 }
 interface FormularioViewProps {
   query: { tipo_objeto_id: number }
-  tipo: { icone?: string; nome?: string; schema_campos: Record<string, SchemaField> } | undefined
+  tipo: { icone?: string; nome?: string; schema_campos?: Record<string, unknown> } | undefined
   onClose: () => void
   onCreate: () => void
 }
 function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps) {
   const notify = useNotify()
-  const schema = tipo?.schema_campos || {}
+  const schema = (tipo?.schema_campos || {}) as Record<string, SchemaField>
   const [formData, setFormData] = useState<Record<string, string>>({})
   const [titulo, setTitulo] = useState('')
   const [saving, setSaving] = useState(false)
@@ -122,7 +123,7 @@ interface CalendarioViewProps {
   onMesChange: (mes: string) => void
   errorMsg?: string
 }
-function CalendarioView({ query, result, resLoad, resErr, onRefresh: _onRefresh, mesAtual, onMesChange, errorMsg }: CalendarioViewProps) {
+function CalendarioView({ query, result, resLoad, resErr, mesAtual, onMesChange, errorMsg }: CalendarioViewProps) {
   const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
   function getDiasDoMes(anoMes: string) {
     const [ano, mes] = anoMes.split('-').map(Number)
@@ -208,7 +209,7 @@ interface GanttViewProps {
   onRefresh: () => void
   errorMsg?: string
 }
-function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh, errorMsg }: GanttViewProps) {
+function GanttView({ query, result, resLoad, resErr, errorMsg }: GanttViewProps) {
   const [scale, setScale] = useState<'day' | 'week' | 'month'>('day')
   const total = result?.total || 0
   const truncated = total > 100
@@ -251,7 +252,7 @@ function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh, erro
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold">Gantt · {result.dados.length} itens {truncated && <span className="text-warning text-sm">(limitado a 100 de {total})</span>}</h3>
         <div className="flex gap-2">
-          <select value={scale} onChange={e => setScale(e.target.value as any)}
+          <select value={scale} onChange={e => setScale(e.target.value as 'day' | 'week' | 'month')}
             className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
             <option value="day">Dia</option>
             <option value="week">Semana</option>
@@ -282,7 +283,7 @@ function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh, erro
         </div>
         {/* Rows */}
         <div style={{ width: totalWidth }}>
-          {result.dados.map((item, _rowIndex) => {
+           {result.dados.map(item => {
             const inicio = item.propriedades?.['data_inicio'] as string
             const fim = item.propriedades?.['data_fim'] as string
             if (!inicio || !fim) return null
@@ -337,7 +338,7 @@ function GanttView({ query, result, resLoad, resErr, onRefresh: _onRefresh, erro
     </div>
   )
 }
-interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; [key: string]: unknown }
+interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; cover_url?: string; [key: string]: unknown }
 interface SortableItemProps {
   item: CardItem
   tipos: Array<{ id: number; icone?: string }> | undefined
@@ -407,6 +408,7 @@ export default function Consultas() {
     mutationFn: () => createQuery({ nome: newName, tipo_objeto_id: newTipoId, visualizacao: newView, campo_agrupamento: newGroup || undefined }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['queries'] })
+      broadcastInvalidate([['queries']])
       setNewName('')
     },
   })
@@ -414,6 +416,7 @@ export default function Consultas() {
     mutationFn: (id: number) => deleteQuery(id),
     onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['queries'] })
+      broadcastInvalidate([['queries']])
       setSelectedQuery(prev => prev === id ? null : prev)
     },
   })
@@ -422,6 +425,7 @@ export default function Consultas() {
     onSuccess: () => {
       refetchResult()
       queryClient.invalidateQueries({ queryKey: ['notas'] })
+      broadcastInvalidate([['notas']])
       setSelectedIds(new Set())
     },
   })
@@ -471,7 +475,7 @@ export default function Consultas() {
     newDados.splice(overIndex, 0, moved)
     // Update ordem for affected items
     for (let i = 0; i < newDados.length; i++) {
-      if (newDados[i].ordem !== i) {
+      if (newDados[i].ordem as number !== i) {
         try {
           await updateNota(newDados[i].id, { ordem: i })
         } catch (err) {
@@ -593,7 +597,7 @@ export default function Consultas() {
               ) : (
               <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
                 {(() => {
-                  const grupos: Record<string, any[]> = {}
+                  const grupos: Record<string, unknown[]> = {}
                   const campo = queryAtual.campo_agrupamento || 'status'
                   for (const item of result.dados) {
                     const chave = String(item[campo] ?? 'Sem valor')
@@ -619,7 +623,7 @@ export default function Consultas() {
                         <span className="text-text-muted text-xs ml-2">({grupos[col].length})</span>
                       </div>
                       <div className="p-2 space-y-2 flex-1 overflow-y-auto">
-                        {grupos[col].map(renderCard)}
+                        {grupos[col].map(item => renderCard(item as CardItem))}
                       </div>
                     </div>
                   ))
@@ -638,7 +642,7 @@ export default function Consultas() {
                 <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}>
                   <ul className="divide-y divide-border bg-bg-secondary rounded-xl border border-border max-h-[60vh] overflow-y-auto">
                     {result.dados.map((item) => (
-                      <SortableItem key={item.id} item={item} tipos={tipos} selectedIds={selectedIds} toggleSelect={toggleSelect} />
+                      <SortableItem key={item.id} item={item as CardItem} tipos={tipos} selectedIds={selectedIds} toggleSelect={toggleSelect} />
                     ))}
                   </ul>
                 </SortableContext>
@@ -654,35 +658,36 @@ export default function Consultas() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {(result?.dados || []).map(item => {
-                    const tipo = tipos?.find(t => t.id === item.tipo_id)
-                    const coverUrl = item.cover_url
+                    const card = item as CardItem
+                    const tipo = tipos?.find(t => t.id === card.tipo_id)
+                    const coverUrl = card.cover_url
                     const hasImage = coverUrl && coverUrl.startsWith('http')
                     return (
-                      <div key={item.id} onClick={() => toggleSelect(item.id)}
-                        className={`group bg-bg-secondary rounded-xl border border-border overflow-hidden transition-all hover:scale-[1.02] hover:shadow-xl ${selectedIds.has(item.id) ? 'border-accent ring-2 ring-accent' : 'border-border'}`}>
+                      <div key={card.id} onClick={() => toggleSelect(card.id)}
+                        className={`group bg-bg-secondary rounded-xl border border-border overflow-hidden transition-all hover:scale-[1.02] hover:shadow-xl ${selectedIds.has(card.id) ? 'border-accent ring-2 ring-accent' : 'border-border'}`}>
                         <div className="relative aspect-[4/3] bg-gradient-to-br from-accent/20 to-accent/5">
                           {hasImage ? (
-                            <img src={coverUrl} alt={item.titulo}
+                            <img src={coverUrl} alt={card.titulo}
                               className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-90"
                               loading="lazy" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
-                              <span className="text-4xl font-bold text-accent/50">{item.titulo.charAt(0).toUpperCase()}</span>
+                              <span className="text-4xl font-bold text-accent/50">{card.titulo.charAt(0).toUpperCase()}</span>
                             </div>
                           )}
                         </div>
                         <div className="p-3">
                           <div className="flex items-center gap-2 mb-1">
                             {tipo && <span className="text-lg">{tipo.icone}</span>}
-                            <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
+                            <span className="text-sm font-medium truncate flex-1">{card.titulo}</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-text-muted">
-                            {item.status && (
-                              <span className={`px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary'}`}>
-                                {item.status}
+                            {card.status && (
+                              <span className={`px-1.5 py-0.5 rounded ${card.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary'}`}>
+                                {card.status}
                               </span>
                             )}
-                            {item.prioridade && <span>{item.prioridade}</span>}
+                            {card.prioridade && <span>{card.prioridade}</span>}
                           </div>
                         </div>
                       </div>

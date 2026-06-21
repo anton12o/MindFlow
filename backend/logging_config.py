@@ -1,5 +1,6 @@
 import logging
-from logging.handlers import RotatingFileHandler
+import queue
+from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
 from pathlib import Path
 
 LOG_DIR = Path(__file__).parent / "data"
@@ -18,4 +19,8 @@ def setup_logging():
     file_handler.setLevel(logging.WARNING)
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT))
     root = logging.getLogger()
-    root.addHandler(file_handler)
+    log_queue = queue.Queue(-1)
+    queue_handler = QueueHandler(log_queue)
+    root.addHandler(queue_handler)
+    listener = QueueListener(log_queue, file_handler, respect_handler_level=True)
+    listener.start()

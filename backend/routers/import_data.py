@@ -108,7 +108,7 @@ def _topological_sort_pastas(pastas: list[dict]) -> list[dict]:
 @router.post("")
 async def import_data(file: UploadFile):
     try:
-        contents = await asyncio.wait_for(file.read(), timeout=30)
+        contents = await asyncio.wait_for(asyncio.to_thread(file.file.read), timeout=30)
     except asyncio.TimeoutError:
         raise HTTPException(408, "Tempo limite excedido ao receber arquivo")
 

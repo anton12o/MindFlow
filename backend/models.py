@@ -1,5 +1,5 @@
 from sqlmodel import SQLModel, Field, Relationship, Column, JSON
-from sqlalchemy import UniqueConstraint
+from sqlalchemy import UniqueConstraint, Index
 from typing import Optional, Any
 from pydantic import field_validator
 from datetime import datetime, date
@@ -146,6 +146,9 @@ class TarefaBase(SQLModel):
 class Tarefa(TarefaBase, table=True):
     __tablename__ = "tarefas"
     id: Optional[int] = Field(default=None, primary_key=True)
+    __table_args__ = (
+        Index('ix_tarefas_data_status', 'data', 'status'),
+    )
 
 class TarefaCreate(SQLModel):
     titulo: str = Field(min_length=1)
@@ -227,7 +230,7 @@ class NotaBase(SQLModel):
     titulo: str = Field(min_length=1, max_length=500)
     conteudo: str = ""
     pasta_id: Optional[int] = Field(default=None, foreign_key="pastas.id")
-    tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id")
+    tipo_id: Optional[int] = Field(default=None, foreign_key="tipos_objeto.id", index=True)
     propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
 
 class Nota(NotaBase, table=True):
@@ -270,7 +273,7 @@ class ConexaoNota(SQLModel, table=True):
     __tablename__ = "conexoes_notas"
     id: Optional[int] = Field(default=None, primary_key=True)
     nota_origem_id: int = Field(foreign_key="notas.id")
-    nota_destino_id: int = Field(foreign_key="notas.id")
+    nota_destino_id: int = Field(foreign_key="notas.id", index=True)
     tipo: str = "wikilink"
 
     __table_args__ = (
@@ -285,7 +288,7 @@ class ConexaoNotaRead(SQLModel):
 
 # ─── Flashcards ───
 class FlashcardBase(SQLModel):
-    nota_id: Optional[int] = Field(default=None, foreign_key="notas.id")
+    nota_id: Optional[int] = Field(default=None, foreign_key="notas.id", index=True)
     pergunta: str = Field(min_length=1)
     resposta: str = Field(min_length=1)
     intervalo: float = 0.0

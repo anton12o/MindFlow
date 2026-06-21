@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, startTransition } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { getSessoes, deleteSessoes } from '../api/pomodoro'
@@ -15,7 +15,7 @@ export default function PomodoroPage() {
     const id = searchParams.get('contexto_id')
     const nome = searchParams.get('nome')
     if (tipo && id && nome) {
-      setContexto({ tipo, id: Number(id), nome: decodeURIComponent(nome) })
+      startTransition(() => setContexto({ tipo, id: Number(id), nome: decodeURIComponent(nome) }))
     }
   }, [searchParams])
   const [showCleanup, setShowCleanup] = useState(false)

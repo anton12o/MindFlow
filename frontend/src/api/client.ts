@@ -36,7 +36,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     }
   } catch (err) {
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error(`Timeout em ${options?.method || 'GET'} ${path} (10s)`)
+      throw new Error(`Timeout em ${options?.method || 'GET'} ${path} (10s)`, { cause: err })
     }
     throw err
   } finally {

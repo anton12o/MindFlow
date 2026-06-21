@@ -82,8 +82,9 @@ def processar_wikilinks(nota_id: int, conteudo: str | None, session: Session):
             select(Nota).where(Nota.titulo == title)
         ).first()
         if not target:
+            escaped = title.replace('%', '\\%').replace('_', '\\_')
             target = session.exec(
-                select(Nota).where(Nota.titulo.ilike(title))
+                select(Nota).where(Nota.titulo.ilike(escaped, escape='\\'))
             ).first()
         if target and target.id != nota_id:
             conn = ConexaoNota(

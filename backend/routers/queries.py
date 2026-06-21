@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select, SQLModel
@@ -115,6 +116,8 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             sql_clause = DATA_FILTER_MAP.get(campo)
             if sql_clause is None:
                 raise HTTPException(status_code=422, detail=f"Campo '{campo}' não suportado para filtro por mês")
+            if not re.match(r'^\d{4}-\d{2}$', mes):
+                raise HTTPException(422, detail="Formato de mês inválido. Use YYYY-MM")
             stmt = stmt.where(text(sql_clause)).params(mes=f"{mes}%")
         # Gantt view: filter only notes with both data_inicio and data_fim
         if gantt:

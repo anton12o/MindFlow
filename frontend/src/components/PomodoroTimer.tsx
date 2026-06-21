@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, memo, startTransition } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { createNota } from '../api/notas'
-import { usePomodoroContext, type PomodoroScreen } from '../store/pomodoro'
+import { usePomodoroContext, type Fase, type PomodoroScreen } from '../store/pomodoro'
 import { useNotify } from '../store/notification'
 
 interface Props {
@@ -22,7 +22,7 @@ function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
   return valid[de].includes(para)
 }
 
-export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
+const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Props) {
   const {
     minutos, setMinutos, segundos, setSegundos,
     ativo, setAtivo,
@@ -52,7 +52,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
 
   const HB_KEY = 'mindflow_pomodoro_heartbeat'
   const [showRestore, setShowRestore] = useState(false)
-  const [heartbeatData, setHeartbeatData] = useState<any>(null)
+  const [heartbeatData, setHeartbeatData] = useState<{ screen: string; remainingMs: number; minutos: number; segundos: number; interrupcoes: string[]; contextoTipo: string | null; contextoId: number | null; fase: Fase; cicloAtual: number } | null>(null)
 
   useEffect(() => {
     try {
@@ -64,8 +64,7 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
             return
           }
           if (Date.now() - data.savedAt < 2 * 60 * 60 * 1000) {
-            setHeartbeatData(data)
-            setShowRestore(true)
+            startTransition(() => { setHeartbeatData(data); setShowRestore(true) })
             return
           }
         }
@@ -599,4 +598,6 @@ export default function PomodoroTimer({ contexto, onFinalizar }: Props) {
       )}
     </div>
   )
-}
+})
+
+export default PomodoroTimer
