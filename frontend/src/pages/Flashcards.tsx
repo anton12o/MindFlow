@@ -4,6 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { Pencil, X } from 'lucide-react'
 import { getFlashcards, getReviewCards, createFlashcard, updateFlashcard, reviewFlashcard, deleteFlashcard } from '../api/flashcards'
 import ConfirmModal from '../components/ConfirmModal'
+import { useNotify } from '../store/notification'
 import { getNotas } from '../api/notas'
 import type { Flashcard } from '../types'
 const labels = ['', 'Muito difícil', 'Difícil', 'Médio', 'Fácil', 'Muito fácil']
@@ -65,6 +66,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
 })
 export default function Flashcards() {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const [virado, setVirado] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ pergunta: '', resposta: '', nota_id: '' })
@@ -99,6 +101,7 @@ export default function Flashcards() {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
       setVirado(false)
     },
+    onError: () => notify('Erro ao registrar revisão'),
   })
   const createMut = useMutation({
     mutationFn: (data: { pergunta: string; resposta: string; nota_id?: number }) =>
@@ -108,6 +111,7 @@ export default function Flashcards() {
       setForm({ pergunta: '', resposta: '', nota_id: '' })
       setShowForm(false)
     },
+    onError: () => notify('Erro ao criar flashcard'),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { pergunta?: string; resposta?: string; nota_id?: number | null } }) =>
@@ -115,10 +119,12 @@ export default function Flashcards() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
     },
+    onError: () => notify('Erro ao atualizar flashcard'),
   })
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteFlashcard(id),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['flashcards'] }),
+    onError: () => notify('Erro ao excluir flashcard'),
   })
   const handleSave = useCallback((id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => {
     updateMut.mutate({ id, data })

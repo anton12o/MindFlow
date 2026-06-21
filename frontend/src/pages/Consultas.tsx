@@ -600,13 +600,22 @@ export default function Consultas() {
                     if (!grupos[chave]) grupos[chave] = []
                     grupos[chave].push(item)
                   }
-                  const colunas = ['pendente', 'feito', 'alta', 'normal', 'baixa', 'Sem valor']
+                  const STATUS_LABEL: Record<string, string> = {
+                    'pendente': 'Pendente',
+                    'em_andamento': 'Em andamento',
+                    'feito': 'Feito',
+                    'alta': 'Alta',
+                    'normal': 'Normal',
+                    'baixa': 'Baixa',
+                    'urgente': 'Urgente',
+                  }
+                  const colunas = ['pendente', 'em_andamento', 'feito', 'alta', 'normal', 'baixa', 'Sem valor']
                   const ordem = colunas.filter(c => c in grupos)
                   const extra = Object.keys(grupos).filter(c => !colunas.includes(c))
                   return [...ordem, ...extra].map(col => (
-                    <div key={col} className="bg-bg-secondary rounded-xl border border-border min-w-[220px] flex-shrink-0 flex flex-col">
+                      <div key={col} className="bg-bg-secondary rounded-xl border border-border min-w-[220px] flex-shrink-0 flex flex-col">
                       <div className="px-3 py-2 border-b border-border font-medium text-sm sticky top-0 bg-bg-secondary rounded-t-xl">
-                        {col}
+                        {STATUS_LABEL[col] || col}
                         <span className="text-text-muted text-xs ml-2">({grupos[col].length})</span>
                       </div>
                       <div className="p-2 space-y-2 flex-1 overflow-y-auto">
