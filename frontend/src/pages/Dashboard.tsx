@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, startTransition } from 'react'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -37,7 +38,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const done = localStorage.getItem('mindflow_onboarding_done')
-    if (!done) setOnboardingOpen(true)
+    if (!done) startTransition(() => setOnboardingOpen(true))
   }, [])
 
   const { data: dash, isLoading, isError } = useQuery({
@@ -53,7 +54,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!dash || diarioId || diarioCreating.current) return
     const d = dash.notas_hoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
-    if (d) { setDiarioId(d.id); return }
+    if (d) { startTransition(() => setDiarioId(d.id)); return }
     diarioCreating.current = true
     const dataBR = new Date().toLocaleDateString('pt-BR')
     createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { setDiarioId(n.id); diarioCreating.current = false }).catch(e => { console.error('[Dashboard]', e); diarioCreating.current = false })
@@ -64,6 +65,7 @@ export default function Dashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] })
       queryClient.invalidateQueries({ queryKey: ['tarefas'] })
+      broadcastInvalidate([['rotina', 'tarefas'], ['tarefas']])
     },
     ...onErrorTarefa,
   })
@@ -74,6 +76,7 @@ export default function Dashboard() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['habitos'] })
       queryClient.invalidateQueries({ queryKey: ['registros', variables.habitoId] })
+      broadcastInvalidate([['habitos'], ['registros', variables.habitoId]])
     },
     ...onErrorHabito,
   })

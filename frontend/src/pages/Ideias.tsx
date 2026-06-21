@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import { useSearchParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, createPasta, deletePasta, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
@@ -15,26 +16,26 @@ import type { Nota, Tag, Pasta } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useNotify } from '../store/notification'
-import { Plus, FileText, Link2, Square, Star, Folder, Scissors, X, Flame, Lightbulb, Tag as TagIcon, CheckSquare, ArrowRight, ArrowLeft, ChevronDown, ChevronRight, ChevronUp } from 'lucide-react'
-function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: string; notas: Nota[]; onSelect: (n: Nota) => void; selectedId?: number | null }) {
+import { Plus, FileText, Link2, Square, Star, Folder, Scissors, X, Flame, Lightbulb, Tag as TagIcon, CheckSquare, ArrowRight, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: string; notas: Nota[]; onSelect: (n: Nota) => void; selectedId?: number | null }) {
   const [tooltipContent, setTooltipContent] = useState('')
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [tooltipVisible, setTooltipVisible] = useState(false)
   const previewCache = useRef<Map<number, string>>(new Map())
   const hoverTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const parts = conteudo.split(/(\[\[[^\]]+\]\])/)
+  const parts = useMemo(() => conteudo.split(/(\[\[[^\]]+\]\])/), [conteudo])
   const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
     if (previewCache.current.has(target.id)) {
       setTooltipContent(previewCache.current.get(target.id)!)
     } else if (target.id !== selectedId) {
       try {
         const nota = await getNota(target.id)
-        const plain = (nota.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
+        const plain = (nota.conteudo || '').replace(/[#*`~>[\]]/g, '').slice(0, 200)
         previewCache.current.set(target.id, plain)
         setTooltipContent(plain)
       } catch (e) { console.error('[Ideias] tooltip preview', e); return }
     } else {
-      const plain = (target.conteudo || '').replace(/[#*`~>\[\]]/g, '').slice(0, 200)
+      const plain = (target.conteudo || '').replace(/[#*`~>[\]]/g, '').slice(0, 200)
       previewCache.current.set(target.id, plain)
       setTooltipContent(plain)
     }
@@ -75,7 +76,7 @@ function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: s
       )}
     </>
   )
-}
+})
 export default function Ideias() {
   const queryClient = useQueryClient()
   const notify = useNotify()
@@ -148,7 +149,7 @@ export default function Ideias() {
   function saveNote() {
     const id = selectedIdRef.current
     if (!id) return
-    const props: Record<string, any> = {}
+    const props: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(propriedadesRef.current)) {
       if (k.trim()) props[k.trim()] = v
     }
@@ -204,6 +205,7 @@ export default function Ideias() {
       successTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
+      broadcastInvalidate([['notas'], ['conexoes']])
     },
     onError: (e) => {
       console.error('[Ideias]', e)
@@ -216,6 +218,7 @@ export default function Ideias() {
     mutationFn: (data: Partial<Nota>) => createNota(data),
     onSuccess: (n) => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
+      broadcastInvalidate([['notas']])
       selectNota(n)
       setEditando(true)
     },
@@ -225,6 +228,7 @@ export default function Ideias() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
+      broadcastInvalidate([['notas'], ['conexoes']])
       setSelectedId(null)
     },
   })
@@ -233,6 +237,7 @@ export default function Ideias() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
+      broadcastInvalidate([['notas'], ['conexoes']])
       setSelectedIds(new Set())
       setSelectMode(false)
       setSelectedId(null)
@@ -242,6 +247,7 @@ export default function Ideias() {
     mutationFn: (id: number) => deletePasta(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pastas'] })
+      broadcastInvalidate([['pastas']])
       setConfirmDeletePasta(null)
     },
   })
@@ -249,12 +255,14 @@ export default function Ideias() {
     mutationFn: (id: number) => favoritarNota(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
+      broadcastInvalidate([['notas']])
     },
   })
   const createTagMut = useMutation({
     mutationFn: (data: Partial<Tag>) => createTag(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] })
+      broadcastInvalidate([['tags']])
       setNewTagNome('')
       setNewTagCor('#6B7280')
       setShowTagModal(false)
@@ -265,6 +273,7 @@ export default function Ideias() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tags'] })
       queryClient.invalidateQueries({ queryKey: ['notas'] })
+      broadcastInvalidate([['tags'], ['notas']])
       setEditingTag(null)
     },
   })
@@ -272,6 +281,7 @@ export default function Ideias() {
     mutationFn: (data: Partial<Pasta>) => createPasta(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pastas'] })
+      broadcastInvalidate([['pastas']])
     },
   })
   const removeTagFromNotaMut = useMutation({
@@ -397,12 +407,19 @@ export default function Ideias() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 64,
   })
-  const saida = notas?.filter(n =>
-    conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
-  ) || []
-  const entrada = notas?.filter(n =>
-    conexoes?.some(c => c.nota_destino_id === selectedId && c.nota_origem_id === n.id)
-  ) || []
+  const favoritadas = useMemo(() => notas?.filter(n => n.favoritado) || [], [notas])
+  const saida = useMemo(() =>
+    notas?.filter(n =>
+      conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
+    ) || [],
+    [notas, conexoes, selectedId]
+  )
+  const entrada = useMemo(() =>
+    notas?.filter(n =>
+      conexoes?.some(c => c.nota_destino_id === selectedId && c.nota_origem_id === n.id)
+    ) || [],
+    [notas, conexoes, selectedId]
+  )
   const flatTree = useMemo(() => {
     const result: { pasta: Pasta; depth: number }[] = []
     function walk(parentId: number | null, depth: number) {
@@ -496,13 +513,13 @@ export default function Ideias() {
                  <button onClick={() => setFavoritesExpanded(!favoritesExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
                    {favoritesExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                    <Star size={12} /> Favoritos
-                   {!favoritesExpanded && <span className="font-normal">{notas.filter(n => n.favoritado).length}</span>}
+                    {!favoritesExpanded && <span className="font-normal">{favoritadas.length}</span>}
                  </button>
                  {favoritesExpanded && (
                    <>
-                     {notas.filter(n => n.favoritado).length > 0 ? (
-                       <div className="flex flex-col gap-0.5 mt-1">
-                         {notas.filter(n => n.favoritado).map(n => {
+                      {favoritadas.length > 0 ? (
+                        <div className="flex flex-col gap-0.5 mt-1">
+                          {favoritadas.map(n => {
                            const tipo = tipos?.find(t => t.id === n.tipo_id)
                            return (
                              <div key={n.id} className="group relative">
@@ -615,7 +632,7 @@ export default function Ideias() {
               <div className="mb-2">
                 <div className="flex items-center justify-between mb-1">
                   <button onClick={() => setTagsExpanded(!tagsExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
-                    {tagsExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                    {tagsExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                     Tags
                     {!tagsExpanded && <span className="font-normal">{tags.length}</span>}
                   </button>
@@ -851,8 +868,9 @@ export default function Ideias() {
                        extrairBloco(selectedId, extractText.trim(), notaAtual?.tipo_id, pastaFilter ?? null).then((nova) => {
  
                          queryClient.invalidateQueries({ queryKey: ['notas'] })
- 
-                         selectNota(nova)
+                          broadcastInvalidate([['notas']])
+
+                          selectNota(nova)
  
                          setShowExtract(false)
  

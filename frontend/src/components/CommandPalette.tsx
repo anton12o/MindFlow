@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, startTransition } from 'react'
 import { getNotas } from '../api/notas'
 import type { Nota } from '../types'
 import { useFocusTrap } from '../hooks/useFocusTrap'
@@ -30,8 +30,8 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
   }, [])
   useEffect(() => {
     clearTimeout(searchTimer.current)
-    setSelected(0)
-    if (!query.trim()) { setSearchResults(null); return }
+    startTransition(() => setSelected(0))
+    if (!query.trim()) { startTransition(() => setSearchResults(null)); return }
     searchTimer.current = setTimeout(() => doSearch(query), 200)
     return () => clearTimeout(searchTimer.current)
   }, [query, doSearch])
@@ -42,9 +42,9 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
     ? notas.map(n => ({ id: `nota-${n.id}`, label: n.titulo, action: () => onNavigate?.(n.id) }))
     : filteredCommands
   const itemsRef = useRef(items)
-  itemsRef.current = items
+  useEffect(() => { itemsRef.current = items }, [items])
   const selectedRef = useRef(selected)
-  selectedRef.current = selected
+  useEffect(() => { selectedRef.current = selected }, [selected])
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const f = itemsRef.current

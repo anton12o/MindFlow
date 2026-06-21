@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Pencil, X } from 'lucide-react'
 import { getFlashcards, getReviewCards, createFlashcard, updateFlashcard, reviewFlashcard, deleteFlashcard } from '../api/flashcards'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import ConfirmModal from '../components/ConfirmModal'
 import { useNotify } from '../store/notification'
 import { getNotas } from '../api/notas'
@@ -99,32 +100,38 @@ export default function Flashcards() {
       reviewFlashcard(id, qualidade),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
+      broadcastInvalidate([['flashcards']])
       setVirado(false)
     },
-    onError: () => notify('Erro ao registrar revisão'),
+    onError: (e) => { console.error('[Flashcards]', e); notify('Erro ao registrar revisão') },
   })
   const createMut = useMutation({
     mutationFn: (data: { pergunta: string; resposta: string; nota_id?: number }) =>
       createFlashcard(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
+      broadcastInvalidate([['flashcards']])
       setForm({ pergunta: '', resposta: '', nota_id: '' })
       setShowForm(false)
     },
-    onError: () => notify('Erro ao criar flashcard'),
+    onError: (e) => { console.error('[Flashcards]', e); notify('Erro ao criar flashcard') },
   })
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: { pergunta?: string; resposta?: string; nota_id?: number | null } }) =>
       updateFlashcard(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['flashcards'] })
+      broadcastInvalidate([['flashcards']])
     },
-    onError: () => notify('Erro ao atualizar flashcard'),
+    onError: (e) => { console.error('[Flashcards]', e); notify('Erro ao atualizar flashcard') },
   })
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteFlashcard(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['flashcards'] }),
-    onError: () => notify('Erro ao excluir flashcard'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['flashcards'] })
+      broadcastInvalidate([['flashcards']])
+    },
+    onError: (e) => { console.error('[Flashcards]', e); notify('Erro ao excluir flashcard') },
   })
   const handleSave = useCallback((id: number, data: { pergunta: string; resposta: string; nota_id: number | null }) => {
     updateMut.mutate({ id, data })

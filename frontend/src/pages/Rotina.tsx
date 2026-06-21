@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa } from '../api/rotina'
+import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import CalendarioSemanal from '../components/CalendarioSemanal'
 import ConfirmModal from '../components/ConfirmModal'
 import { hojeLocal, agoraLocal } from '../utils/date'
@@ -62,7 +63,10 @@ export default function Rotina() {
       notify('Erro ao criar tarefa')
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey })
+      broadcastInvalidate([[...queryKey]])
+    },
   })
   const toggleTarefaMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),

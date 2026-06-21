@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, memo } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTheme, MODE_ICON } from '../store/theme'
 import { exportAll } from '../api/export'
@@ -25,7 +25,7 @@ const secondaryItems = [
   { icon: <RotateCcw size={18} />, label: 'Revisão', page: '/revisao' },
 ]
 
-export default function Sidebar({ onToggleInbox, onOpenImport }: {
+const Sidebar = memo(function Sidebar({ onToggleInbox, onOpenImport }: {
   onToggleInbox: () => void; onOpenImport: () => void
 }) {
   const navigate = useNavigate()
@@ -218,4 +218,6 @@ export default function Sidebar({ onToggleInbox, onOpenImport }: {
       )}
     </>
   )
-}
+})
+
+export default Sidebar

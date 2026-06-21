@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useRef, type ReactNode, type Dispatch, type SetStateAction } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, startTransition, type ReactNode, type Dispatch, type SetStateAction } from 'react'
 import { useBroadcastSync } from '../hooks/useBroadcastSync'
 
 export type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
@@ -141,7 +141,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, [config])
 
   // Reset timer to current phase duration
-  const resetTimer = () => {
+  const resetTimer = useCallback(() => {
     const durations: Record<Fase, number> = {
       foco: config.focoMin,
       pausa_curta: config.pausaCurtaMin,
@@ -149,10 +149,10 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     }
     setMinutos(durations[fase])
     setSegundos(0)
-  }
+  }, [config, fase])
 
   // Advance to next phase
-  const advancePhase = () => {
+  const advancePhase = useCallback(() => {
     if (fase === 'foco') {
       const nextCiclo = cicloAtual + 1
       setCicloAtual(nextCiclo)
@@ -161,11 +161,11 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     } else {
       setFase('foco')
     }
-  }
+  }, [cicloAtual, config, fase])
 
   // Reset timer when phase changes
   useEffect(() => {
-    resetTimer()
+    startTransition(() => resetTimer())
   }, [fase, config])
 
   // Heartbeat
@@ -244,7 +244,11 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval)
   }, [ativo, screen, fase, config, interrupcoes, contexto])
 
-  useBroadcastSync('sync:pomodoro', { sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes }, (data) => {
+  const broadcastState = useMemo(() => ({
+    sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes,
+  }), [sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes])
+
+  useBroadcastSync('sync:pomodoro', broadcastState, (data) => {
     setSessaoId(data.sessaoId ?? null)
     setMinutos(data.minutos)
     setSegundos(data.segundos)
@@ -256,31 +260,38 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     startedAtRef.current = Date.now()
   }, !!sessaoId || ativo)
 
+  const contextValue = useMemo(() => ({
+    minutos, setMinutos, segundos, setSegundos,
+    ativo, setAtivo,
+    sessaoId, setSessaoId,
+    resumo, setResumo,
+    mostrarResumo, setMostrarResumo,
+    config, setConfig,
+    cicloAtual, setCicloAtual,
+    fase, setFase,
+    resetTimer,
+    advancePhase,
+    startedAtRef,
+    screen, setScreen,
+    interrupcoes, setInterrupcoes,
+    contexto, setContexto,
+    audioCtxRef,
+    saveHeartbeat,
+    clearHeartbeat,
+  }), [
+    minutos, segundos, ativo, sessaoId, resumo, mostrarResumo,
+    config, cicloAtual, fase, screen, interrupcoes, contexto,
+    resetTimer, advancePhase, saveHeartbeat, clearHeartbeat,
+  ])
+
   return (
-    <PomodoroContext.Provider value={{
-      minutos, setMinutos, segundos, setSegundos,
-      ativo, setAtivo,
-      sessaoId, setSessaoId,
-      resumo, setResumo,
-      mostrarResumo, setMostrarResumo,
-      config, setConfig,
-      cicloAtual, setCicloAtual,
-      fase, setFase,
-      resetTimer,
-      advancePhase,
-      startedAtRef,
-      screen, setScreen,
-      interrupcoes, setInterrupcoes,
-      contexto, setContexto,
-      audioCtxRef,
-      saveHeartbeat,
-      clearHeartbeat,
-    }}>
+    <PomodoroContext.Provider value={contextValue}>
       {children}
     </PomodoroContext.Provider>
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePomodoroContext() {
   const ctx = useContext(PomodoroContext)
   if (!ctx) throw new Error('usePomodoroContext must be inside PomodoroProvider')

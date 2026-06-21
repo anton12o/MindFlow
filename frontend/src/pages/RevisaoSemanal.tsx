@@ -182,7 +182,7 @@ export default function RevisaoSemanal() {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       navigate(`/ideias?nota_id=${nota.id}`)
     },
-    onError: () => notify('Erro ao criar revisão semanal'),
+    onError: (e) => { console.error('[RevisaoSemanal]', e); notify('Erro ao criar revisão semanal') },
   })
 
   const [respostas, setRespostas] = useState(['', '', '', ''])
@@ -206,7 +206,7 @@ export default function RevisaoSemanal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
-    onError: () => notify('Erro ao salvar reflexão'),
+    onError: (e) => { console.error('[RevisaoSemanal]', e); notify('Erro ao salvar reflexão') },
   })
 
   if (isLoading) {

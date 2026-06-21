@@ -12,7 +12,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
   const savedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const [confirmDelete, setConfirmDelete] = useState<InboxItem | null>(null)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
   const inputRef = useRef<HTMLInputElement>(null)
   const modalRef = useRef<HTMLDivElement>(null)
   useFocusTrap(modalRef, isOpen)

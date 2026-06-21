@@ -49,7 +49,7 @@ export interface Tarefa {
   data: string
   tipo_id: number | null
   criado_em: string
-  propriedades?: Record<string, any>
+  propriedades?: Record<string, unknown>
 }
 
 export interface SessaoPomodoro {
@@ -71,7 +71,7 @@ export interface Nota {
   ordem: number | null
   criado_em: string
   atualizado_em: string
-  propriedades?: Record<string, any>
+  propriedades?: Record<string, unknown>
   favoritado?: boolean
   acessos?: number
   ultimo_acesso?: string | null
@@ -81,8 +81,8 @@ export interface TipoObjeto {
   id: number
   nome: string
   icone: string
-  schema_campos: Record<string, any>
-  schema_relacoes: Record<string, any>
+  schema_campos: Record<string, unknown>
+  schema_relacoes: Record<string, unknown>
   criado_em: string
 }
 
@@ -104,7 +104,7 @@ export interface QuerieSalva {
   tipo_objeto_id: number
   visualizacao: string
   campo_agrupamento: string | null
-  filtros: Record<string, any>
+  filtros: Record<string, unknown>
   ordem: string
   criado_em: string
 }
@@ -139,6 +139,6 @@ export interface Template {
   nome: string
   descricao: string | null
   conteudo: string
-  propriedades: Record<string, any>
+  propriedades: Record<string, unknown>
   criado_em: string
 }

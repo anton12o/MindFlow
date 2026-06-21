@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect, lazy, Suspense, memo, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
@@ -14,6 +14,7 @@ import LogsModal from './components/LogsModal'
 import SwUpdateBanner from './components/SwUpdateBanner'
 import { exportAll } from './api/export'
 import { getNotasRecentes } from './api/notas'
+import { useBroadcastInvalidate } from './hooks/useBroadcastInvalidate'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Rotina = lazy(() => import('./pages/Rotina'))
@@ -43,6 +44,8 @@ function Layout() {
   const [inboxOpen, setInboxOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
+
+  useBroadcastInvalidate()
 
   const { data: notasRecentes = [] } = useQuery({
     queryKey: ['notas-recentes'],
@@ -127,9 +130,11 @@ function Layout() {
     }
   }, [])
 
+  const toggleInbox = useCallback(() => setInboxOpen(p => !p), [])
+  const openImport = useCallback(() => setImportOpen(true), [])
   return (
     <div className="h-screen flex overflow-hidden">
-      <Sidebar onToggleInbox={() => setInboxOpen(p => !p)} onOpenImport={() => setImportOpen(true)} />
+      <Sidebar onToggleInbox={toggleInbox} onOpenImport={openImport} />
       <main className="flex-1 overflow-y-auto animate-fade-in">
           {!online && (
             <div className="sticky top-0 z-40 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
@@ -171,7 +176,7 @@ function Layout() {
   )
 }
 
-function PomodoroBadge() {
+const PomodoroBadge = memo(function PomodoroBadge() {
   const { screen, minutos, segundos } = usePomodoroContext()
   if (screen !== 'running' && screen !== 'pausado' && screen !== 'livre') return null
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
@@ -181,7 +186,7 @@ function PomodoroBadge() {
       {display}
     </div>
   )
-}
+})
 
 function NotFound() {
   const navigate = useNavigate()

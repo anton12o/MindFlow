@@ -15,13 +15,11 @@ interface LogEntry {
 const queue: LogEntry[] = []
 let lastFlush = Date.now()
 let consecutiveFailures = 0
-let droppedCount = 0
 let flushTimer: ReturnType<typeof setTimeout> | null = null
 
 export function logError(error: Error | unknown, context?: string) {
   const now = Date.now()
   if (queue.length > RATE_LIMIT_MAX && now - lastFlush < RATE_LIMIT_WINDOW) {
-    droppedCount++
     return
   }
   const entry: LogEntry = {

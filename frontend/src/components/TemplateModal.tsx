@@ -11,7 +11,7 @@ interface Props {
 export default function TemplateModal({ onClose, onSelect }: Props) {
   const queryClient = useQueryClient()
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
   const modalRef = useRef<HTMLDivElement>(null)
   useFocusTrap(modalRef, true)
 
