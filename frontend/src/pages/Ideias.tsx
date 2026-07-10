@@ -77,7 +77,7 @@ export default function Ideias() {
   const saveBeforeSwitchRef = useRef<(() => void) | null>(null)
   const [searchParams] = useSearchParams()
   useEffect(() => {
-    try { localStorage.setItem('ideias_filtros', JSON.stringify({ filterData, sortBy })) } catch {}
+    try { localStorage.setItem('ideias_filtros', JSON.stringify({ filterData, sortBy })) } catch { /* silent */ }
   }, [filterData, sortBy])
   const searchDebounced = useDebounce(search, 300)
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
@@ -202,7 +202,7 @@ export default function Ideias() {
     },
   })
   function selectNota(n: Nota) {
-    try { sessionStorage.setItem('mf_ideias_scroll', String(parentRef.current?.scrollTop ?? 0)) } catch {}
+    try { sessionStorage.setItem('mf_ideias_scroll', String(parentRef.current?.scrollTop ?? 0)) } catch { /* silent */ }
     saveBeforeSwitchRef.current?.()
     tabState.openTab(n.id)
     setViewMode(false)
@@ -320,18 +320,18 @@ export default function Ideias() {
   useEffect(() => {
     const el = parentRef.current
     if (!el) return
-    const handler = () => { try { sessionStorage.setItem('mf_ideias_scroll', String(el.scrollTop)) } catch {} }
+    const handler = () => { try { sessionStorage.setItem('mf_ideias_scroll', String(el.scrollTop)) } catch { /* silent */ } }
     el.addEventListener('scroll', handler, { passive: true })
     return () => el.removeEventListener('scroll', handler)
   }, [notas])
   useEffect(() => {
     if (selectedId !== null || !notas || notasLoad || scrollRestoredRef.current) return
     scrollRestoredRef.current = true
-    const saved = (() => { try { return Number(sessionStorage.getItem('mf_ideias_scroll')) } catch { return 0 } })()
+    const saved = (() => { try { return Number(sessionStorage.getItem('mf_ideias_scroll')) } catch { /* silent */; return 0 } })()
     if (saved > 0) requestAnimationFrame(() => parentRef.current?.scrollTo(0, saved))
   }, [selectedId, notas, notasLoad])
   useEffect(() => {
-    try { sessionStorage.removeItem('mf_ideias_scroll') } catch {}
+    try { sessionStorage.removeItem('mf_ideias_scroll') } catch { /* silent */ }
     scrollRestoredRef.current = false
   }, [searchDebounced, tagFilter, sortBy, filterData])
   const saida = useMemo(() =>

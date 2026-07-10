@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { startTransition, useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Nota, Tag, TipoObjeto, Pasta } from '../types'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
@@ -48,7 +48,7 @@ export default function IdeiasEditor({
   const notify = useNotify()
   const [editando, setEditando] = useState(false)
   useEffect(() => {
-    if (isViewMode) setEditando(false)
+    if (isViewMode) startTransition(() => setEditando(false))
   }, [isViewMode])
   const [titulo, setTitulo] = useState(notaAtual.titulo)
   const [conteudo, setConteudo] = useState(notaAtual.conteudo)
@@ -94,12 +94,12 @@ export default function IdeiasEditor({
     e.target.value = ''
   }, [notify])
   useEffect(() => {
-    if (!editando || !notaAtual.conteudo?.trim()) { setSugestoes([]); return }
+    if (!editando || !notaAtual.conteudo?.trim()) { startTransition(() => setSugestoes([])); return }
     const timer = setTimeout(async () => {
       try {
         const result = await sugerirTags(notaAtual.id)
         setSugestoes(result.filter(s => !notaTagsData?.some(t => t.id === s.tag_id)))
-      } catch {}
+      } catch { /* silent */ }
     }, 500)
     return () => clearTimeout(timer)
   }, [editando, notaAtual.id, notaAtual.conteudo, notaTagsData])
@@ -129,15 +129,17 @@ export default function IdeiasEditor({
 
   // Sync from notaAtual when user selects different note
   useEffect(() => {
-    setTitulo(notaAtual.titulo)
-    setConteudo(notaAtual.conteudo)
-    setPropriedades(notaAtual.propriedades ? Object.fromEntries(Object.entries(notaAtual.propriedades).map(([k, v]) => [k, String(v)])) : {})
-    setEditando(notaAtual.titulo === '(sem título)')
-    setDirty(false)
-    setSaveStatus('idle')
-    setShowExtract(false)
-    setExtractText('')
-    setShowSlash(false)
+    startTransition(() => {
+      setTitulo(notaAtual.titulo)
+      setConteudo(notaAtual.conteudo)
+      setPropriedades(notaAtual.propriedades ? Object.fromEntries(Object.entries(notaAtual.propriedades).map(([k, v]) => [k, String(v)])) : {})
+      setEditando(notaAtual.titulo === '(sem título)')
+      setDirty(false)
+      setSaveStatus('idle')
+      setShowExtract(false)
+      setExtractText('')
+      setShowSlash(false)
+    })
   }, [notaAtual.id])
 
   // Scroll header collapse

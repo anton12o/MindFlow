@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test } from '@playwright/test'
 
 const VIEWPORTS = [
   { name: 'desktop', width: 1440, height: 900 },
@@ -44,7 +44,7 @@ for (const vp of VIEWPORTS) {
       await fecharTour(page)
       const selectBtn = page.locator('[title="Selecionar múltiplas notas"]')
       if (await selectBtn.isVisible()) {
-        await selectBtn.click()
+        await selectBtn.click({ force: true })
         await page.waitForTimeout(300)
       }
       await capturar(page, `ideias-select-mode-${vp.name}`)

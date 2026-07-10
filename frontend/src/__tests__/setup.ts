@@ -24,7 +24,7 @@ class MockBroadcastChannel {
   postMessage = vi.fn()
   close = vi.fn()
   onmessage: ((e: MessageEvent) => void) | null = null
-  constructor(_name: string) {}
+  constructor() {}
 }
 Object.defineProperty(globalThis, 'BroadcastChannel', {
   writable: true,

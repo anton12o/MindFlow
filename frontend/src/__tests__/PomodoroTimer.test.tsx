@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, type ReactNode } from 'vitest'
-import { screen, fireEvent, act, render } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { screen, fireEvent, render } from '@testing-library/react'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import { NotificationProvider } from '../store/notification'
 import type { PomodoroScreen, Fase, PomodoroConfig } from '../store/pomodoro'
@@ -205,7 +205,7 @@ describe('PomodoroTimer', () => {
   })
 
   it('mostra contexto quando fornecido via prop', () => {
-    const { rerender } = render(
+    render(
       <QueryClientProvider client={qc}>
         <NotificationProvider>
           <PomodoroTimer contexto={{ tipo: 'habito', id: 1, nome: 'Meditar' }} />

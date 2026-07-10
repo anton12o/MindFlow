@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from './utils'
 import IdeiasEditor from '../components/IdeiasEditor'
 import type { Nota, Tag, TipoObjeto, Pasta } from '../types'
@@ -114,14 +114,14 @@ describe('IdeiasEditor', () => {
 
   it('exibe conexões "Aponta para"', () => {
     const saida = [{ id: 2, titulo: 'Nota destino', conteudo: '' }]
-    renderEditor({ saida } as any)
+    renderEditor({ saida } as Partial<Parameters<typeof renderEditor>[0]>)
     expect(screen.getByText('Aponta para')).toBeInTheDocument()
     expect(screen.getByText('Nota destino')).toBeInTheDocument()
   })
 
   it('exibe conexões "Apontam para esta"', () => {
     const entrada = [{ id: 3, titulo: 'Nota origem', conteudo: '' }]
-    renderEditor({ entrada } as any)
+    renderEditor({ entrada } as Partial<Parameters<typeof renderEditor>[0]>)
     expect(screen.getByText('Apontam para esta')).toBeInTheDocument()
     expect(screen.getByText('Nota origem')).toBeInTheDocument()
   })
@@ -164,7 +164,7 @@ describe('IdeiasEditor', () => {
 
   it('chama onSelectNota ao clicar em wikilink de saída', () => {
     const saida = [{ id: 2, titulo: 'Destino', conteudo: '' }]
-    const { props } = renderEditor({ saida } as any)
+    const { props } = renderEditor({ saida } as Partial<Parameters<typeof renderEditor>[0]>)
     fireEvent.click(screen.getByText('Destino'))
     expect(props.onSelectNota).toHaveBeenCalledWith(expect.objectContaining({ id: 2 }))
   })

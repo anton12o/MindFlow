@@ -147,7 +147,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   // Track distractions (window blur events) during active session
   useEffect(() => {
     if (screen === 'running' || screen === 'livre') {
-      setDistracoes(0)
+      startTransition(() => setDistracoes(0))
     }
   }, [screen])
 
@@ -278,9 +278,11 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(interval)
   }, [ativo, screen, fase, config, interrupcoes, contexto])
 
+  // eslint-disable-next-line react-hooks/refs
+  const startedAt = startedAtRef.current
   const broadcastState = useMemo(() => ({
-    sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes, startedAt: startedAtRef.current,
-  }), [sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes])
+    sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes, startedAt,
+  }), [sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes, startedAt])
 
   useBroadcastSync('sync:pomodoro', broadcastState, (data) => {
     setSessaoId(data.sessaoId ?? null)

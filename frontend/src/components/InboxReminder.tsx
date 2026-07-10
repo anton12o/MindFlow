@@ -27,7 +27,7 @@ export default function InboxReminder() {
   if (!shouldShow) return null
 
   function handleDismiss() {
-    try { localStorage.setItem(DISMISS_KEY, hojeLocal()) } catch {}
+    try { localStorage.setItem(DISMISS_KEY, hojeLocal()) } catch { /* silent */ }
     setDismissed(true)
   }
 

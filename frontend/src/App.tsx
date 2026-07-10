@@ -60,7 +60,7 @@ function Layout() {
   useEffect(() => {
     const handler = () => setZenMode(p => {
       const next = !p
-      try { localStorage.setItem('mindflow_zen_mode', String(next)) } catch {}
+      try { localStorage.setItem('mindflow_zen_mode', String(next)) } catch { /* silent */ }
       return next
     })
     window.addEventListener('toggle-zen', handler)
@@ -68,7 +68,7 @@ function Layout() {
   }, [])
 
   useEffect(() => {
-    try { localStorage.setItem('mindflow_zen_mode', String(zenMode)) } catch {}
+    try { localStorage.setItem('mindflow_zen_mode', String(zenMode)) } catch { /* silent */ }
   }, [zenMode])
 
   useBroadcastInvalidate()

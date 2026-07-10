@@ -16,14 +16,14 @@ function loadTabs(): TabState {
         return parsed
       }
     }
-  } catch {}
+  } catch { /* silent */ }
   return { tabs: [], activeIndex: -1 }
 }
 
 function saveTabs(state: TabState) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ tabs: state.tabs, activeIndex: state.activeIndex }))
-  } catch {}
+  } catch { /* silent */ }
 }
 
 export function useTabState() {

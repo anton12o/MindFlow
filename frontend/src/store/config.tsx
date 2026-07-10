@@ -26,7 +26,7 @@ function loadConfig(): Config {
 function saveConfig(config: Config) {
   try {
     localStorage.setItem(CONFIG_KEY, JSON.stringify(config))
-  } catch { }
+  } catch { /* silent */ }
 }
 
 const ConfigContext = createContext<{
@@ -52,6 +52,7 @@ export function ConfigProvider({ children }: { children: ReactNode }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useConfig() {
   return useContext(ConfigContext)
 }

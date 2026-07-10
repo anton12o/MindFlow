@@ -18,8 +18,6 @@ vi.mock('../utils/date', () => ({
 
 const mockStats = { total_min_hoje: 50, total_sessoes_hoje: 3, streak_dias: 5 }
 
-const defaultConfig = { focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4, dailyFocusMin: 120, autoStart: false, dnd: false, descansoMin: 5 }
-
 const mockSessoes: SessaoPomodoro[] = [
   { id: 1, contexto_tipo: null, contexto_id: null, duracao_min: 25, iniciado_em: '2026-06-23T10:00:00', finalizado_em: '2026-06-23T10:25:00', resumo_nota_id: null },
   { id: 2, contexto_tipo: 'habito', contexto_id: 1, duracao_min: 25, iniciado_em: '2026-06-23T11:00:00', finalizado_em: '2026-06-23T11:25:00', resumo_nota_id: 99 },

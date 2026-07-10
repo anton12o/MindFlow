@@ -125,10 +125,10 @@ function renderMarkdown(text: string): string {
   let html = paragraphs.map(para => {
     const trimmed = para.trim()
     if (!trimmed) return ''
-    const isCustom = /^\x00BL\d+\x00$/.test(trimmed)
+    const isCustom = trimmed.length > 5 && trimmed.startsWith('\x00BL') && trimmed.endsWith('\x00') && /^\d+$/.test(trimmed.slice(4, -1))
     if (isCustom) return trimmed
     const isHeading = /^#{1,6}\s/.test(trimmed)
-    const isList = /^[\-\*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)
+    const isList = /^[-*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)
     const isHr = /^---+\s*$/.test(trimmed)
     if (isHr) return '<hr class="my-4 border-border" />'
     paraIdx++
@@ -141,7 +141,7 @@ function renderMarkdown(text: string): string {
     if (isList) {
       const items = p.split('\n').map(line => {
         if (/^\d+\.\s/.test(line)) return `<li>${line.replace(/^\d+\.\s/, '')}</li>`
-        if (/^[\-\*]\s/.test(line)) return `<li>${line.replace(/^[\-\*]\s/, '')}</li>`
+        if (/^[-*]\s/.test(line)) return `<li>${line.replace(/^[-*]\s/, '')}</li>`
         return `<li>${line}</li>`
       }).join('')
       return `<ul id="p${paraIdx}" class="list-disc pl-5 my-2">${items}</ul>`
@@ -154,9 +154,9 @@ function renderMarkdown(text: string): string {
     p = applyKatexOutsideCode(p)
     return `<p id="p${paraIdx}" class="my-1">${p}</p>`
   }).join('\n')
-  html = html.replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[+i])
-  html = html.replace(/\x00MC(\d+)\x00/g, (_, i) => mermaidBlocks[+i])
-  html = html.replace(/\x00BL(\d+)\x00/g, (_, i) => customBlocks[+i])
+  html = html.replace(/\x00CB(\d+)\x00/g, (_, i) => codeBlocks[+i]) // eslint-disable-line no-control-regex
+  html = html.replace(/\x00MC(\d+)\x00/g, (_, i) => mermaidBlocks[+i]) // eslint-disable-line no-control-regex
+  html = html.replace(/\x00BL(\d+)\x00/g, (_, i) => customBlocks[+i]) // eslint-disable-line no-control-regex
   return html
 }
 

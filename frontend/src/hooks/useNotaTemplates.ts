@@ -11,7 +11,7 @@ function loadTemplates(): NotaTemplate[] {
 }
 
 function saveTemplates(t: NotaTemplate[]) {
-  try { localStorage.setItem('nota_templates', JSON.stringify(t)) } catch {}
+  try { localStorage.setItem('nota_templates', JSON.stringify(t)) } catch { /* silent */ }
 }
 
 export function useNotaTemplates() {
