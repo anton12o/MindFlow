@@ -2,6 +2,6 @@ fastapi>=0.115
 uvicorn>=0.30
 sqlmodel>=0.0.38
 python-multipart>=0.0.12
-alembic>=1.14
+alembic>=1.18.5
 python-dotenv>=1.0
 pyyaml>=6.0
