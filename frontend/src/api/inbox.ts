@@ -9,3 +9,9 @@ export const createInbox = (conteudo: string, tipo_destino?: string | null) =>
 
 export const deleteInbox = (id: number) =>
   request<{ ok: boolean }>(`/inbox/${id}`, { method: 'DELETE' })
+
+export const archiveInboxBatch = (ids: number[]) =>
+  request<{ archived: number }>('/inbox/archive', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })

@@ -3,341 +3,20 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getTipos } from '../api/tipos'
 import { getQueries, createQuery, deleteQuery, executarQuery, batchEdit } from '../api/queries'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
-import { updateNota, createNota } from '../api/notas'
+import { updateNota } from '../api/notas'
 import ConfirmModal from '../components/ConfirmModal'
 import { useNotify } from '../store/notification'
-import { X, ChevronLeft, ChevronRight, GripVertical } from 'lucide-react'
+import { X, GripVertical } from 'lucide-react'
+import FormularioView from './consultas/FormularioView'
+import CalendarioView from './consultas/CalendarioView'
+import GanttView from './consultas/GanttView'
+import { labelPrioridade, badgePrioridade } from '../utils/prioridade'
 import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { useSortable, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-interface SchemaField {
-  type: 'text' | 'number' | 'date' | 'url' | 'select'
-  options?: string[]
-}
-interface FormularioViewProps {
-  query: { tipo_objeto_id: number }
-  tipo: { icone?: string; nome?: string; schema_campos?: Record<string, unknown> } | undefined
-  onClose: () => void
-  onCreate: () => void
-}
-function FormularioView({ query, tipo, onClose, onCreate }: FormularioViewProps) {
-  const notify = useNotify()
-  const schema = (tipo?.schema_campos || {}) as Record<string, SchemaField>
-  const [formData, setFormData] = useState<Record<string, string>>({})
-  const [titulo, setTitulo] = useState('')
-  const [saving, setSaving] = useState(false)
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!titulo.trim()) return
-    setSaving(true)
-    const payload: Record<string, unknown> = {}
-    for (const [key, value] of Object.entries(formData)) {
-      if (!value.trim()) continue
-      const field = schema[key]
-      if (field?.type === 'number') {
-        payload[key] = Number(value)
-      } else {
-        payload[key] = value
-      }
-    }
-    createNota({ titulo, tipo_id: query.tipo_objeto_id, propriedades: payload })
-      .then(() => {
-        onCreate()
-        onClose()
-      })
-      .catch(err => { console.error('[Formulario] create failed:', err); notify('Erro ao criar nota') })
-      .finally(() => setSaving(false))
-  }
-  if (!Object.keys(schema).length) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full text-text-muted">
-        <p className="text-center">Este tipo não tem schema_campos definido.</p>
-        <button onClick={onClose} className="mt-4 px-4 py-2 bg-accent text-white rounded-lg">Fechar</button>
-      </div>
-    )
-  }
-  return (
-    <div className="max-w-xl mx-auto p-6 bg-bg-secondary rounded-xl border border-border">
-      <h3 className="text-lg font-semibold mb-4">Nova nota {tipo?.icone} {tipo?.nome}</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-xs text-text-muted mb-1">Título *</label>
-          <input value={titulo} onChange={e => setTitulo(e.target.value)}
-            className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" required />
-        </div>
-        {Object.entries(schema).map(([key, field]) => (
-          <div key={key}>
-            <label className="block text-xs text-text-muted mb-1">{key}</label>
-            {field.type === 'select' && field.options ? (
-              <select
-                value={formData[key] || ''}
-                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-              >
-                <option value="">Selecione...</option>
-                {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-              </select>
-            ) : field.type === 'date' ? (
-              <input type="date"
-                value={formData[key] || ''}
-                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-            ) : field.type === 'number' ? (
-              <input type="number"
-                value={formData[key] || ''}
-                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-            ) : field.type === 'url' ? (
-              <input type="url"
-                value={formData[key] || ''}
-                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" placeholder="https://..." />
-            ) : (
-              <input type="text"
-                value={formData[key] || ''}
-                onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
-                className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
-            )}
-          </div>
-        ))}
-        <div className="flex gap-2 pt-4">
-          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover">
-            Cancelar
-          </button>
-          <button type="submit" disabled={saving || !titulo.trim()}
-            className="flex-1 px-4 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50">
-            {saving ? 'Criando...' : `Criar ${tipo?.nome || 'nota'}`}
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-interface CalendarioViewProps {
-  query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
-  result: { dados: Array<{ id: number; titulo: string; [key: string]: unknown }> } | undefined
-  resLoad: boolean
-  resErr: boolean
-  onRefresh: () => void
-  mesAtual: string
-  onMesChange: (mes: string) => void
-  errorMsg?: string
-}
-function CalendarioView({ query, result, resLoad, resErr, mesAtual, onMesChange, errorMsg }: CalendarioViewProps) {
-  const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
-  function getDiasDoMes(anoMes: string) {
-    const [ano, mes] = anoMes.split('-').map(Number)
-    const primeiroDia = new Date(ano, mes - 1, 1)
-    const ultimoDia = new Date(ano, mes, 0)
-    const diasNoMes = ultimoDia.getDate()
-    const primeiroDiaSemana = primeiroDia.getDay()
-    const dias = []
-    for (let i = 0; i < primeiroDiaSemana; i++) dias.push(null)
-    for (let d = 1; d <= diasNoMes; d++) dias.push(d)
-    return dias
-  }
-  const dias = getDiasDoMes(mesAtual)
-  const semanas = []
-  for (let i = 0; i < dias.length; i += 7) semanas.push(dias.slice(i, i + 7))
-  const notasPorDia: Record<number, Array<{ id: number; titulo: string }>> = {}
-  if (result?.dados) {
-    for (const nota of result.dados) {
-      const campo = query.campo_agrupamento
-      if (!campo) continue
-      const valor = nota[campo] as string | undefined
-      if (!valor) continue
-      const dia = Number(valor.split('-')[2])
-      if (!isNaN(dia)) {
-        if (!notasPorDia[dia]) notasPorDia[dia] = []
-        notasPorDia[dia].push({ id: nota.id, titulo: nota.titulo })
-      }
-    }
-  }
-  const mesLabel = new Date(mesAtual + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-  if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
-  if (resErr) return <p className="text-danger text-sm text-center py-8">{errorMsg || 'Erro ao executar consulta'}</p>
-  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de data (campo_agrupamento) na consulta</p>
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => {
-          const [a, mesNum] = mesAtual.split('-').map(Number)
-          const d = new Date(a, mesNum - 2, 1)
-          onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronLeft size={16} /></button>
-        <h3 className="text-lg font-semibold capitalize">{mesLabel}</h3>
-        <button onClick={() => {
-          const [a, mesNum] = mesAtual.split('-').map(Number)
-          const d = new Date(a, mesNum, 1)
-          onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronRight size={16} /></button>
-      </div>
-      <div className="grid grid-cols-7 gap-1 mb-2">
-        {diasSemana.map(d => <div key={d} className="text-center text-xs font-semibold text-text-muted py-1">{d}</div>)}
-      </div>
-      <div className="flex-1 overflow-y-auto space-y-1">
-        {semanas.map((semana, si) => (
-          <div key={si} className="grid grid-cols-7 gap-1">
-            {semana.map((dia, di) => {
-              if (dia === null) return <div key={di} className="h-20 bg-bg-tertiary/50" />
-              const notas = notasPorDia[dia] || []
-              return (
-                <div key={di} className="relative h-20 bg-bg-secondary border border-border rounded-lg p-1 transition-colors hover:bg-bg-hover">
-                  <div className="text-xs font-semibold text-text-muted mb-1">{dia}</div>
-                  <div className="space-y-1 overflow-y-auto h-[calc(100%-18px)]">
-                    {notas.slice(0, 3).map(n => (
-                      <div key={n.id} draggable className="text-xs bg-bg-tertiary rounded px-1.5 py-0.5 truncate cursor-grab hover:bg-bg-hover">
-                        {n.titulo}
-                      </div>
-                    ))}
-                    {notas.length > 3 && <div className="text-xs text-text-muted">+{notas.length - 3} mais</div>}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-interface GanttViewProps {
-  query: { tipo_objeto_id: number; campo_agrupamento?: string | null }
-  result: { dados: Array<{ id: number; titulo: string; propriedades?: Record<string, unknown>; [key: string]: unknown }>; total?: number } | undefined
-  resLoad: boolean
-  resErr: boolean
-  onRefresh: () => void
-  errorMsg?: string
-}
-function GanttView({ query, result, resLoad, resErr, errorMsg }: GanttViewProps) {
-  const [scale, setScale] = useState<'day' | 'week' | 'month'>('day')
-  const total = result?.total || 0
-  const truncated = total > 100
-  const getDateRange = () => {
-    if (!result?.dados || !query.campo_agrupamento) return { min: new Date(), max: new Date() }
-    let min = new Date('2099-12-31')
-    let max = new Date('1970-01-01')
-    for (const item of result.dados) {
-      const inicio = item.propriedades?.['data_inicio'] as string
-      const fim = item.propriedades?.['data_fim'] as string
-      if (inicio) {
-        const d = new Date(inicio)
-        if (d < min) min = d
-      }
-      if (fim) {
-        const d = new Date(fim)
-        if (d > max) max = d
-      }
-    }
-    if (min > max) {
-      const now = new Date()
-      min = new Date(now.getFullYear(), now.getMonth(), 1)
-      max = new Date(now.getFullYear(), now.getMonth() + 2, 0)
-    }
-    min.setDate(1)
-    max = new Date(max.getFullYear(), max.getMonth() + 1, 0)
-    return { min, max }
-  }
-  const { min, max } = getDateRange()
-  const daysDiff = Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24))
-  const dayWidth = scale === 'day' ? 40 : scale === 'week' ? 200 : 600
-  const totalWidth = Math.max(daysDiff * dayWidth, 800)
-  const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })
-  if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
-  if (resErr) return <p className="text-danger text-sm text-center py-8">{errorMsg || 'Erro ao executar consulta'}</p>
-  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de agrupamento (campo_agrupamento) na consulta</p>
-  if (!result?.dados?.length) return <p className="text-text-muted text-center py-8">Nenhum item com data_inicio e data_fim</p>
-  return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold">Gantt · {result.dados.length} itens {truncated && <span className="text-warning text-sm">(limitado a 100 de {total})</span>}</h3>
-        <div className="flex gap-2">
-          <select value={scale} onChange={e => setScale(e.target.value as 'day' | 'week' | 'month')}
-            className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
-            <option value="day">Dia</option>
-            <option value="week">Semana</option>
-            <option value="month">Mês</option>
-          </select>
-        </div>
-      </div>
-      {truncated && (
-        <div className="mb-3 p-2 bg-warning/10 border border-warning/30 rounded-lg text-warning text-sm text-center">
-          Mostrando 100 de {total} itens. Refine os filtros para ver todos.
-        </div>
-      )}
-      <div className="flex-1 overflow-auto relative" style={{ width: totalWidth }}>
-        {/* Time header */}
-        <div className="sticky top-0 bg-bg-secondary border-b border-border z-10" style={{ width: totalWidth }}>
-          <div className="flex" style={{ width: totalWidth }}>
-            {Array.from({ length: daysDiff + 1 }, (_, i) => {
-              const d = new Date(min)
-              d.setDate(d.getDate() + i)
-              return (
-                <div key={i} className="border-r border-border text-center text-xs font-medium text-text-muted py-1"
-                  style={{ width: dayWidth, minWidth: dayWidth }}>
-                  {scale === 'day' ? formatDate(d) : formatDate(d)}
-                </div>
-              )
-            })}
-          </div>
-        </div>
-        {/* Rows */}
-        <div style={{ width: totalWidth }}>
-           {result.dados.map(item => {
-            const inicio = item.propriedades?.['data_inicio'] as string
-            const fim = item.propriedades?.['data_fim'] as string
-            if (!inicio || !fim) return null
-            const start = new Date(inicio)
-            const end = new Date(fim)
-            const startOffset = Math.max(0, Math.ceil((start.getTime() - min.getTime()) / (1000 * 60 * 60 * 24)))
-            const duration = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1)
-            const left = startOffset * dayWidth
-            const width = duration * dayWidth
-            return (
-              <div key={item.id} className="relative h-10 border-b border-border/50"
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => {
-                  e.preventDefault()
-                }}
-              >
-                <div
-                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-md"
-                  style={{ left, width, minWidth: 40 }}
-                  draggable
-                  onDragStart={e => {
-                    e.dataTransfer.setData('itemId', String(item.id))
-                    e.dataTransfer.setData('type', 'move')
-                  }}
-                  onDragEnd={e => {
-                    e.preventDefault()
-                  }}
-                >
-                  <div className="px-2 py-1 text-xs text-white truncate" title={item.titulo}>{item.titulo}</div>
-                </div>
-                <div className="absolute left-0 top-1 w-1 h-8 bg-transparent border-l-2 border-white/50 cursor-w-resize"
-                  onDragStart={e => {
-                    e.dataTransfer.setData('itemId', String(item.id))
-                    e.dataTransfer.setData('type', 'resize-start')
-                    e.dataTransfer.setData('originalLeft', String(left))
-                    e.dataTransfer.setData('originalWidth', String(width))
-                  }}
-                />
-                <div className="absolute right-0 top-1 w-1 h-8 bg-transparent border-r-2 border-white/50 cursor-e-resize"
-                  onDragStart={e => {
-                    e.dataTransfer.setData('itemId', String(item.id))
-                    e.dataTransfer.setData('type', 'resize-end')
-                    e.dataTransfer.setData('originalLeft', String(left))
-                    e.dataTransfer.setData('originalWidth', String(width))
-                  }}
-                />
-              </div>
-            )}
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
+
+
+
 interface CardItem { id: number; titulo: string; status?: string; prioridade?: string; tipo_id?: number; cover_url?: string; [key: string]: unknown }
 interface SortableItemProps {
   item: CardItem
@@ -355,8 +34,8 @@ const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds
   const tipo = tipos?.find(t => t.id === item.tipo_id)
   const secondaryProp = Object.entries(item).find(([k, v]) => k !== 'id' && k !== 'titulo' && k !== 'status' && k !== 'prioridade' && k !== 'tipo_id' && v)
   return (
-    <li ref={setNodeRef} style={style} {...attributes} {...listeners}
-      className={`bg-bg-secondary rounded-lg border p-2 cursor-grab transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
+    <li ref={setNodeRef} style={style}
+      className={`bg-bg-secondary rounded-lg border p-2 transition-colors ${selectedIds.has(item.id) ? 'border-accent ring-1 ring-accent' : 'border-border hover:border-accent/50'} ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
       <div className="flex items-center gap-2">
         <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent"><GripVertical size={14} /></div>
         <input type="checkbox" checked={selectedIds.has(item.id)}
@@ -369,7 +48,7 @@ const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds
             {item.status}
           </span>
         )}
-        {item.prioridade && <span className="text-xs text-text-muted">{item.prioridade}</span>}
+        {item.prioridade && <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>}
       </div>
     </li>
   )
@@ -392,9 +71,11 @@ export default function Consultas() {
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   })
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const [tempView, setTempView] = useState<string | null>(null)
   const { data: queries, isLoading: qLoad, isError: qErr } = useQuery({ queryKey: ['queries'], queryFn: getQueries })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
   const queryAtual = queries?.find(q => q.id === selectedQuery)
+  const viewAtual = tempView || queryAtual?.visualizacao
   const { data: result, refetch: refetchResult, isLoading: resLoad, isError: resErr, error: resError } = useQuery({
     queryKey: ['query-result', selectedQuery, queryAtual?.visualizacao, queryAtual?.visualizacao === 'calendario' ? calendarioMes : undefined],
     queryFn: () => executarQuery(
@@ -411,6 +92,7 @@ export default function Consultas() {
       broadcastInvalidate([['queries']])
       setNewName('')
     },
+    onError: (e) => { console.error('[Consultas] create', e); notify('Erro ao criar consulta') },
   })
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteQuery(id),
@@ -419,6 +101,7 @@ export default function Consultas() {
       broadcastInvalidate([['queries']])
       setSelectedQuery(prev => prev === id ? null : prev)
     },
+    onError: (e) => { console.error('[Consultas] delete', e); notify('Erro ao excluir consulta') },
   })
   const batchMut = useMutation({
     mutationFn: () => batchEdit(selectedQuery!, [...selectedIds], { [batchField]: batchValue }),
@@ -428,6 +111,7 @@ export default function Consultas() {
       broadcastInvalidate([['notas']])
       setSelectedIds(new Set())
     },
+    onError: (e) => { console.error('[Consultas] batch', e); notify('Erro ao editar itens') },
   })
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds(prev => {
@@ -452,7 +136,7 @@ export default function Consultas() {
           </span>
         )}
         {item.prioridade && (
-          <span className="text-xs text-text-muted ml-1">{item.prioridade}</span>
+          <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>
         )}
       </div>
     )
@@ -475,7 +159,7 @@ export default function Consultas() {
     newDados.splice(overIndex, 0, moved)
     // Update ordem for affected items
     for (let i = 0; i < newDados.length; i++) {
-      if (newDados[i].ordem as number !== i) {
+      if ((newDados[i].ordem as number | undefined) !== i) {
         try {
           await updateNota(newDados[i].id, { ordem: i })
         } catch (err) {
@@ -489,7 +173,7 @@ export default function Consultas() {
   }
   return (
     <div className="flex h-full">
-      <div className="w-72 border-r border-border p-4 shrink-0 overflow-y-auto">
+      <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-y-auto">
         <h1 className="text-2xl font-bold mb-6">Consultas</h1>
         <form onSubmit={e => { e.preventDefault(); setQueryFormError(''); setQueryGroupError('')
           if (!newName.trim()) { setQueryFormError('Informe o nome'); return }
@@ -499,14 +183,14 @@ export default function Consultas() {
           createMut.mutate()
         }} className="mb-4 flex flex-col gap-2">
           <input value={newName} onChange={e => { setNewName(e.target.value); if (queryFormError) setQueryFormError('') }} placeholder="Nome da consulta"
-            className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none ${queryFormError ? 'ring-1 ring-danger border-danger' : ''}`} />
+            className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${queryFormError ? 'ring-1 ring-danger border-danger' : ''}`} />
           {queryFormError && <p className="text-xs text-danger">{queryFormError}</p>}
           <select value={newTipoId} onChange={e => setNewTipoId(Number(e.target.value))}
-            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
+            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent">
             {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
           </select>
           <select value={newView} onChange={e => { setNewView(e.target.value); setNewGroup(''); if (queryGroupError) setQueryGroupError('') }}
-            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none">
+            className="w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent">
             <option value="grid">Grid (cards)</option>
             <option value="kanban">Kanban (colunas)</option>
             <option value="lista">Lista (densa)</option>
@@ -518,7 +202,7 @@ export default function Consultas() {
           {(newView === 'kanban' || newView === 'calendario' || newView === 'gantt') && (
             <div>
               <select value={newGroup} onChange={e => { setNewGroup(e.target.value); if (queryGroupError) setQueryGroupError('') }}
-                className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none ${queryGroupError ? 'ring-1 ring-danger border-danger' : ''}`}>
+                className={`w-full bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${queryGroupError ? 'ring-1 ring-danger border-danger' : ''}`}>
                 {newView === 'calendario' ? (
                   <>
                     <option value="">Campo de data...</option>
@@ -543,7 +227,7 @@ export default function Consultas() {
             </div>
           )}
           <button type="submit" disabled={createMut.isPending}
-            className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
+            className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
         </form>
         <div className="space-y-1">
           {qLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
@@ -568,6 +252,16 @@ export default function Consultas() {
         {queryAtual ? <div>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">{queryAtual.nome}</h2>
+              <select value={viewAtual || 'grid'} onChange={e => setTempView(e.target.value)}
+                className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none ml-2">
+                <option value="grid">Grid</option>
+                <option value="kanban">Kanban</option>
+                <option value="lista">Lista</option>
+                <option value="galeria">Galeria</option>
+                <option value="calendario">Calendário</option>
+                <option value="formulario">Formulário</option>
+                <option value="gantt">Gantt</option>
+              </select>
               {selectedIds.size > 0 && (
                 <div className="flex items-center gap-2">
                   <select value={batchField} onChange={e => setBatchField(e.target.value)}
@@ -579,21 +273,21 @@ export default function Consultas() {
                   </select>
                   <input value={batchValue} onChange={e => setBatchValue(e.target.value)}
                     placeholder="Valor" className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none w-24" />
-                  <button onClick={() => batchMut.mutate()}
+                  <button onClick={() => { if (!batchField) { notify('Selecione um campo'); return }; batchMut.mutate() }}
                     disabled={batchMut.isPending}
-                    className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">
+                    className="px-3 py-1 bg-accent text-white text-xs rounded-lg transition-all active:scale-95 disabled:opacity-50">
                     {batchMut.isPending ? 'Aplicando...' : `Aplicar (${selectedIds.size})`}
                   </button>
                 </div>
               )}
             </div>
-            {queryAtual.visualizacao === 'kanban' ? (
+            {viewAtual === 'kanban' ? (
               resLoad ? (
-                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+                <p className="text-text-muted text-sm text-center py-4 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
+                <p className="text-danger text-sm text-center py-4">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
-                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+                <p className="text-text-muted text-sm text-center py-4">Nenhum resultado</p>
               ) : (
               <div className="flex gap-4 overflow-x-auto pb-4" style={{ minHeight: '60vh' }}>
                 {(() => {
@@ -630,13 +324,13 @@ export default function Consultas() {
                 })()}
               </div>
               )
-            ) : queryAtual.visualizacao === 'lista' ? (
+            ) : viewAtual === 'lista' ? (
               resLoad ? (
-                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+                <p className="text-text-muted text-sm text-center py-4 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
+                <p className="text-danger text-sm text-center py-4">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
-                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+                <p className="text-text-muted text-sm text-center py-4">Nenhum resultado</p>
               ) : (
                 <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                 <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}>
@@ -648,13 +342,13 @@ export default function Consultas() {
                 </SortableContext>
                 </DndContext>
               )
-            ) : queryAtual.visualizacao === 'galeria' ? (
+            ) : viewAtual === 'galeria' ? (
               resLoad ? (
-                <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
+                <p className="text-text-muted text-sm text-center py-4 animate-pulse">Carregando...</p>
               ) : resErr ? (
-                <p className="text-danger text-sm text-center py-8">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
+                <p className="text-danger text-sm text-center py-4">{resError instanceof Error ? resError.message : 'Erro ao executar consulta'}</p>
               ) : !result?.dados || result.dados.length === 0 ? (
-                <p className="text-text-muted text-sm text-center py-8">Nenhum resultado</p>
+                <p className="text-text-muted text-sm text-center py-4">Nenhum resultado</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {(result?.dados || []).map(item => {
@@ -687,7 +381,7 @@ export default function Consultas() {
                                 {card.status}
                               </span>
                             )}
-                            {card.prioridade && <span>{card.prioridade}</span>}
+                            {card.prioridade && <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(card.prioridade)}`}>{labelPrioridade(card.prioridade)}</span>}
                           </div>
                         </div>
                       </div>
@@ -695,7 +389,7 @@ export default function Consultas() {
                   })}
                 </div>
               )
-            ) : queryAtual.visualizacao === 'calendario' ? (
+            ) : viewAtual === 'calendario' ? (
               <CalendarioView
                 query={queryAtual}
                 result={result}
@@ -706,14 +400,14 @@ export default function Consultas() {
                 onMesChange={setCalendarioMes}
                 errorMsg={resError instanceof Error ? resError.message : undefined}
               />
-            ) : queryAtual.visualizacao === 'formulario' ? (
+            ) : viewAtual === 'formulario' ? (
               <FormularioView
                 query={queryAtual}
                 tipo={tipos?.find(t => t.id === queryAtual.tipo_objeto_id)}
                 onClose={() => setSelectedQuery(null)}
                 onCreate={refetchResult}
               />
-            ) : queryAtual.visualizacao === 'gantt' ? (
+            ) : viewAtual === 'gantt' ? (
               <GanttView
                 query={queryAtual}
                 result={result}

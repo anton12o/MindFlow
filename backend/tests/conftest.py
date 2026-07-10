@@ -1,14 +1,27 @@
 import pytest
-from sqlmodel import SQLModel, Session, create_engine
+from fastapi.staticfiles import StaticFiles
+from fastapi.testclient import TestClient
 from sqlalchemy import event, text
 from sqlalchemy.pool import StaticPool
-from fastapi.testclient import TestClient
-from fastapi.staticfiles import StaticFiles
+from sqlmodel import Session, SQLModel, create_engine
 
 # Import models to register them in SQLModel.metadata before create_all
 from models import (  # noqa: F401
-    Nota, ConexaoNota, Tag, NotaTag, Flashcard, Tarefa, SessaoPomodoro, RegistroHabito,
-    TipoObjeto, Pasta, TemplateNota, InboxItem, Habito, BlocoRotina, QuerySalva,
+    BlocoRotina,
+    ConexaoNota,
+    Flashcard,
+    Habito,
+    InboxItem,
+    Nota,
+    NotaTag,
+    Pasta,
+    QuerySalva,
+    RegistroHabito,
+    SessaoPomodoro,
+    Tag,
+    Tarefa,
+    TemplateNota,
+    TipoObjeto,
 )
 
 TEST_ENGINE = create_engine(

@@ -1,110 +1,54 @@
-import { useState, useRef, useCallback, useEffect, useMemo, memo } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import { useSearchParams } from 'react-router-dom'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, extrairBloco, getPastas, createPasta, deletePasta, getTags, createTag, updateTag, getNotaTags, getNota } from '../api/notas'
-import request from '../api/client'
+import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, getPastas, createPasta, deletePasta, getTags, createTag, updateTag, getNotaTags, createFromWikilink } from '../api/notas'
+import request, { API_BASE } from '../api/client'
 import { getConexoes } from '../api/conexoes'
 import { getTipos } from '../api/tipos'
 import { favoritarNota } from '../api/notas'
-import EditorMarkdown from '../components/EditorMarkdown'
 import TemplateModal from '../components/TemplateModal'
+import NotaTemplatePicker from '../components/NotaTemplatePicker'
 import GrafoNotas from '../components/GrafoNotas'
 import ConfirmModal from '../components/ConfirmModal'
+import IdeasToolbar from '../components/IdeasToolbar'
+import IdeiasEditor from '../components/IdeiasEditor'
+import TabBar from '../components/TabBar'
+import SavedFiltersSection from '../components/SavedFiltersSection'
+import { wordCount, readTime } from '../utils/wordCount'
 import type { Nota, Tag, Pasta } from '../types'
 import { useDebounce } from '../hooks/useDebounce'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useTabState } from '../hooks/useTabState'
 import { useNotify } from '../store/notification'
-import { Plus, FileText, Link2, Square, Star, Folder, Scissors, X, Flame, Lightbulb, Tag as TagIcon, CheckSquare, ArrowRight, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
-const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect, selectedId }: { conteudo: string; notas: Nota[]; onSelect: (n: Nota) => void; selectedId?: number | null }) {
-  const [tooltipContent, setTooltipContent] = useState('')
-  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
-  const [tooltipVisible, setTooltipVisible] = useState(false)
-  const previewCache = useRef<Map<number, string>>(new Map())
-  const hoverTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const parts = useMemo(() => conteudo.split(/(\[\[[^\]]+\]\])/), [conteudo])
-  const showTooltip = useCallback(async (target: Nota, e: React.MouseEvent) => {
-    if (previewCache.current.has(target.id)) {
-      setTooltipContent(previewCache.current.get(target.id)!)
-    } else if (target.id !== selectedId) {
-      try {
-        const nota = await getNota(target.id)
-        const plain = (nota.conteudo || '').replace(/[#*`~>[\]]/g, '').slice(0, 200)
-        previewCache.current.set(target.id, plain)
-        setTooltipContent(plain)
-      } catch (e) { console.error('[Ideias] tooltip preview', e); return }
-    } else {
-      const plain = (target.conteudo || '').replace(/[#*`~>[\]]/g, '').slice(0, 200)
-      previewCache.current.set(target.id, plain)
-      setTooltipContent(plain)
-    }
-    setTooltipPos({ x: e.clientX, y: e.clientY })
-    setTooltipVisible(true)
-  }, [selectedId])
-  const hideTooltip = useCallback(() => {
-    clearTimeout(hoverTimeout.current)
-    setTooltipVisible(false)
-    setTooltipContent('')
-  }, [])
-  useEffect(() => () => clearTimeout(hoverTimeout.current), [])
-  return (
-    <>
-      {parts.map((part, i) => {
-        const m = part.match(/^\[\[([^\]]+?)(?:\|([^\]]+))?\]\]$/)
-        if (!m) return <span key={i}>{part}</span>
-        const titulo = m[1].trim()
-        const alias = m[2]?.trim() || titulo
-        const target = notas.find(n => n.titulo.toLowerCase() === titulo.toLowerCase())
-        if (!target) return <span key={i} className="text-danger/70">{alias}</span>
-        return (
-          <button key={i} onClick={() => onSelect(target)}
-            onMouseEnter={(e) => { hoverTimeout.current = window.setTimeout(() => showTooltip(target, e), 300) }}
-            onMouseLeave={hideTooltip}
-            className="text-accent hover:underline cursor-pointer font-semibold">
-            {alias}
-          </button>
-        )
-      })}
-      {tooltipVisible && (
-        <div
-          style={{ left: tooltipPos.x + 12, top: tooltipPos.y + 12 }}
-          className="fixed z-50 bg-bg-secondary border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs text-text-primary pointer-events-none"
-        >
-          {tooltipContent || 'Carregando...'}
-        </div>
-      )}
-    </>
-  )
-})
+import { Plus, Star, Folder, X, ChevronDown, ChevronUp } from 'lucide-react'
 export default function Ideias() {
   const queryClient = useQueryClient()
   const notify = useNotify()
-  const [selectedId, setSelectedId] = useState<number | null>(null)
-  const [editando, setEditando] = useState(false)
-  const [titulo, setTitulo] = useState('')
-  const [conteudo, setConteudo] = useState('')
+  const tabState = useTabState()
+  const selectedId = tabState.activeId
+  const [viewMode, setViewMode] = useState(false)
   const [search, setSearch] = useState('')
   const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [showLocalPicker, setShowLocalPicker] = useState(false)
   const [showGrafo, setShowGrafo] = useState(false)
+  const [showFavoritas, setShowFavoritas] = useState(false)
   const [pastaFilter, setPastaFilter] = useState<number | null>(null)
-  const [showSlash, setShowSlash] = useState(false)
-  const [extractText, setExtractText] = useState('')
-  const [showExtract, setShowExtract] = useState(false)
-  const [slashQuery, setSlashQuery] = useState('')
   const [tags, setTags] = useState<Tag[]>([])
   const [tagFilter, setTagFilter] = useState<number[]>([])
-  const [tagsExpanded, setTagsExpanded] = useState(true)
-  const [favoritesExpanded, setFavoritesExpanded] = useState(true)
-  const [sortBy, setSortBy] = useState('')
+  const [sortBy, setSortBy] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ideias_filtros') || '{}').sortBy || '' } catch { return '' }
+  })
+  const [filterData, setFilterData] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('ideias_filtros') || '{}').filterData || '' } catch { return '' }
+  })
   const [showTagModal, setShowTagModal] = useState(false)
   const [editingTag, setEditingTag] = useState<Tag | null>(null)
-  const [pastasExpanded, setPastasExpanded] = useState(true)
+  const [pastasExpanded, setPastasExpanded] = useState(false)
   const [confirmDeletePasta, setConfirmDeletePasta] = useState<number | null>(null)
   const [newTagNome, setNewTagNome] = useState('')
   const [newTagCor, setNewTagCor] = useState('#6B7280')
-  const slashRef = useRef<HTMLDivElement>(null)
-  const editorRef = useRef<HTMLDivElement>(null)
   const tagModalRef = useRef<HTMLDivElement>(null)
   useFocusTrap(tagModalRef, showTagModal)
   useEffect(() => {
@@ -120,9 +64,6 @@ export default function Ideias() {
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
   }, [showTagModal])
-  const [propriedades, setPropriedades] = useState<Record<string, string>>({})
-  const [novaPropKey, setNovaPropKey] = useState('')
-  const [novaPropVal, setNovaPropVal] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<number | null>(null)
   const [batchDeleteConfirm, setBatchDeleteConfirm] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
@@ -132,43 +73,16 @@ export default function Ideias() {
   const [newFolderName, setNewFolderName] = useState('')
   const [creatingSubIn, setCreatingSubIn] = useState<number | null>(null)
   const [subFolderName, setSubFolderName] = useState('')
-  const selectedIdRef = useRef(selectedId)
-  useEffect(() => { selectedIdRef.current = selectedId }, [selectedId])
-  // --- save state (Bugs 25/26/27) ---
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle')
-  const [dirty, setDirty] = useState(false)
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const tituloRef = useRef(titulo)
-  const conteudoRef = useRef(conteudo)
-  const propriedadesRef = useRef(propriedades)
-  useEffect(() => { tituloRef.current = titulo }, [titulo])
-  useEffect(() => { conteudoRef.current = conteudo }, [conteudo])
-  useEffect(() => { propriedadesRef.current = propriedades }, [propriedades])
-  const saveNoteRef = useRef<() => void>(() => {})
-  function saveNote() {
-    const id = selectedIdRef.current
-    if (!id) return
-    const props: Record<string, unknown> = {}
-    for (const [k, v] of Object.entries(propriedadesRef.current)) {
-      if (k.trim()) props[k.trim()] = v
-    }
-    setSaveStatus('saving')
-    updateMut.mutate({ id, data: { titulo: tituloRef.current, conteudo: conteudoRef.current, propriedades: props } })
-  }
-  saveNoteRef.current = saveNote
-  // Cleanup timers on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-    }
-  }, [])
+  const [showSavedFilters, setShowSavedFilters] = useState(false)
+  const saveBeforeSwitchRef = useRef<(() => void) | null>(null)
   const [searchParams] = useSearchParams()
+  useEffect(() => {
+    try { localStorage.setItem('ideias_filtros', JSON.stringify({ filterData, sortBy })) } catch {}
+  }, [filterData, sortBy])
   const searchDebounced = useDebounce(search, 300)
   const { data: notas, isLoading: notasLoad, isError: notasErr } = useQuery({
-    queryKey: ['notas', searchDebounced, tagFilter, sortBy],
-    queryFn: () => getNotas(searchDebounced || undefined, undefined, tagFilter.length > 0 ? tagFilter : undefined, sortBy || undefined),
+    queryKey: ['notas', searchDebounced, tagFilter, sortBy, filterData],
+    queryFn: () => getNotas(searchDebounced || undefined, filterData || undefined, tagFilter.length > 0 ? tagFilter : undefined, sortBy || undefined),
     staleTime: 60_000,
   })
   const { data: tipos } = useQuery({ queryKey: ['tipos'], queryFn: getTipos, staleTime: 300_000 })
@@ -179,30 +93,26 @@ export default function Ideias() {
   }, [tagsData])
   useEffect(() => {
     const notaId = searchParams.get('nota_id')
-    if (notaId && !selectedId && notas) {
+    if (notaId && !tabState.activeId && notas) {
       const target = notas.find(n => n.id === Number(notaId))
       if (target) selectNota(target)
     }
-  }, [searchParams, notas, selectedId])
+  }, [searchParams, notas, tabState.activeId])
   const { data: conexoes } = useQuery({
-    queryKey: ['conexoes', selectedId],
+    queryKey: ['conexoes', tabState.activeId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
-    enabled: !!selectedId,
+    enabled: !!tabState.activeId,
     staleTime: 120_000,
   })
   const { data: notaTagsData } = useQuery({
-    queryKey: ['notaTags', selectedId],
+    queryKey: ['notaTags', tabState.activeId],
     queryFn: ({ queryKey }) => getNotaTags(queryKey[1] as number),
-    enabled: !!selectedId,
+    enabled: !!tabState.activeId,
   })
   const notaAtual = notas?.find(n => n.id === selectedId) || null
   const updateMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Nota> }) => updateNota(id, data),
     onSuccess: () => {
-      setDirty(false)
-      setSaveStatus('success')
-      if (successTimerRef.current) clearTimeout(successTimerRef.current)
-      successTimerRef.current = setTimeout(() => setSaveStatus('idle'), 2000)
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
       broadcastInvalidate([['notas'], ['conexoes']])
@@ -210,8 +120,6 @@ export default function Ideias() {
     onError: (e) => {
       console.error('[Ideias]', e)
       notify('Erro ao salvar nota')
-      setSaveStatus('error')
-      setTimeout(() => setSaveStatus('idle'), 3000)
     },
   })
   const createMut = useMutation({
@@ -220,18 +128,20 @@ export default function Ideias() {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       broadcastInvalidate([['notas']])
       selectNota(n)
-      setEditando(true)
     },
   })
   const deleteMut = useMutation({
     mutationFn: (id: number) => deleteNota(id),
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       queryClient.invalidateQueries({ queryKey: ['notas'] })
       queryClient.invalidateQueries({ queryKey: ['conexoes'] })
       broadcastInvalidate([['notas'], ['conexoes']])
-      setSelectedId(null)
+      tabState.closeTab(id)
     },
   })
+  useEffect(() => {
+    if (deleteMut.isSuccess) setConfirmDelete(null)
+  }, [deleteMut.isSuccess])
   const batchDeleteMut = useMutation({
     mutationFn: (ids: number[]) => batchDeleteNotas(ids),
     onSuccess: () => {
@@ -240,7 +150,6 @@ export default function Ideias() {
       broadcastInvalidate([['notas'], ['conexoes']])
       setSelectedIds(new Set())
       setSelectMode(false)
-      setSelectedId(null)
     },
   })
   const deletePastaMut = useMutation({
@@ -293,52 +202,86 @@ export default function Ideias() {
     },
   })
   function selectNota(n: Nota) {
-    if (dirty && editando && selectedId) {
-      saveNote()
-    }
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    setSelectedId(n.id)
-    setTitulo(n.titulo)
-    setConteudo(n.conteudo)
-    setEditando(false)
-    setPropriedades(n.propriedades ? Object.fromEntries(Object.entries(n.propriedades).map(([k, v]) => [k, String(v)])) : {})
-    setDirty(false)
-    setSaveStatus('idle')
-  }
-  async function handleSave() {
-    saveNote()
-    setEditando(false)
+    try { sessionStorage.setItem('mf_ideias_scroll', String(parentRef.current?.scrollTop ?? 0)) } catch {}
+    saveBeforeSwitchRef.current?.()
+    tabState.openTab(n.id)
+    setViewMode(false)
   }
   async function handleCreate() {
     createMut.mutate({ titulo: '(sem título)', conteudo: '', pasta_id: pastaFilter ?? null })
   }
-  // Auto-save debounce (Bug 26)
-  useEffect(() => {
-    if (!editando || !selectedId || !dirty) return
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => {
-      saveNoteRef.current()
-    }, 2000)
-    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-  }, [titulo, conteudo, propriedades, editando, selectedId, dirty])
-  // beforeunload when dirty (Bug 27)
-  useEffect(() => {
-    if (!dirty) return
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault()
-      e.returnValue = ''
+  function handleTemplateSelect(titulo: string, conteudo: string) {
+    createMut.mutate({ titulo, conteudo, pasta_id: pastaFilter ?? null })
+  }
+  const handleDailyNote = useCallback(async () => {
+    const { hojeLocal } = await import('../utils/date')
+    const titulo = hojeLocal()
+    const { getTemplates } = await import('../api/templates')
+    const templates = await getTemplates()
+    const diario = templates.find((t: { nome: string }) => t.nome.toLowerCase() === 'diário' || t.nome.toLowerCase() === 'diario')
+    if (diario) {
+      const res = await fetch(API_BASE + `/notas/templates/${diario.id}/aplicar`, { method: 'POST' })
+      if (res.ok) {
+        const nota = await res.json()
+        queryClient.invalidateQueries({ queryKey: ['notas'] })
+        broadcastInvalidate([['notas']])
+        selectNota(nota)
+        return
+      }
     }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [dirty])
+    createMut.mutate({ titulo, conteudo: '', pasta_id: pastaFilter ?? null })
+  }, [queryClient, pastaFilter, createMut])
+  const handleExport = useCallback(() => {
+    if (selectedId) window.open(API_BASE + `/notas/${selectedId}/export/md`, '_blank')
+  }, [selectedId])
+  const handleImport = useCallback(async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      const res = await fetch(API_BASE + '/import', { method: 'POST', body: form })
+      if (!res.ok) throw new Error(res.statusText)
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+      notify('Importado com sucesso')
+    } catch (e) {
+      console.error('[import]', e)
+      notify('Erro ao importar')
+    }
+  }, [queryClient, notify])
+  const handleSavedFilters = useCallback(() => {
+    setShowSavedFilters(true)
+  }, [])
+  const handleRevealInExplorer = useCallback(async () => {
+    if (!selectedId) return
+    try {
+      const res = await request<{ tempFilePath: string; instructions: string }>(`/notas/${selectedId}/explore`)
+      alert(`Nota exportada para:\n${res.tempFilePath}\n\nInstruções:\n${res.instructions}`)
+    } catch (e) {
+      console.error('[explore]', e)
+      notify('Erro ao exportar nota para explorador')
+    }
+  }, [selectedId, notify])
+  const handleCreateWikilink = useCallback(async (titulo: string) => {
+    try {
+      const nota = await createFromWikilink(titulo)
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+      broadcastInvalidate([['notas']])
+      selectNota(nota)
+      notify(`Nota "${titulo}" criada`)
+    } catch (e: unknown) {
+      if (e && typeof e === 'object' && 'status' in e && (e as { status: number }).status === 409) notify('Nota com este título já existe')
+      else notify('Erro ao criar nota a partir de link')
+    }
+  }, [queryClient, selectNota, notify])
+  const handleToggleView = useCallback(() => {
+    setViewMode(v => !v)
+  }, [])
+  function handleCloseTab(id: number) {
+    tabState.closeTab(id)
+  }
   function handleConfirmDelete() {
     if (!confirmDelete) return
     deleteMut.mutate(confirmDelete)
     setConfirmDelete(null)
-  }
-  function handleDelete() {
-    if (!selectedId) return
-    setConfirmDelete(selectedId)
   }
   function handleBatchDelete() {
     setBatchDeleteConfirm(true)
@@ -351,21 +294,6 @@ export default function Ideias() {
       return next
     })
   }
-  function addPropriedade() {
-    if (!novaPropKey.trim()) return
-    setPropriedades(p => ({ ...p, [novaPropKey.trim()]: novaPropVal }))
-    setDirty(true)
-    setNovaPropKey('')
-    setNovaPropVal('')
-  }
-  function removePropriedade(key: string) {
-    setPropriedades(p => {
-      const next = { ...p }
-      delete next[key]
-      return next
-    })
-    setDirty(true)
-  }
   // --- Tag helpers ---
   function toggleTagFilter(tagId: number) {
     setTagFilter(prev => prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId])
@@ -377,37 +305,35 @@ export default function Ideias() {
     '#EF4444', '#F97316', '#F59E0B', '#EAB308', '#84CC16', '#22C55E',
     '#10B981', '#14B8A6', '#06B6D4', '#0EA5E9', '#3B82F6', '#8B5CF6',
   ]
-  const handleContentChange = useCallback((val: string) => {
-    setConteudo(val)
-    setDirty(true)
-    const slashMatch = val.match(/\/(\w*)$/)
-    if (slashMatch && editando) {
-      setSlashQuery(slashMatch[1])
-      setShowSlash(true)
-    } else {
-      setShowSlash(false)
-    }
-  }, [editando])
-  const slashCommands = [
-    { icon: <FileText size={14} />, label: 'Inserir template /resumo', insert: '/resumo' },
-    { icon: <span className="text-xs">📅</span>, label: 'Inserir data', insert: `**Data:** ${new Date().toLocaleDateString('pt-BR')}` },
-    { icon: <Link2 size={14} />, label: 'Link rápido [[', insert: '[[' },
-    { icon: <CheckSquare size={14} />, label: 'Checklist - [ ] ', insert: '- [ ] ' },
-    { icon: <Lightbulb size={14} />, label: 'Dica > ', insert: '> ' },
-    { icon: <TagIcon size={14} />, label: 'Propriedade ::', insert: '\n::' },
-  ].filter(c => c.label.toLowerCase().includes(slashQuery.toLowerCase()))
   const filtered = notas || []
   const parentRef = useRef<HTMLDivElement>(null)
   const visibleItems = useMemo(
-    () => filtered.filter(n => !pastaFilter || n.pasta_id === pastaFilter),
-    [filtered, pastaFilter]
+    () => filtered.filter(n => (!pastaFilter || n.pasta_id === pastaFilter) && (!showFavoritas || n.favoritado)),
+    [filtered, pastaFilter, showFavoritas]
   )
   const virtualizer = useVirtualizer({
     count: visibleItems.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 64,
+    estimateSize: () => 72,
   })
-  const favoritadas = useMemo(() => notas?.filter(n => n.favoritado) || [], [notas])
+  const scrollRestoredRef = useRef(false)
+  useEffect(() => {
+    const el = parentRef.current
+    if (!el) return
+    const handler = () => { try { sessionStorage.setItem('mf_ideias_scroll', String(el.scrollTop)) } catch {} }
+    el.addEventListener('scroll', handler, { passive: true })
+    return () => el.removeEventListener('scroll', handler)
+  }, [notas])
+  useEffect(() => {
+    if (selectedId !== null || !notas || notasLoad || scrollRestoredRef.current) return
+    scrollRestoredRef.current = true
+    const saved = (() => { try { return Number(sessionStorage.getItem('mf_ideias_scroll')) } catch { return 0 } })()
+    if (saved > 0) requestAnimationFrame(() => parentRef.current?.scrollTo(0, saved))
+  }, [selectedId, notas, notasLoad])
+  useEffect(() => {
+    try { sessionStorage.removeItem('mf_ideias_scroll') } catch {}
+    scrollRestoredRef.current = false
+  }, [searchDebounced, tagFilter, sortBy, filterData])
   const saida = useMemo(() =>
     notas?.filter(n =>
       conexoes?.some(c => c.nota_origem_id === selectedId && c.nota_destino_id === n.id)
@@ -444,13 +370,8 @@ export default function Ideias() {
       <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-2 shrink-0">
           <h1 className="text-2xl font-bold text-text-primary">Notas</h1>
-          <button onClick={handleCreate} disabled={createMut.isPending}
-              className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-hover rounded-lg shrink-0 disabled:opacity-50 transition-colors"
-            title="Nova nota em branco">
-            {createMut.isPending ? <span className="text-xs">...</span> : <Plus size={18} />}
-          </button>
         </div>
-        <div className="flex items-center gap-1 w-full mb-3 shrink-0">
+        <div className="flex items-center gap-1 w-full mb-1 shrink-0">
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -458,35 +379,15 @@ export default function Ideias() {
             className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none border border-border/50 focus-visible:ring-2 focus-visible:ring-accent"
           />
         </div>
-        <div className="flex items-center justify-between mb-3 shrink-0">
-          <div className="flex items-center gap-1">
-            <button onClick={() => setShowTemplateModal(true)}
-              className="w-8 h-8 flex items-center justify-center bg-bg-tertiary text-text-muted rounded-md hover:bg-bg-hover hover:text-text-primary shrink-0 transition-colors"
-              title="Criar nota a partir de modelo (template)">
-              <FileText size={14} />
-            </button>
-            <button onClick={() => setShowGrafo(!showGrafo)}
-              className={`w-8 h-8 flex items-center justify-center rounded-md shrink-0 transition-colors ${showGrafo ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
-              title="Grafo de conexões entre notas">
-              <Link2 size={14} />
-            </button>
-            <button onClick={() => { setSelectMode(!selectMode); setSelectedIds(new Set()) }}
-              className={`w-8 h-8 flex items-center justify-center rounded-md shrink-0 transition-colors ${selectMode ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
-              title="Selecionar múltiplas notas">
-              <Square size={14} />
-            </button>
-          </div>
-        </div>
-        <div className="flex items-center gap-1 mb-3 shrink-0">
-          {notas?.some(n => (n.acessos || 0) > 0) && (
-          <button onClick={() => setSortBy(sortBy === 'acessos' ? '' : 'acessos')}
-            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'acessos' ? 'bg-accent/20 text-accent' : 'bg-transparent border border-border text-text-muted hover:border-accent/50 hover:text-text-primary'}`}
-            title="Ordenar por mais acessadas"><Flame size={12} /> Mais acessadas</button>
-          )}
-          <button onClick={() => setSortBy(sortBy === 'titulo' ? '' : 'titulo')}
-            className={`text-xs px-2 py-0.5 rounded-full transition-colors ${sortBy === 'titulo' ? 'bg-accent/20 text-accent' : 'bg-transparent border border-border text-text-muted hover:border-accent/50 hover:text-text-primary'}`}
-            title="Ordenar por título">A-Z</button>
-          {sortBy && <button onClick={() => setSortBy('')} className="text-xs text-danger hover:underline">Limpar</button>}
+        <div className="flex items-center gap-1 w-full mb-3 shrink-0">
+          <input type="date" value={filterData} onChange={e => setFilterData(e.target.value)}
+            className="flex-1 min-w-0 bg-bg-tertiary rounded-lg px-3 py-1.5 text-sm outline-none border border-border/50 focus-visible:ring-2 focus-visible:ring-accent [color-scheme:var(--color-scheme)]" />
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)}
+            className="bg-bg-tertiary rounded-lg px-2 py-1.5 text-sm outline-none border border-border/50 focus-visible:ring-2 focus-visible:ring-accent text-text-primary">
+            <option value="">Data recente</option>
+            <option value="acessos">Mais acessados</option>
+            <option value="titulo">Título A-Z</option>
+          </select>
         </div>
         {selectMode && selectedIds.size > 0 && (
           <div className="flex items-center gap-2 mb-2 shrink-0 bg-danger/10 rounded-lg px-3 py-2">
@@ -509,48 +410,7 @@ export default function Ideias() {
         ) : (
           <div className="flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden">
             {notas && (
-              <div className="mb-3">
-                 <button onClick={() => setFavoritesExpanded(!favoritesExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
-                   {favoritesExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                   <Star size={12} /> Favoritos
-                    {!favoritesExpanded && <span className="font-normal">{favoritadas.length}</span>}
-                 </button>
-                 {favoritesExpanded && (
-                   <>
-                      {favoritadas.length > 0 ? (
-                        <div className="flex flex-col gap-0.5 mt-1">
-                          {favoritadas.map(n => {
-                           const tipo = tipos?.find(t => t.id === n.tipo_id)
-                           return (
-                             <div key={n.id} className="group relative">
-                               <button onClick={() => selectMode ? toggleSelect(n.id) : selectNota(n)}
-                                 className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-1 ${selectedId === n.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-primary'}`}>
-                                 {selectMode && (
-                                   <input type="checkbox" checked={selectedIds.has(n.id)} readOnly
-                                     className="accent-accent w-3.5 h-3.5 shrink-0" />
-                                 )}
-                                 {tipo && <span className="text-xs">{tipo.icone}</span>}
-                                 <span className="truncate flex-1">{n.titulo || <span className="text-text-muted italic">(sem título)</span>}</span>
-                                 <button onClick={e => { e.stopPropagation(); favoritarMut.mutate(n.id) }}
-                                   className="text-yellow-500 hover:scale-110 transition-transform shrink-0">
-                                   <Star size={12} fill="currentColor" />
-                                 </button>
-                               </button>
-                               {!selectMode && (
-                               <button onClick={e => { e.stopPropagation(); setConfirmDelete(n.id) }}
-                                 className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity"
-                                 title="Excluir nota"><X size={12} /></button>
-                               )}
-                             </div>
-                           )
-                         })}
-                       </div>
-                     ) : (
-                       <p className="text-xs text-text-muted mt-1">Nenhuma nota favoritada. Clique na estrela em uma nota.</p>
-                     )}
-                   </>
-                 )}
-               </div>
+              <div className="text-xs text-text-muted mb-2 tabular-nums">{notas.length} nota{notas.length !== 1 ? 's' : ''}{filterData && ` · ${new Date(filterData + 'T12:00:00').toLocaleDateString('pt-BR')}`}</div>
             )}
             {pastas && (
               <div className="mb-2">
@@ -628,41 +488,6 @@ export default function Ideias() {
               </>)}
               </div>
             )}
-            {tags.length > 0 && (
-              <div className="mb-2">
-                <div className="flex items-center justify-between mb-1">
-                  <button onClick={() => setTagsExpanded(!tagsExpanded)} className="flex items-center gap-1 text-xs font-semibold text-text-muted hover:text-text-primary transition-colors">
-                    {tagsExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    Tags
-                    {!tagsExpanded && <span className="font-normal">{tags.length}</span>}
-                  </button>
-                  <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                    className="text-xs text-text-muted hover:text-accent ml-auto"><Plus size={12} className="inline mr-0.5" />Nova</button>
-                </div>
-                {tagsExpanded && (<>
-                {tagFilter.length > 0 && (
-                  <div className="flex items-center gap-1 mb-1">
-                    <span className="text-xs text-text-muted">Filtro: {tagFilter.length} tag{tagFilter.length > 1 ? 's' : ''}</span>
-                    <button onClick={clearTagFilter} className="text-xs text-danger hover:underline">Limpar</button>
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto w-full">
-                  {tags.map(tag => {
-                    const isActive = tagFilter.includes(tag.id)
-                    const cor = tag.cor || '#6B7280'
-                    return (
-                      <button key={tag.id} onClick={() => toggleTagFilter(tag.id)}
-                        className={`text-xs px-2 py-0.5 rounded-full transition-all max-w-full overflow-hidden text-ellipsis whitespace-nowrap inline-flex items-center gap-1 ${isActive ? 'bg-accent/10 ring-2 ring-accent text-accent font-medium' : 'text-text-muted hover:text-text-primary'}`}
-                        title="Clique para filtrar por esta tag">
-                        <span style={{ color: cor }}>●</span>
-                        {tag.nome}
-                      </button>
-                    )
-                  })}
-                </div>
-                </>)}
-              </div>
-            )}
             {notasLoad && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
             {notasErr && <p className="text-sm text-danger py-4 text-center">Erro ao carregar notas</p>}
             {!notasLoad && !notasErr && visibleItems.length === 0 && (
@@ -693,7 +518,7 @@ export default function Ideias() {
                             {tipo && <span className="text-xs shrink-0">{tipo.icone}</span>}
                             <div className="flex flex-col min-w-0 flex-1">
                               <span className="font-medium truncate">{n.titulo || <span className="text-text-muted italic">(sem título)</span>}</span>
-                              <span className="text-xs text-text-muted/60 tabular-nums">{new Date(n.atualizado_em).toLocaleDateString('pt-BR')}</span>
+                              <span className="text-xs text-text-muted/60 tabular-nums">Criado {new Date(n.criado_em).toLocaleDateString('pt-BR')} · {wordCount(n.conteudo)} palavras · {readTime(n.conteudo)} min</span>
                             </div>
                           </div>
                         </button>
@@ -711,247 +536,70 @@ export default function Ideias() {
           </div>
         )}
       </div>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="flex-1 h-full flex flex-col min-h-0">
+        <IdeasToolbar
+          onNewNota={handleCreate}
+          onSearch={() => document.querySelector<HTMLInputElement>('input[placeholder="Buscar..."]')?.focus()}
+          onLocalTemplate={() => setShowLocalPicker(true)}
+          onServerTemplate={() => setShowTemplateModal(true)}
+          onGraph={() => setShowGrafo(!showGrafo)}
+          selectedCount={selectMode ? selectedIds.size : 0}
+          onArchiveSelected={() => {}}
+          onDeleteSelected={handleBatchDelete}
+          onSelectMode={setSelectMode}
+          showFavoritas={showFavoritas}
+          onToggleFavoritas={() => setShowFavoritas(prev => !prev)}
+          tags={tags}
+          tagFilter={tagFilter}
+          onToggleTag={toggleTagFilter}
+          onClearTags={clearTagFilter}
+          pastaFilter={pastaFilter}
+          pastas={pastas ?? []}
+          onSelectPasta={(id) => setPastaFilter(pastaFilter === id ? null : id)}
+          isOnline={navigator.onLine}
+          onExport={handleExport}
+          onImport={handleImport}
+          onSort={(field) => setSortBy(field === 'titulo' ? (sortBy === 'titulo' ? '' : 'titulo') : '')}
+          onSavedFilters={handleSavedFilters}
+          onDailyNote={handleDailyNote}
+          onRevealInExplorer={handleRevealInExplorer}
+          onToggleView={handleToggleView}
+          isViewMode={viewMode}
+        />
+        <TabBar
+          tabs={tabState.tabs}
+          activeId={tabState.activeId}
+          notas={notas ?? []}
+          onSelect={(id) => {
+            const n = notas?.find(x => x.id === id)
+            if (n) selectNota(n)
+          }}
+          onClose={handleCloseTab}
+        />
         {notaAtual ? (
-          <div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-3 text-xs text-text-muted">
-              {editando ? (
-                <>
-                  <label className="text-text-muted">Categoria:</label>
-                  <select value={String(notaAtual.tipo_id || '')} onChange={e => {
-                    const id = selectedIdRef.current
-                    if (!id) return
-                    const v = e.target.value
-                    updateMut.mutate({ id, data: { tipo_id: v ? Number(v) : null } })
-                  }}
-                    className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
-                    <option value="">Sem tipo</option>
-                    {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
-                  </select>
-                  <label className="text-text-muted">Grupo:</label>
-                  <select value={String(notaAtual.pasta_id || '')} onChange={e => {
-                    const id = selectedIdRef.current
-                    if (!id) return
-                    const v = e.target.value
-                    updateMut.mutate({ id, data: { pasta_id: v ? Number(v) : null } })
-                  }}
-                    className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
-                    <option value="">Sem pasta</option>
-                    {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
-                  </select>
-                </>
-              ) : (
-                <>
-                  {notaAtual.tipo_id && tipos?.find(t => t.id === notaAtual.tipo_id) && (
-                    <span>{tipos.find(t => t.id === notaAtual.tipo_id)!.icone} {tipos.find(t => t.id === notaAtual.tipo_id)!.nome}</span>
-                  )}
-                  {notaAtual.pasta_id && pastas?.find(p => p.id === notaAtual.pasta_id) && (
-                    <span><Folder size={14} className="inline mr-0.5" />{pastas.find(p => p.id === notaAtual.pasta_id)!.nome}</span>
-                  )}
-                </>
-              )}
-              <span>Criado: {new Date(notaAtual.criado_em).toLocaleDateString('pt-BR')}</span>
-              <span>Modificado: {new Date(notaAtual.atualizado_em).toLocaleDateString('pt-BR')}</span>
-              {(notaTagsData && notaTagsData.length > 0) && (
-                <span className="flex gap-1">
-                  {notaTagsData.map(tag => {
-                    const bg = tag.cor || '#6B7280'
-                    return (
-                      <span key={tag.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm text-text-primary"
-                        style={{ backgroundColor: `${bg}15`, border: `1px solid ${bg}44` }}>
-                        {tag.nome}
-                        {editando && (
-                          <button onClick={() => removeTagFromNotaMut.mutate({ notaId: selectedId!, tagId: tag.id })}
-                            className="ml-0.5 hover:opacity-70"><X size={10} /></button>
-                        )}
-                      </span>
-                    )
-                  })}
-                  {editando && (
-                    <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                      className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
-                  )}
-                </span>
-              )}
-              {editando && (!notaTagsData || notaTagsData.length === 0) && (
-                <button onClick={() => { setShowTagModal(true); setEditingTag(null); setNewTagNome(''); setNewTagCor('#6B7280') }}
-                  className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
-              )}
-            </div>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex-1 flex items-center gap-3">
-                {editando ? (
-                  <input value={titulo} onChange={e => { setTitulo(e.target.value); setDirty(true) }}
-                    className="flex-1 text-2xl font-bold bg-transparent outline-none border-b border-accent pb-1" />
-                ) : (
-                  <h1 className="text-2xl font-bold">{notaAtual.titulo}</h1>
-                )}
-              </div>
-              <div className="flex gap-1 items-center shrink-0">
-                {editando ? (
-                  <>
-                    <button onClick={() => setShowExtract(true)} className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover inline-flex items-center gap-1.5" title="Extrair trecho como nova nota"><Scissors size={14} /> Extrair</button>
-                    <div className="flex items-center gap-2">
-                      {saveStatus === 'saving' && <span className="text-xs text-text-muted animate-pulse">Salvando...</span>}
-                      {saveStatus === 'success' && <span className="text-xs text-success animate-fade-in">Salvo!</span>}
-                      {saveStatus === 'error' && <span className="text-xs text-danger animate-fade-in">Erro</span>}
-                      <button onClick={handleSave} disabled={saveStatus === 'saving'}
-                        className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg disabled:opacity-50">
-                        {saveStatus === 'saving' ? 'Salvando...' : 'Salvar'}
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <button onClick={() => setEditando(true)} className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover">Editar</button>
-                )}
-                <div className="flex gap-1 ml-1 items-center">
-                  <button onClick={() => {
-                    if (!selectedId) return
-                    window.open(`/api/notas/${selectedId}/export/md`)
-                  }}
-                    className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como Markdown">
-                    ↓.md
-                  </button>
-                  <button onClick={() => { if (selectedId) favoritarMut.mutate(selectedId) }}
-                    className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover hover:text-text-primary'}`}
-                    title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
-                    <Star size={14} fill={notaAtual.favoritado ? 'currentColor' : 'none'} />
-                  </button>
-                </div>
-                <button onClick={handleDelete} disabled={deleteMut.isPending}
-                  className="ml-2 px-4 py-1.5 bg-danger hover:bg-danger/80 text-white text-sm rounded-lg disabled:opacity-50">
-                  {deleteMut.isPending ? 'Excluindo...' : 'Excluir'}
-                </button>
-              </div>
-            </div>
-            <div className="flex gap-6">
-              <div className="flex-1 min-w-0">
-                {editando ? (
-                  <div ref={editorRef} className="relative">
-                    <EditorMarkdown value={conteudo} onChange={handleContentChange} notas={notas || []} />
-                    {showSlash && editando && slashCommands.length > 0 && (
-                      <div ref={slashRef}
-                        className="absolute left-0 bottom-full mb-1 bg-bg-secondary border border-border rounded-xl shadow-2xl py-1 min-w-[200px] z-50">
-                        {slashCommands.map(cmd => (
-                          <button key={cmd.label} onClick={() => {
-                            const id = selectedIdRef.current
-                            if (!id) return
-                            const newContent = conteudo.replace(/\/(\w*)$/, cmd.insert)
-                            setConteudo(newContent)
-                            updateMut.mutate({ id, data: { conteudo: newContent } })
-                            setShowSlash(false)
-                          }}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-bg-hover transition-colors flex items-center gap-2">
-                            <span>{cmd.icon}</span> {cmd.label}
-                            <span className="text-xs text-text-muted ml-auto">{cmd.insert}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
-                    {notaAtual.conteudo ? <RenderConteudo conteudo={notaAtual.conteudo} notas={notas || []} onSelect={selectNota} selectedId={selectedId} /> : 'Nenhum conteúdo'}
-                  </div>
-                )}
-              </div>
-              {showExtract && editando && (
-                <div className="mb-4 p-3 bg-bg-tertiary rounded-lg">
-                  <p className="text-xs text-text-muted mb-2">Extrair trecho como nova nota:</p>
-                  <textarea value={extractText} onChange={e => setExtractText(e.target.value)}
-                    className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none mb-2 min-h-[60px]" placeholder="Cole o trecho aqui..." />
-                  <div className="flex gap-2">
-                     <button onClick={() => {
- 
-                       if (!extractText.trim() || !selectedId) return
- 
-                       extrairBloco(selectedId, extractText.trim(), notaAtual?.tipo_id, pastaFilter ?? null).then((nova) => {
- 
-                         queryClient.invalidateQueries({ queryKey: ['notas'] })
-                          broadcastInvalidate([['notas']])
-
-                          selectNota(nova)
- 
-                         setShowExtract(false)
- 
-                         setExtractText('')
- 
-                        }).catch(e => { console.error('[Ideias] extrair', e); notify('Erro ao extrair bloco') })
- 
-                     }} disabled={!extractText.trim()}
- 
-                       className="px-3 py-1 bg-accent text-white text-xs rounded-lg disabled:opacity-50">Extrair</button>
-                    <button onClick={() => { setShowExtract(false); setExtractText('') }}
-                      className="px-3 py-1 bg-bg-secondary text-text-primary text-xs rounded-lg">Cancelar</button>
-                  </div>
-                </div>
-              )}
-              {(Object.keys(propriedades).length > 0 || editando) && (
-                <div className="w-56 shrink-0">
-                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Propriedades</h3>
-                  <div className="space-y-2">
-                    {Object.entries(propriedades).map(([k, v]) => (
-                      <div key={k} className="bg-bg-tertiary rounded-lg p-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-text-muted font-medium">{k}</span>
-                          {editando && (
-                            <button onClick={() => removePropriedade(k)} className="text-xs text-danger"><X size={12} /></button>
-                          )}
-                        </div>
-                        {editando ? (
-                          <input value={v} onChange={e => { setPropriedades(p => ({ ...p, [k]: e.target.value })); setDirty(true) }}
-                            className="w-full bg-transparent text-sm outline-none mt-0.5" />
-                        ) : (
-                          <p className="text-sm mt-0.5">{v}</p>
-                        )}
-                      </div>
-                    ))}
-                    {editando && (
-                      <div className="flex flex-col gap-1 mt-2">
-                        <input value={novaPropKey} onChange={e => setNovaPropKey(e.target.value)}
-                          placeholder="Chave" className="bg-bg-primary rounded px-2 py-1 text-xs outline-none" />
-                        <input value={novaPropVal} onChange={e => setNovaPropVal(e.target.value)}
-                          placeholder="Valor" className="bg-bg-primary rounded px-2 py-1 text-xs outline-none" />
-                        <button onClick={addPropriedade} className="text-xs text-accent hover:underline self-start">+ Adicionar</button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-            {(entrada.length > 0 || saida.length > 0) && (
-              <div className="mt-8 pt-4 border-t border-border">
-                {saida.length > 0 && (
-                  <div className="mb-3">
-                    <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Aponta para</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {saida.map(n => (
-                        <button key={n.id} onClick={() => selectNota(n)}
-                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent inline-flex items-center gap-1">
-                          <ArrowRight size={14} /> {n.titulo}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {entrada.length > 0 && (
-                  <div>
-                    <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Apontam para esta</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {entrada.map(n => (
-                        <button key={n.id} onClick={() => selectNota(n)}
-                          className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover transition-colors text-sm text-accent inline-flex items-center gap-1">
-                          <ArrowLeft size={14} /> {n.titulo}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+          <IdeiasEditor
+            notaAtual={notaAtual}
+            notas={notas ?? []}
+            tipos={tipos}
+            pastas={pastas}
+            entrada={entrada}
+            saida={saida}
+            notaTagsData={notaTagsData}
+            selectedId={selectedId}
+            savePending={updateMut.isPending}
+            deletePending={deleteMut.isPending}
+            onSave={(id, data) => updateMut.mutate({ id, data })}
+            onDelete={(id) => setConfirmDelete(id)}
+            onFavoritar={(id) => favoritarMut.mutate(id)}
+            onRemoveTag={(notaId, tagId) => removeTagFromNotaMut.mutate({ notaId, tagId })}
+            onSelectNota={selectNota}
+            onShowTagModal={() => setShowTagModal(true)}
+            onCreateWikilink={handleCreateWikilink}
+            saveBeforeSwitchRef={saveBeforeSwitchRef}
+            isViewMode={viewMode}
+          />
         ) : (
-          <div className="h-full flex items-center justify-center text-text-muted text-sm">
+          <div className="flex-1 flex items-center justify-center text-text-muted text-sm">
             Selecione ou crie uma nota
           </div>
         )}
@@ -960,10 +608,15 @@ export default function Ideias() {
         <TemplateModal
           onClose={() => setShowTemplateModal(false)}
           onSelect={(id) => {
-            setSelectedId(id)
             const n = notas?.find(x => x.id === id)
             if (n) selectNota(n)
           }}
+        />
+      )}
+      {showLocalPicker && (
+        <NotaTemplatePicker
+          onClose={() => setShowLocalPicker(false)}
+          onSelect={handleTemplateSelect}
         />
       )}
       {showTagModal && (
@@ -1037,6 +690,29 @@ export default function Ideias() {
           destructive
           disabled={deletePastaMut.isPending}
         />
+      )}
+      {showSavedFilters && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center" onClick={() => setShowSavedFilters(false)}>
+          <div className="bg-bg-secondary rounded-lg p-4 w-96 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-text-primary">Filtros salvos</h3>
+              <button onClick={() => setShowSavedFilters(false)} className="text-text-muted hover:text-text-primary"><X size={16} /></button>
+            </div>
+            <SavedFiltersSection
+              search={search}
+              pastaFilter={pastaFilter}
+              tagFilter={tagFilter}
+              sortBy={sortBy}
+              onApply={f => {
+                setSearch(f.search)
+                setPastaFilter(f.pastaFilter)
+                setTagFilter(f.tagFilter)
+                setSortBy(f.sortBy)
+                setShowSavedFilters(false)
+              }}
+            />
+          </div>
+        </div>
       )}
     </div>
   )

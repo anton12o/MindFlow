@@ -1,6 +1,7 @@
+import atexit
 import logging
 import queue
-from logging.handlers import RotatingFileHandler, QueueHandler, QueueListener
+from logging.handlers import QueueHandler, QueueListener, RotatingFileHandler
 from pathlib import Path
 
 LOG_DIR = Path(__file__).parent / "data"
@@ -16,7 +17,7 @@ def setup_logging():
     file_handler = RotatingFileHandler(
         str(LOG_FILE), maxBytes=MAX_BYTES, backupCount=BACKUP_COUNT, encoding="utf-8",
     )
-    file_handler.setLevel(logging.WARNING)
+    file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT))
     root = logging.getLogger()
     log_queue = queue.Queue(-1)
@@ -24,3 +25,4 @@ def setup_logging():
     root.addHandler(queue_handler)
     listener = QueueListener(log_queue, file_handler, respect_handler_level=True)
     listener.start()
+    atexit.register(listener.stop)

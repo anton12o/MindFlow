@@ -11,7 +11,7 @@ describe('logError', () => {
 
     await logError('Erro de teste', { userAgent: 'vitest' })
 
-    expect(fetchSpy).toHaveBeenCalledWith('/api/logs', expect.objectContaining({
+    expect(fetchSpy).toHaveBeenCalledWith('http://localhost:8000/api/logs', expect.objectContaining({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: expect.stringContaining('Erro de teste'),

@@ -72,7 +72,7 @@ export default function LogsModal({ onClose }: Props) {
           mensagem="Tem certeza que deseja limpar todos os logs? Esta ação não pode ser desfeita."
           destructive
           confirmLabel="Limpar"
-          onConfirm={() => { clearLogs().then(load); setConfirmClear(false) }}
+          onConfirm={() => { clearLogs().then(load).catch(e => console.error('[LogsModal] clearLogs', e)); setConfirmClear(false) }}
           onCancel={() => setConfirmClear(false)}
         />
       )}

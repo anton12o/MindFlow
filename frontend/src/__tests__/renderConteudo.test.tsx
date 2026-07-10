@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import DOMPurify from 'dompurify'
 import type { Nota } from '../types'
 
 function renderConteudo(conteudo: string, notas: Nota[], onSelect: (n: Nota) => void) {
@@ -69,5 +70,15 @@ describe('renderConteudo', () => {
     render(<>{renderConteudo('[[teste]]', mockNotas, vi.fn())}</>)
     const btn = screen.getByText('teste')
     expect(btn.className).toContain('text-accent')
+  })
+
+  it('sanitiza script injection com DOMPurify', () => {
+    const html = '<script>alert(1)</script><b>negrito</b>'
+    const sanitized = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: ['b','strong','em','i','a','code','span','div','br','img'],
+      ALLOWED_ATTR: ['href','class','target','rel','src','alt','style','aria-hidden'],
+    })
+    expect(sanitized).not.toContain('<script>')
+    expect(sanitized).toContain('<b>negrito</b>')
   })
 })

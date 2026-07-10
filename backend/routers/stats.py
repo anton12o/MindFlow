@@ -1,9 +1,14 @@
 import logging
-from datetime import date, timedelta, datetime
+import os
+from datetime import date, datetime, timedelta
+
 from fastapi import APIRouter, Depends, Query
-from sqlmodel import Session, select, func
-from database import get_session
-from models import Nota, Tarefa, SessaoPomodoro, RegistroHabito, Habito, InboxItem, BlocoRotina
+from sqlmodel import Session, func, select
+
+from database import DB_PATH, get_session
+from models import BlocoRotina, Flashcard, Habito, InboxItem, Nota, RegistroHabito, SessaoPomodoro, Tarefa
+from schemas.stats import DashboardStats, FlashcardsStats, LeituraStats, PomodoroStats, WeeklyStats
+from services.estatisticas import calcular_heatmap_multi
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -42,7 +47,7 @@ def _calcular_streak(session: Session) -> int:
     return streak
 
 
-@router.get("/stats/dashboard")
+@router.get("/stats/dashboard", response_model=DashboardStats)
 def dashboard_stats(session: Session = Depends(get_session)):
     hoje = date.today().isoformat()
 
@@ -64,9 +69,12 @@ def dashboard_stats(session: Session = Depends(get_session)):
     ).all()
 
     # Habitos ativos + registros de hoje + streak
-    habitos_ativos = session.exec(
+    habitos_ativos_raw = session.exec(
         select(Habito).where(Habito.ativo.is_(True))
     ).all()
+    dia_semana = str(date.today().weekday())
+    habitos_ativos = [h for h in habitos_ativos_raw
+                      if h.dias_semana is None or dia_semana in h.dias_semana.split(',')]
     habito_ids = [h.id for h in habitos_ativos]
 
     registros_hoje: set[int] = set()
@@ -109,6 +117,12 @@ def dashboard_stats(session: Session = Depends(get_session)):
         select(Nota.id, Nota.titulo).where(Nota.criado_em >= hoje)
     ).all()
 
+    total_notas = session.exec(select(func.count(Nota.id))).one()
+    total_tarefas = session.exec(select(func.count(Tarefa.id))).one()
+    total_flashcards = session.exec(select(func.count(Flashcard.id))).one()
+    total_sessoes = session.exec(select(func.count(SessaoPomodoro.id))).one()
+    db_size_mb = round(os.path.getsize(DB_PATH) / (1024 * 1024), 1)
+
     return {
         "inbox_count": inbox_count,
         "blocos": [{
@@ -134,10 +148,58 @@ def dashboard_stats(session: Session = Depends(get_session)):
         } for h in habitos_ativos],
         "notas_hoje": [{"id": n.id, "titulo": n.titulo} for n in notas_hoje],
         "data": hoje,
+        "total_notas": total_notas,
+        "total_tarefas": total_tarefas,
+        "total_flashcards": total_flashcards,
+        "total_sessoes": total_sessoes,
+        "db_size_mb": db_size_mb,
     }
 
 
-@router.get("/stats/weekly")
+@router.get("/stats/heatmap")
+def heatmap_stats(mes: int = Query(default=0), ano: int = Query(default=0), session: Session = Depends(get_session)):
+    hoje = date.today()
+    m = mes if 1 <= mes <= 12 else hoje.month
+    a = ano if ano > 0 else hoje.year
+    return calcular_heatmap_multi(m, a, session)
+
+
+@router.get("/stats/pomodoro", response_model=PomodoroStats)
+def pomodoro_stats(session: Session = Depends(get_session)):
+    hoje = date.today().isoformat()
+
+    sessoes_hoje = session.exec(
+        select(SessaoPomodoro).where(
+            SessaoPomodoro.iniciado_em >= hoje,
+            SessaoPomodoro.finalizado_em.isnot(None),
+        )
+    ).all()
+
+    total_hj = sum(s.duracao_min for s in sessoes_hoje)
+    total_hj_sessoes = len(sessoes_hoje)
+
+    desde = (date.today() - timedelta(days=365)).isoformat()
+    dias_com_sessao = session.exec(
+        select(func.substr(SessaoPomodoro.iniciado_em, 1, 10))
+        .where(SessaoPomodoro.iniciado_em >= desde, SessaoPomodoro.finalizado_em.isnot(None))
+        .distinct()
+    ).all()
+
+    streak = 0
+    d = date.today()
+    dias_set = set(dias_com_sessao)
+    while d.isoformat() in dias_set:
+        streak += 1
+        d -= timedelta(days=1)
+
+    return {
+        "total_min_hoje": total_hj,
+        "total_sessoes_hoje": total_hj_sessoes,
+        "streak_dias": streak,
+    }
+
+
+@router.get("/stats/weekly", response_model=WeeklyStats)
 def weekly_stats(
     offset: int = Query(0, description="0=semana atual, -1=semana passada, 1=próxima semana"),
     session: Session = Depends(get_session),
@@ -250,4 +312,71 @@ def weekly_stats(
             "notas": score_notas,
         },
         "gerado_em": datetime.now().isoformat(),
+    }
+
+
+@router.get("/stats/flashcards", response_model=FlashcardsStats)
+def flashcards_stats(session: Session = Depends(get_session)):
+    hoje = date.today()
+    total_cards = session.exec(select(func.count(Flashcard.id))).one()
+    cards_hoje = session.exec(
+        select(func.count(Flashcard.id)).where(Flashcard.proxima_revisao <= hoje)
+    ).one()
+
+    inicio_hoje = datetime(hoje.year, hoje.month, hoje.day)
+    cards_revisados_hoje = session.exec(
+        select(func.count(Flashcard.id)).where(
+            Flashcard.ultima_revisao.isnot(None),
+            Flashcard.ultima_revisao >= inicio_hoje,
+        )
+    ).one()
+
+    ha_7_dias = hoje - timedelta(days=7)
+    revisados_7d = session.exec(
+        select(Flashcard.facilidade, Flashcard.intervalo).where(
+            Flashcard.ultima_revisao.isnot(None),
+            Flashcard.ultima_revisao >= ha_7_dias,
+        )
+    ).all()
+
+    if revisados_7d:
+        bons = sum(1 for _, intervalo in revisados_7d if intervalo > 0)
+        taxa_acerto_7d = round(bons / len(revisados_7d), 2)
+    else:
+        taxa_acerto_7d = None
+
+    return {
+        "total_cards": total_cards,
+        "cards_hoje": cards_hoje,
+        "cards_revisados_hoje": cards_revisados_hoje,
+        "taxa_acerto_7d": taxa_acerto_7d,
+    }
+
+
+@router.get("/stats/leitura", response_model=LeituraStats)
+def leitura_stats(session: Session = Depends(get_session)):
+    hoje = date.today()
+    total_acessos = session.exec(select(func.coalesce(func.sum(Nota.acessos), 0))).one()
+    notas_lidas = session.exec(select(func.count(Nota.id)).where(Nota.acessos > 0)).one()
+    top_notas = session.exec(
+        select(Nota.id, Nota.titulo, Nota.acessos).where(Nota.acessos > 0)
+        .order_by(Nota.acessos.desc()).limit(10)
+    ).all()
+    desde = (hoje - timedelta(days=365)).isoformat()
+    dias_acesso = session.exec(
+        select(func.substr(Nota.ultimo_acesso, 1, 10))
+        .where(Nota.ultimo_acesso.isnot(None), Nota.ultimo_acesso >= desde)
+        .distinct()
+    ).all()
+    streak = 0
+    d = hoje
+    dias_set = set(dias_acesso)
+    while d.isoformat() in dias_set:
+        streak += 1
+        d -= timedelta(days=1)
+    return {
+        "total_acessos": total_acessos,
+        "notas_lidas": notas_lidas,
+        "top_notas": [{"id": n.id, "titulo": n.titulo, "acessos": n.acessos} for n in top_notas],
+        "streak_leitura": streak,
     }

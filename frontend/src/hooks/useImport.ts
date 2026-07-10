@@ -15,6 +15,7 @@ export function useImport() {
       const res = await importFile(file)
       setResultado(res)
     } catch (e) {
+      console.error('[useImport]', e)
       setErro(e instanceof Error ? e.message : 'Erro desconhecido')
     } finally {
       setIsLoading(false)

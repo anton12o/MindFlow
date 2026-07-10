@@ -3,7 +3,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { createNota } from '../api/notas'
 import { usePomodoroContext, type Fase, type PomodoroScreen } from '../store/pomodoro'
-import { useNotify } from '../store/notification'
+import { useNotify, useDnd } from '../store/notification'
+import { startAmbient, stopAmbient } from '../utils/ambientSound'
+import { useConfig } from '../store/config'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
@@ -34,6 +36,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     advancePhase, resetTimer, startedAtRef,
     screen, setScreen,
     interrupcoes, setInterrupcoes,
+    distracoes,
     setContexto,
     audioCtxRef,
     saveHeartbeat,
@@ -41,6 +44,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   } = usePomodoroContext()
 
   const notify = useNotify()
+  const setDndActive = useDnd()
   const isCreating = useRef(false)
   const cancelledRef = useRef(false)
   const queryClient = useQueryClient()
@@ -82,28 +86,49 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   }
 
   const [showConfig, setShowConfig] = useState(false)
-  const saveTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const remainingRef = useRef(0)
+  const appConfig = useConfig()
+  useEffect(() => {
+    setDndActive(config.dnd && (screen === 'running' || screen === 'livre'))
+  }, [config.dnd, screen, setDndActive])
+
+  const [ambientOn, setAmbientOn] = useState(false)
+  useEffect(() => {
+    if (!appConfig.config.somAmbiente) {
+      if (ambientOn) { stopAmbient(); setAmbientOn(false) }
+      return
+    }
+    if (screen === 'running' || screen === 'livre') {
+      if (!ambientOn) {
+        const aCtx = audioCtxRef.current
+        if (aCtx && aCtx.state !== 'closed') {
+          startAmbient(aCtx)
+          setAmbientOn(true)
+        }
+      }
+    } else {
+      if (ambientOn) {
+        stopAmbient()
+        setAmbientOn(false)
+      }
+    }
+    return () => { if (ambientOn) { stopAmbient(); setAmbientOn(false) } }
+  }, [screen, appConfig.config.somAmbiente])
+
   const [taskInput, setTaskInput] = useState('')
   const [interrupcaoInput, setInterrupcaoInput] = useState('')
-
-  useEffect(() => {
-    if (saveTimeout.current) clearTimeout(saveTimeout.current)
-    saveTimeout.current = setTimeout(() => {
-      try {
-        localStorage.setItem('mindflow_pomodoro_config', JSON.stringify(config))
-      } catch (e) { console.error('[PomodoroTimer.save]', e) }
-    }, 500)
-    return () => { if (saveTimeout.current) clearTimeout(saveTimeout.current) }
-  }, [config])
 
   const finalizarMut = useMutation({
     mutationFn: (params: { id: number; body: { conteudo_resumo?: string; contexto_nome?: string } }) =>
       finalizarSessao(params.id, params.body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pomodoro', 'sessoes'] })
+      queryClient.invalidateQueries({ queryKey: ['pomodoro', 'stats'] })
+      queryClient.invalidateQueries({ queryKey: ['estatisticas'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-weekly'] })
       queryClient.invalidateQueries({ queryKey: ['notas'] })
     },
+    onError: (e) => { console.error('[PomodoroTimer] finalizar', e); notify('Erro ao finalizar sessão') },
   })
 
   function handleFinalizar(comResumo: boolean) {
@@ -312,6 +337,10 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
                 className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
                 Iniciar
               </button>
+              <button onClick={() => { setMinutos(config.descansoMin); setSegundos(0); toggle() }}
+                className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+                ☕ {config.descansoMin}min
+              </button>
               <button onClick={handleFree}
                 className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
                 Livre
@@ -391,7 +420,12 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       )}
 
       <div className="w-full flex items-center justify-between text-sm">
-        <span className="text-text-muted">{phaseLabels[fase]}</span>
+        <span className="text-text-muted flex items-center gap-2">
+          {phaseLabels[fase]}
+          {(screen === 'running' || screen === 'livre') && appConfig.config.somAmbiente && ambientOn && (
+            <span className="text-xs text-text-muted/60">🔊</span>
+          )}
+        </span>
         {fase === 'foco' && config.ciclosAtePausaLonga > 1 && (
           <span className="text-text-muted">Ciclo {cicloAtual + 1} de {config.ciclosAtePausaLonga}</span>
         )}
@@ -457,13 +491,57 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
                   disabled={ativo}
                 />
               </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Meta diária (min)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="480"
+                  value={config.dailyFocusMin}
+                  onChange={e => setConfig(c => ({ ...c, dailyFocusMin: Math.min(480, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-text-muted mb-1">Descanso (min)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="60"
+                  value={config.descansoMin}
+                  onChange={e => setConfig(c => ({ ...c, descansoMin: Math.min(60, Math.max(1, parseInt(e.target.value) || 1)) }))}
+                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                  disabled={ativo}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-text-muted">Auto-iniciar próximo ciclo</label>
+              <button
+                onClick={() => setConfig(c => ({ ...c, autoStart: !c.autoStart }))}
+                className={`w-10 h-5 rounded-full transition-colors ${config.autoStart ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                disabled={ativo}
+              >
+                <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${config.autoStart ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <label className="text-xs text-text-muted">Não perturbe (suprime notificações)</label>
+              <button
+                onClick={() => setConfig(c => ({ ...c, dnd: !c.dnd }))}
+                className={`w-10 h-5 rounded-full transition-colors ${config.dnd ? 'bg-accent' : 'bg-bg-tertiary'}`}
+                disabled={ativo}
+              >
+                <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${config.dnd ? 'translate-x-5' : 'translate-x-0.5'}`} />
+              </button>
             </div>
             <button
-              onClick={() => setConfig({ focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4 })}
+              onClick={() => setConfig({ focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4, dailyFocusMin: 120, autoStart: false, dnd: false, descansoMin: 5 })}
               className="text-sm text-accent hover:underline self-start"
               disabled={ativo}
             >
-              Restaurar padrão (25 / 5 / 15 / 4)
+              Restaurar padrão
             </button>
           </div>
         )}
@@ -471,6 +549,9 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
 
       {mostrarResumo && !ativo && (
         <div className="w-full max-w-md mt-2">
+          {distracoes > 0 && (
+            <p className="text-xs text-text-muted mb-2">👀 {distracoes} {distracoes === 1 ? 'distração' : 'distrações'}</p>
+          )}
           {interrupcoes.length > 0 && (
             <div className="mb-2 text-xs text-text-muted">
               <p className="font-medium mb-0.5">Distrações registradas:</p>
@@ -509,6 +590,12 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
               {finalizarMut.isPending ? '...' : 'Salvar resumo'}
             </button>
           </div>
+        </div>
+      )}
+
+      {distracoes > 0 && (
+        <div className="text-xs text-text-muted mt-1">
+          👀 {distracoes} {distracoes === 1 ? 'distração' : 'distrações'} durante a sessão
         </div>
       )}
 
@@ -559,32 +646,40 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         </div>
       )}
 
-      {screen === 'pausa_end' && (
+      {screen === 'pausa_end' && !ativo && (
         <div className="w-full max-w-md mt-2 text-center">
-          <p className="text-sm text-text-secondary mb-3">Pausa finalizada. Iniciar próximo foco?</p>
-          <div className="flex gap-2 justify-center">
-            <button
-              onClick={() => {
-                advancePhase()
-                resetTimer()
-                setScreen('idle')
-              }}
-              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
-            >
-              Não, obrigado
-            </button>
-            <button
-              onClick={() => {
-                advancePhase()
-                resetTimer()
-                setScreen('idle')
-                toggle()
-              }}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
-            >
-              Sim, iniciar foco
-            </button>
-          </div>
+          {config.autoStart ? (
+            <div className="animate-fade-in">
+              <p className="text-sm text-text-secondary mb-3">Iniciando próximo foco...</p>
+            </div>
+          ) : (
+            <>
+              <p className="text-sm text-text-secondary mb-3">Pausa finalizada. Iniciar próximo foco?</p>
+              <div className="flex gap-2 justify-center">
+                <button
+                  onClick={() => {
+                    advancePhase()
+                    resetTimer()
+                    setScreen('idle')
+                  }}
+                  className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+                >
+                  Não, obrigado
+                </button>
+                <button
+                  onClick={() => {
+                    advancePhase()
+                    resetTimer()
+                    setScreen('idle')
+                    toggle()
+                  }}
+                  className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+                >
+                  Sim, iniciar foco
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 

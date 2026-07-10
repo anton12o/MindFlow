@@ -1,6 +1,7 @@
 from sqlmodel import select
+
+from models import ConexaoNota, Nota
 from services.notes import extrair_wikilinks, processar_wikilinks
-from models import Nota, ConexaoNota
 
 
 def test_extrair_wikilinks_simples():

@@ -4,3 +4,4 @@ sqlmodel>=0.0.38
 python-multipart>=0.0.12
 alembic>=1.14
 python-dotenv>=1.0
+pyyaml>=6.0

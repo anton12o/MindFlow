@@ -1,8 +1,9 @@
 import { agoraLocal } from './date'
+import { API_BASE } from '../api/client'
 
 export async function logError(message: string, extra?: Record<string, unknown>) {
   try {
-    await fetch('/api/logs', {
+    await fetch(API_BASE + '/logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -19,7 +20,7 @@ export async function logError(message: string, extra?: Record<string, unknown>)
 
 export async function logInfo(message: string, extra?: Record<string, unknown>) {
   try {
-    await fetch('/api/logs', {
+    await fetch(API_BASE + '/logs', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

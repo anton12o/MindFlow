@@ -1,16 +1,16 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
-
 export interface ImportResult {
   sucesso: boolean
   importado_em: string
   tabelas: Record<string, { inseridos: number; atualizados: number }>
 }
 
+import { API_BASE } from './client'
+
 export async function importFile(file: File): Promise<ImportResult> {
   const formData = new FormData()
   formData.append('file', file)
 
-  const res = await fetch(`${API}/import`, {
+  const res = await fetch(API_BASE + '/import', {
     method: 'POST',
     body: formData,
   })

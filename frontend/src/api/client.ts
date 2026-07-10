@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
+export const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController()
@@ -14,7 +14,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
 
   try {
-    const res = await fetch(`${API}${path}`, {
+    const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', ...options?.headers },
       signal: controller.signal,

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState, useMemo } from 'react'
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getWeeklyStats, type DiaStats, type PeriodoStats } from '../api/stats'
 import { createNota } from '../api/notas'
 import { useNavigate } from 'react-router-dom'
@@ -26,11 +26,6 @@ function pct(atual: number, passada: number): string {
   return v >= 0 ? `+${v}%` : `${v}%`
 }
 
-function arrow(passada: number, atual: number): string {
-  if (atual > passada) return '📈'
-  if (atual < passada) return '📉'
-  return '\u2796'
-}
 
 function barWidth(valor: number, max: number) {
   return max > 0 ? `${Math.min(100, Math.round((valor / max) * 100))}%` : '0%'
@@ -81,16 +76,82 @@ function MetricCard({ label, value, passada, suffix = '', title }: {
   const diff = val - passada
   const diffLabel = diff > 0 ? `+${diff}` : diff === 0 ? '0' : `${diff}`
   const diffColor = diff > 0 ? 'text-success' : diff < 0 ? 'text-danger' : 'text-text-muted'
-  const pctLabel = passada === 0 && val === 0 ? '➖' : pct(val, passada)
-  const seta = passada === 0 && val === 0 ? '' : arrow(val, passada)
   return (
-    <div className="bg-bg-secondary/50 rounded-xl p-4" title={title}>
-      <div className="text-xs text-text-muted mb-1">{label}</div>
-      <div className="text-2xl font-bold text-text-primary tabular-nums">{value}</div>
-      <div className={`text-xs mt-1 tabular-nums ${diffColor}`}>
-        {seta} {diffLabel}{suffix} ({pctLabel}) vs semana passada
-      </div>
+    <div className="bg-bg-secondary/50 rounded-xl p-3" title={title}>
+      <div className="text-xs text-text-muted">{label}</div>
+      <div className="text-xl font-bold text-text-primary tabular-nums">{value}{suffix}</div>
+      <div className={`text-xs mt-0.5 tabular-nums ${diffColor}`}>{diffLabel} vs ant.</div>
     </div>
+  )
+}
+
+const METRICAS_EVOL = [
+  { key: 'total_notas' as const, label: 'Notas', cor: 'bg-accent' },
+  { key: 'total_tarefas' as const, label: 'Tarefas', cor: 'bg-success' },
+  { key: 'total_pomodoros' as const, label: 'Pomodoros', cor: 'bg-warning' },
+  { key: 'total_minutos_foco' as const, label: 'Foco (min)', cor: 'bg-danger' },
+]
+
+function EvolucaoSemanal() {
+  const [metrica, setMetrica] = useState('total_notas')
+
+  const results = useQueries({
+    queries: Array.from({ length: 8 }, (_, i) => ({
+      queryKey: ['stats-weekly', -i],
+      queryFn: () => getWeeklyStats(-i),
+      staleTime: 60_000,
+    })),
+  })
+
+  const semanas = useMemo(() => results
+    .filter(r => r.data)
+    .map(r => ({
+      label: formatRange(r.data!.semana.inicio, r.data!.semana.fim),
+      valor: r.data!.semana[metrica as keyof PeriodoStats] as number,
+      inicio: r.data!.semana.inicio,
+    }))
+    .reverse(),
+    [results, metrica]
+  )
+
+  const maxVal = Math.max(...semanas.map(s => s.valor), 1)
+
+  const metricaDef = METRICAS_EVOL.find(m => m.key === metrica) || METRICAS_EVOL[0]
+
+  return (
+    <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Evolução Semanal</h2>
+        <select value={metrica} onChange={e => setMetrica(e.target.value)}
+          className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none text-text-primary">
+          {METRICAS_EVOL.map(m => (
+            <option key={m.key} value={m.key}>{m.label}</option>
+          ))}
+        </select>
+      </div>
+      {results.some(r => r.isLoading) ? (
+        <div className="h-24 animate-pulse bg-bg-tertiary rounded-lg" />
+      ) : semanas.length > 0 ? (
+        <>
+          <div className="flex items-end gap-2 h-32">
+            {semanas.map(s => {
+              const h = maxVal > 0 ? (s.valor / maxVal) * 100 : 0
+              return (
+                <div key={s.inicio} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                  <span className="text-xs text-text-muted tabular-nums">{s.valor}</span>
+                  <div className={`w-full ${metricaDef.cor} rounded-t-sm transition-all`}
+                    style={{ height: `${Math.max(h, s.valor > 0 ? 6 : 0)}%`, minHeight: s.valor > 0 ? '6px' : '0' }}
+                    title={`${metricaDef.label}: ${s.valor}`} />
+                  <span className="text-[9px] text-text-muted leading-none text-center truncate w-full">{s.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-text-muted text-center py-4">Sem dados disponíveis</p>
+      )}
+    </section>
   )
 }
 
@@ -150,7 +211,7 @@ export default function RevisaoSemanal() {
   const queryClient = useQueryClient()
   const notify = useNotify()
 
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['stats-weekly', offset],
     queryFn: () => getWeeklyStats(offset),
     staleTime: 60_000,
@@ -226,7 +287,7 @@ export default function RevisaoSemanal() {
     return (
       <div className="p-6 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Revisão Semanal</h1>
-        <p className="text-danger">Erro ao carregar dados da semana.</p>
+        <p className="text-danger">Erro ao carregar dados da semana. <button onClick={() => refetch()} className="text-accent hover:underline ml-2">Tentar novamente</button></p>
       </div>
     )
   }
@@ -283,21 +344,21 @@ export default function RevisaoSemanal() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => criarRevisao.mutate()}
+            disabled={criarRevisao.isPending}
+            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-all active:scale-95"
+          >
+            {criarRevisao.isPending ? 'Criando...' : 'Criar nota de revisão'}
+          </button>
+          <button
             onClick={() => {
               const md = gerarMD(semana, semana_passada, streak_atual, total_habitos_ativos)
               downloadBlob(md, `revisao-semanal-${semana.inicio}.md`, 'text/markdown')
             }}
-            className="px-3 py-1.5 text-sm bg-bg-hover text-text-primary rounded-lg hover:bg-bg-secondary transition-colors"
+            className="text-xs text-text-muted hover:text-accent transition-colors"
             title="Exportar como Markdown"
           >
-            🗥 .md
-          </button>
-          <button
-            onClick={() => criarRevisao.mutate()}
-            disabled={criarRevisao.isPending}
-            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
-          >
-            {criarRevisao.isPending ? 'Criando...' : 'Criar nota de revisão'}
+            .md
           </button>
           <div className="flex items-center gap-2 text-sm text-text-muted">
             <span className="inline-block w-2 h-2 rounded-full bg-accent" title="Streak de atividade" />
@@ -307,11 +368,11 @@ export default function RevisaoSemanal() {
         </div>
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-2">
         <MetricCard label="Notas" value={semana.total_notas} passada={semana_passada.total_notas} title="Baseado em criado_em" />
         <MetricCard label="Tarefas" value={semana.total_tarefas} passada={semana_passada.total_tarefas} title="Baseado em data (concluída)" />
         <MetricCard label="Pomodoros" value={semana.total_pomodoros} passada={semana_passada.total_pomodoros} title="Baseado em finalizado_em" />
-        <MetricCard label="Foco" value={`${semana.total_minutos_foco}min`} passada={semana_passada.total_minutos_foco} suffix="min" title="Soma de duracao_min por finalizado_em" />
+        <MetricCard label="Foco" value={semana.total_minutos_foco} passada={semana_passada.total_minutos_foco} suffix="min" title="Soma de duracao_min por finalizado_em" />
       </div>
 
       <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
@@ -344,7 +405,7 @@ export default function RevisaoSemanal() {
         <div className="w-full h-2 bg-bg-hover rounded-full overflow-hidden">
           <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${score.total}%` }} />
         </div>
-        <div className="grid grid-cols-4 gap-2 text-xs">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           {(['foco', 'tarefas', 'habitos', 'notas'] as ScoreKey[]).map(k => (
             <div key={k} className="text-center">
               <div className="text-text-muted capitalize">{k}</div>
@@ -399,6 +460,9 @@ export default function RevisaoSemanal() {
         </div>
       </section>
 
+      {/* Evolução semanal */}
+      <EvolucaoSemanal />
+
       <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-2">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Detalhamento diário</h2>
         <div className="space-y-1">
@@ -431,7 +495,7 @@ export default function RevisaoSemanal() {
           <button
             onClick={() => salvarReflexao.mutate()}
             disabled={salvarReflexao.isPending || respostas.every(r => !r.trim())}
-            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-colors"
+            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-all active:scale-95"
           >
             {salvarReflexao.isPending ? 'Salvando...' : 'Salvar reflexão'}
           </button>

@@ -13,6 +13,19 @@ venv/
 opencode.json
 AGENTS.md
 
+# Caches e artefatos
+.pytest_cache/
+.ruff_cache/
+cov_*.txt
+coverage_*.txt
+pytest_*.txt
+nul
+
+docs/doc antigo/
+logs/
+dist/MindFlow.exe
+docs/.mindflow_owner
+
 # Resíduos de script externo
 generate-spec.js
 /package.json
@@ -22,4 +35,16 @@ check_bits.py
 check_remaining.py
 fix_encoding.py
 fix_remaining.py
-docs/doc antigo/
+
+# Docs de agente (mudam toda sessão — não versionar)
+docs/memoria/
+docs/session/
+docs/OpencodeXFreebuff/
+docs/.doc-legado/
+docs/Skills/
+docs/imagemapp/
+docs/cerebro.md
+
+# Build output + temporários
+build/
+test_output.txt

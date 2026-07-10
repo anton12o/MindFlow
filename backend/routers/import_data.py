@@ -2,16 +2,30 @@ import asyncio
 import json
 import logging
 import re
-from datetime import datetime, date
+from datetime import date, datetime
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import Session, select, text
+
 from database import engine
 from models import (
-    InboxItem, Habito, RegistroHabito, BlocoRotina, Tarefa,
-    SessaoPomodoro, Nota, ConexaoNota, Pasta, Tag, NotaTag,
-    Flashcard, TemplateNota, TipoObjeto, QuerySalva,
+    BlocoRotina,
+    ConexaoNota,
+    Flashcard,
+    Habito,
+    InboxItem,
+    Nota,
+    NotaTag,
+    Pasta,
+    QuerySalva,
+    RegistroHabito,
+    SessaoPomodoro,
+    Tag,
+    Tarefa,
+    TemplateNota,
+    TipoObjeto,
 )
+from rate_limiter import import_limiter
 
 logger = logging.getLogger(__name__)
 
@@ -106,10 +120,10 @@ def _topological_sort_pastas(pastas: list[dict]) -> list[dict]:
 
 
 @router.post("")
-async def import_data(file: UploadFile):
+async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
     try:
         contents = await asyncio.wait_for(asyncio.to_thread(file.file.read), timeout=30)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         raise HTTPException(408, "Tempo limite excedido ao receber arquivo")
 
     if len(contents) > MAX_FILE_SIZE:
