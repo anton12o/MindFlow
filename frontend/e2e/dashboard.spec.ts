@@ -3,36 +3,36 @@ import { test, expect } from '@playwright/test'
 test('dashboard carrega metricas principais', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.locator('text=Notas')).toBeVisible()
-  await expect(page.locator('text=Tarefas')).toBeVisible()
-  await expect(page.locator('text=Flashcards')).toBeVisible()
-  await expect(page.locator('text=Sessões')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Notas' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Rotina' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Flashcards' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Hábitos' })).toBeVisible()
 })
 
 test('dashboard mostra habitos ativos', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.locator('text=📥 Inbox')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Inbox' })).toBeVisible()
 })
 
 test('navega para rotina pela sidebar', async ({ page }) => {
   await page.goto('/')
 
-  await page.click('[title="Rotina"]')
+  await page.getByRole('button', { name: 'Rotina' }).click()
   await expect(page).toHaveURL(/\/rotina/)
   await expect(page.locator('h1')).toContainText('Rotina')
 })
 
-test('inbox button esta presente', async ({ page }) => {
+test('sidebar captura rapida esta presente', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.locator('button:has-text("Abrir inbox")')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Captura rápida' })).toBeVisible()
 })
 
 test('tour pode ser aberto e navegado', async ({ page }) => {
   await page.goto('/')
 
-  const ajudaBtn = page.locator('button[title="Ajuda / Tour"]')
+  const ajudaBtn = page.getByRole('button', { name: /(Ajuda|Tour)/ })
   if (await ajudaBtn.isVisible()) {
     await ajudaBtn.click()
     await expect(page.locator('text=Bem-vindo ao MindFlow')).toBeVisible()
