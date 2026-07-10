@@ -42,9 +42,28 @@ export const updateTag = (id: number, data: Partial<Tag>) =>
   request<Tag>(`/notas/tags/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
 export const getNotaTags = (notaId: number) =>
   request<Tag[]>(`/notas/${notaId}/tags`)
+export const deleteTag = (id: number) =>
+  request<{ ok: boolean }>(`/notas/tags/${id}`, { method: 'DELETE' })
+export const getTagsByNotaIds = (ids: number[]) =>
+  request<Record<number, Tag[]>>('/notas/tags-by-ids', { method: 'POST', body: JSON.stringify(ids) })
+export const mergeTags = (origemId: number, destinoId: number) =>
+  request<{ ok: boolean }>('/notas/tags/merge', { method: 'POST', body: JSON.stringify({ origem_id: origemId, destino_id: destinoId }) })
 
 export const favoritarNota = (id: number) =>
   request<Nota>(`/notas/${id}/favoritar`, { method: 'PATCH' })
 
 export const batchDeleteNotas = (ids: number[]) =>
   request<{ ok: boolean; deleted: number }>('/notas/batch/delete', { method: 'POST', body: JSON.stringify({ ids }) })
+
+export const getNotasNaoAcessadas = (dias = 30) =>
+  request<Nota[]>(`/notas/nao-acessadas?dias=${dias}`)
+
+export const sugerirTags = (notaId: number) =>
+  request<{ tag_id: number; score: number }[]>(`/notas/${notaId}/sugerir-tags`, { method: 'POST' })
+export const getNotasRelacionadas = (notaId: number) =>
+  request<{ id: number; titulo: string; tags_compartilhadas: number; similaridade: number }[]>(`/notas/${notaId}/relacionadas`)
+export const addTagToNota = (notaId: number, tagId: number) =>
+  request<{ ok: boolean }>(`/notas/${notaId}/tags/${tagId}`, { method: 'POST' })
+
+export const createFromWikilink = (titulo: string) =>
+  request<Nota>('/notas/from-wikilink', { method: 'POST', body: JSON.stringify({ titulo }) })

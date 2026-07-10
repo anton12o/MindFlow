@@ -24,3 +24,6 @@ export const updateTarefa = (id: number, data: Partial<Tarefa>) =>
 
 export const deleteTarefa = (id: number) =>
   request<{ ok: boolean }>(`/rotina/tarefas/${id}`, { method: 'DELETE' })
+
+export const reorderTarefas = (items: { id: number; ordem: number }[]) =>
+  request<{ ok: boolean }>('/rotina/tarefas/reorder', { method: 'PATCH', body: JSON.stringify(items) })

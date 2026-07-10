@@ -1,9 +1,11 @@
-import re
 import logging
+import re
 from datetime import datetime
 from urllib.parse import urlparse
-from sqlmodel import Session, select, or_
-from models import Nota, ConexaoNota, NotaTag, Flashcard, SessaoPomodoro
+
+from sqlmodel import Session, or_, select
+
+from models import ConexaoNota, Flashcard, Nota, NotaTag, SessaoPomodoro
 
 logger = logging.getLogger(__name__)
 
@@ -77,22 +79,33 @@ def processar_wikilinks(nota_id: int, conteudo: str | None, session: Session):
     for conn in existing:
         session.delete(conn)
 
-    for title in extrair_wikilinks(conteudo):
+    titles = extrair_wikilinks(conteudo)
+    if not titles:
+        return
+
+    targets = session.exec(
+        select(Nota).where(Nota.titulo.in_(titles))
+    ).all()
+
+    found: dict[str, int] = {t.titulo: t.id for t in targets}
+
+    remaining = [t for t in titles if t not in found]
+    for title in remaining:
+        escaped = title.replace('%', '\\%').replace('_', '\\_')
         target = session.exec(
-            select(Nota).where(Nota.titulo == title)
+            select(Nota).where(Nota.titulo.ilike(escaped, escape='\\'))
         ).first()
-        if not target:
-            escaped = title.replace('%', '\\%').replace('_', '\\_')
-            target = session.exec(
-                select(Nota).where(Nota.titulo.ilike(escaped, escape='\\'))
-            ).first()
         if target and target.id != nota_id:
-            conn = ConexaoNota(
+            found[title] = int(target.id)
+
+    for title in titles:
+        target_id = found.get(title)
+        if target_id is not None and target_id != nota_id:
+            session.add(ConexaoNota(
                 nota_origem_id=nota_id,
-                nota_destino_id=target.id,
+                nota_destino_id=target_id,
                 tipo="wikilink",
-            )
-            session.add(conn)
+            ))
 
 
 def criar_nota_resumo(conteudo_resumo: str, session: Session, contexto_nome: str | None = None) -> Nota:

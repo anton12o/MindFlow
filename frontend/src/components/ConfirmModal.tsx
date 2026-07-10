@@ -27,13 +27,13 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
   }, [onCancel])
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onCancel}>
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
       <div ref={modalRef}
         className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-sm mx-4 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-4">
-          <h3 className="text-base font-semibold mb-2">{titulo}</h3>
+          <h3 id="confirm-modal-title" className="text-base font-semibold mb-2">{titulo}</h3>
           <p className="text-sm text-text-muted">{mensagem}</p>
         </div>
         <div className="flex justify-end gap-2 px-5 pb-4">

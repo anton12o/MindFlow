@@ -16,6 +16,12 @@ export const deleteHabito = (id: number) =>
 export const getRegistros = (habitoId: number) =>
   request<RegistroHabito[]>(`/habitos/${habitoId}/registros`)
 
+export const getRegistrosBatch = (ids: number[]) =>
+  request<Record<number, RegistroHabito[]>>('/habitos/registros/batch', {
+    method: 'POST',
+    body: JSON.stringify({ ids }),
+  })
+
 export const createRegistro = (habitoId: number, data: Partial<RegistroHabito>) =>
   request<RegistroHabito>(`/habitos/${habitoId}/registros`, { method: 'POST', body: JSON.stringify(data) })
 

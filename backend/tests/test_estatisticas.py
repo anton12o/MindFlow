@@ -1,6 +1,7 @@
 from datetime import date, timedelta
-from services.estatisticas import calcular_estatisticas
+
 from models import Nota
+from services.estatisticas import calcular_estatisticas
 
 
 def test_mes_sem_notas(session):

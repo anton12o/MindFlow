@@ -2,10 +2,13 @@ import { useState, useEffect, startTransition } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { getSessoes, deleteSessoes } from '../api/pomodoro'
+import { getPomodoroStats } from '../api/stats'
 import { getHabitos } from '../api/habitos'
 import { getTarefas } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
 import ConfirmModal from '../components/ConfirmModal'
+import { usePomodoroContext } from '../store/pomodoro'
+import { useNotify } from '../store/notification'
 import { hojeLocal } from '../utils/date'
 export default function PomodoroPage() {
   const [searchParams] = useSearchParams()
@@ -22,42 +25,85 @@ export default function PomodoroPage() {
   const [cleanupDate, setCleanupDate] = useState('')
   const [confirmCleanup, setConfirmCleanup] = useState(false)
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const hoje = hojeLocal()
   const { data: sessoes, isLoading: sLoad, isError: sErr } = useQuery({
     queryKey: ['pomodoro', 'sessoes'],
     queryFn: getSessoes,
+    staleTime: 15_000,
   })
   const cleanupMut = useMutation({
     mutationFn: () => deleteSessoes(cleanupDate || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pomodoro', 'sessoes'] })
+      queryClient.invalidateQueries({ queryKey: ['pomodoro', 'stats'] })
+      queryClient.invalidateQueries({ queryKey: ['estatisticas'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-weekly'] })
       setShowCleanup(false)
       setCleanupDate('')
       setConfirmCleanup(false)
     },
+    onError: (e) => { console.error('[Pomodoro] cleanup', e); notify('Erro ao limpar sessões') },
   })
   const { data: habitos, isLoading: hLoad, isError: hErr } = useQuery({
     queryKey: ['habitos'],
     queryFn: () => getHabitos(true),
+    staleTime: 60_000,
   })
   const { data: tarefas, isLoading: tLoad, isError: tErr } = useQuery({
     queryKey: ['tarefas', hoje],
     queryFn: () => getTarefas(hoje),
   })
+
+  const { data: pStats, isLoading: pLoad } = useQuery({
+    queryKey: ['pomodoro', 'stats'],
+    queryFn: getPomodoroStats,
+    staleTime: 15_000,
+  })
+
+  const { config } = usePomodoroContext()
+  const metaPct = pStats ? Math.min(100, Math.round((pStats.total_min_hoje / config.dailyFocusMin) * 100)) : 0
+
   return (
-    <div className="p-6 max-w-4xl">
+    <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Pomodoro + Foco</h1>
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6 text-center">
         <PomodoroTimer contexto={contexto} onFinalizar={() => setContexto(undefined)} />
       </div>
+      <div className="grid grid-cols-3 gap-3 mb-6">
+        <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
+          <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.total_min_hoje ?? 0}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wider">Min hoje</p>
+        </div>
+        <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
+          <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.total_sessoes_hoje ?? 0}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wider">Sessões</p>
+        </div>
+        <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
+          <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.streak_dias ?? 0}</p>
+          <p className="text-xs text-text-muted uppercase tracking-wider">Dias 🔥</p>
+        </div>
+      </div>
+
+      <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 mb-6">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-xs text-text-muted uppercase tracking-wider">Meta diária</span>
+          <span className="text-xs text-text-muted">{pStats?.total_min_hoje ?? 0} / {config.dailyFocusMin} min ({metaPct}%)</span>
+        </div>
+        <div className="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden">
+          <div className={`h-full rounded-full transition-all duration-300 ${metaPct >= 100 ? 'bg-success' : 'bg-accent'}`}
+            style={{ width: `${metaPct}%` }} />
+        </div>
+      </div>
+
       {!contexto && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de um hábito</h2>
-            {hLoad && <p className="text-sm text-text-muted py-2 animate-pulse">Carregando...</p>}
-            {hErr && <p className="text-sm text-danger py-2">Erro ao carregar hábitos</p>}
+            {hLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
+            {hErr && <p className="text-sm text-danger py-4">Erro ao carregar hábitos</p>}
             {!hLoad && !hErr && (!habitos || habitos.filter(h => h.ativo).length === 0) && (
-              <p className="text-sm text-text-muted py-2">Nenhum hábito ativo</p>
+              <p className="text-sm text-text-muted py-4">Nenhum hábito ativo</p>
             )}
             {!hLoad && !hErr && habitos?.filter(h => h.ativo).map(h => (
               <button key={h.id} onClick={() => setContexto({ tipo: 'habito', id: h.id, nome: h.nome })}
@@ -68,10 +114,10 @@ export default function PomodoroPage() {
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de uma tarefa</h2>
-            {tLoad && <p className="text-sm text-text-muted py-2 animate-pulse">Carregando...</p>}
-            {tErr && <p className="text-sm text-danger py-2">Erro ao carregar tarefas</p>}
+            {tLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
+            {tErr && <p className="text-sm text-danger py-4">Erro ao carregar tarefas</p>}
             {!tLoad && !tErr && (!tarefas || tarefas.filter(t => t.status !== 'feito').length === 0) && (
-              <p className="text-sm text-text-muted py-2">Nenhuma tarefa pendente</p>
+              <p className="text-sm text-text-muted py-4">Nenhuma tarefa pendente</p>
             )}
             {!tLoad && !tErr && tarefas?.filter(t => t.status !== 'feito').map(t => (
               <button key={t.id} onClick={() => setContexto({ tipo: 'tarefa', id: t.id, nome: t.titulo })}

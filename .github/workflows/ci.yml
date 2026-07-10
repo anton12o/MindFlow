@@ -87,3 +87,26 @@ jobs:
         cache-dependency-path: "frontend/package-lock.json"
     - run: npm ci
     - run: npx vite build
+
+  e2e-frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+        cache: 'pip'
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+        cache: 'npm'
+        cache-dependency-path: "frontend/package-lock.json"
+    - run: pip install -r ../backend/requirements-dev.txt
+    - run: cd ../backend && nohup python -m uvicorn main:app --port 8000 > /tmp/backend.log 2>&1 &
+    - run: npm ci
+    - run: npx playwright install chromium
+    - run: npx playwright test

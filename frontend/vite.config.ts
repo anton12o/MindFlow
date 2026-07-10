@@ -20,6 +20,14 @@ function swVersionPlugin(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), swVersionPlugin()],
   publicDir: 'public',
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   build: {
     rollupOptions: {
       output: {

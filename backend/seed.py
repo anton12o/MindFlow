@@ -1,7 +1,9 @@
 import logging
+
+from sqlmodel import Session, select
+
 from database import engine
-from models import TemplateNota, TipoObjeto, Nota, Tarefa
-from sqlmodel import Session, select, func
+from models import TemplateNota, TipoObjeto
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +23,7 @@ TEMPLATES_PADRAO = [
 SCHEMA_CAMPOS_PADRAO = {
     "Tarefa": {
         "status": {"type": "select", "options": ["pendente", "em_andamento", "feito"]},
-        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa"]},
+        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa", "urgente"]},
         "vencimento": {"type": "date"},
         "estimativa": {"type": "number"},
     },
@@ -44,7 +46,7 @@ SCHEMA_CAMPOS_PADRAO = {
         "status": {"type": "select", "options": ["planejando", "ativo", "concluido", "pausado"]},
         "data_inicio": {"type": "date"},
         "data_fim": {"type": "date"},
-        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa"]},
+        "prioridade": {"type": "select", "options": ["alta", "normal", "baixa", "urgente"]},
     },
 }
 
@@ -72,30 +74,6 @@ def seed_tipos(session: Session):
         for t in TIPOS_PADRAO:
             schema = SCHEMA_CAMPOS_PADRAO.get(t["nome"], {})
             session.add(TipoObjeto(nome=t["nome"], icone=t["icone"], schema_campos=schema))
-        session.commit()
-    else:
-        # Atualizar schema_campos dos tipos existentes se vazio
-        tipos = session.exec(select(TipoObjeto)).all()
-        for t in tipos:
-            if not t.schema_campos:
-                schema = SCHEMA_CAMPOS_PADRAO.get(t.nome, {})
-                if schema:
-                    t.schema_campos = schema
-                    session.add(t)
-        # Remover tipos de teste sem schema_campos
-        nomes_padrao = {tp["nome"] for tp in TIPOS_PADRAO}
-        for t in tipos:
-            if t.nome not in nomes_padrao and not t.schema_campos:
-                session.delete(t)
-        # Remover tipos de teste explícitos (apenas se sem referências FK)
-        tipos_teste = ["Pessoa", "Recurso", "TipoImp"]
-        for t in tipos:
-            if t.nome in tipos_teste:
-                notas_ref = session.exec(select(func.count(Nota.id)).where(Nota.tipo_id == t.id)).one()
-                tarefas_ref = session.exec(select(func.count(Tarefa.id)).where(Tarefa.tipo_id == t.id)).one()
-                if notas_ref == 0 and tarefas_ref == 0:
-                    session.delete(t)
-                    logger.info("Tipo de teste removido: %s", t.nome)
         session.commit()
 
 

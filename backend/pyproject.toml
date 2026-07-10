@@ -1,0 +1,26 @@
+[tool.ruff]
+line-length = 200
+exclude = ["migrations/"]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W", "UP"]
+
+[tool.pytest.ini_options]
+timeout = 15
+asyncio_mode = "auto"
+filterwarnings = [
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["."]
+omit = ["tests/*", "migrations/*", "_version.py"]
+
+[tool.coverage.report]
+fail_under = 50
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    'if __name__ == "__main__":',
+]

@@ -1,0 +1,86 @@
+### Health check
+GET http://localhost:8787/api/health
+
+### Listar notas
+GET http://localhost:8787/api/notas?limit=10&offset=0
+
+### Listar notas por ordenação
+GET http://localhost:8787/api/notas?sort=titulo&limit=10
+
+### Criar nota
+POST http://localhost:8787/api/notas
+Content-Type: application/json
+
+{"titulo": "Nota de teste", "conteudo": "Conteúdo da nota de teste"}
+
+### Obter nota por ID
+GET http://localhost:8787/api/notas/1
+
+### Atualizar nota
+PATCH http://localhost:8787/api/notas/1
+Content-Type: application/json
+
+{"titulo": "Título atualizado"}
+
+### Excluir nota
+DELETE http://localhost:8787/api/notas/1
+
+### Listar hábitos com ordenação
+GET http://localhost:8787/api/habitos?ativos=true&sort=nome&dir=asc
+
+### Listar tarefas do dia
+GET http://localhost:8787/api/rotina/tarefas?data=2026-06-25&sort=titulo&dir=asc
+
+### Listar blocos da rotina
+GET http://localhost:8787/api/rotina/blocos?data=2026-06-25&sort=hora_inicio&dir=asc
+
+### Dashboard stats
+GET http://localhost:8787/api/stats/dashboard
+
+### Listar sessões pomodoro
+GET http://localhost:8787/api/pomodoro/sessoes?limit=10&offset=0
+
+### Busca full-text
+GET http://localhost:8787/api/search?q=teste
+
+### Listar flashcards para revisão
+GET http://localhost:8787/api/flashcards/review?limit=20&offset=0
+
+### Listar flashcards com ordenação
+GET http://localhost:8787/api/flashcards?sort=pergunta&dir=asc
+
+### Listar registros de hábito
+GET http://localhost:8787/api/habitos/1/registros?limit=30&offset=0
+
+### Listar conexões de nota
+GET http://localhost:8787/api/notas/1/conexoes?limit=50&offset=0
+
+### Exportar dados completos
+GET http://localhost:8787/api/export
+
+### Listar templates
+GET http://localhost:8787/api/notas/templates
+
+### Listar tags
+GET http://localhost:8787/api/notas/tags
+
+### Listar pastas
+GET http://localhost:8787/api/notas/pastas
+
+### Listar tipos
+GET http://localhost:8787/api/tipos
+
+### Listar queries salvas
+GET http://localhost:8787/api/queries
+
+### Gerar nota aleatória
+GET http://localhost:8787/api/notas/random
+
+### Listar consultas salvas
+GET http://localhost:8787/api/queries?limit=50
+
+### Inbox
+GET http://localhost:8787/api/inbox?arquivado=false
+
+### Estatísticas semanais
+GET http://localhost:8787/api/stats/weekly

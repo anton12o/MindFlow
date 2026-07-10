@@ -1,11 +1,15 @@
 import logging
 import re
 from typing import Any
-from fastapi import APIRouter, Depends, HTTPException
-from sqlmodel import Session, select, SQLModel
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
+from sqlmodel import Session, SQLModel, select
+
 from database import get_session
-from models import QuerySalva, QuerySalvaCreate, QuerySalvaRead, Nota, Tarefa, TipoObjeto
+from models import Nota, QuerySalva, QuerySalvaCreate, QuerySalvaRead, Tarefa, TipoObjeto
+
+from .common import commit_with_handle
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +32,8 @@ DATA_FILTER_MAP = {
 }
 
 @router.get("", response_model=list[QuerySalvaRead])
-def list_queries(session: Session = Depends(get_session)):
-    return session.exec(select(QuerySalva)).all()
+def list_queries(limit: int = Query(default=200, ge=1, le=1000), offset: int = Query(default=0, ge=0), session: Session = Depends(get_session)):
+    return session.exec(select(QuerySalva).offset(offset).limit(limit)).all()
 
 @router.post("", response_model=QuerySalvaRead)
 def create_query(q: QuerySalvaCreate, session: Session = Depends(get_session)):
@@ -37,8 +41,7 @@ def create_query(q: QuerySalvaCreate, session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="Tipo não encontrado")
     db = QuerySalva(**q.model_dump())
     session.add(db)
-    session.commit()
-    session.refresh(db)
+    commit_with_handle(session, db, "criar consulta")
     return db
 
 @router.get("/{query_id}", response_model=QuerySalvaRead)
@@ -60,7 +63,7 @@ def delete_query(query_id: int, session: Session = Depends(get_session)):
     if not db:
         raise HTTPException(status_code=404, detail="Consulta não encontrada")
     session.delete(db)
-    session.commit()
+    commit_with_handle(session, context="excluir consulta")
     return {"ok": True}
 class ExecutarResult(SQLModel):
     tipo: str
@@ -123,10 +126,8 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
         if gantt:
             if not q.campo_agrupamento:
                 raise HTTPException(status_code=422, detail="Query precisa de campo_agrupamento. Clique em Editar para configurar.")
-            campo_inicio = "data_inicio"
-            campo_fim = "data_fim"
             stmt = stmt.where(
-                text(f"propriedades->>'{campo_inicio}' IS NOT NULL AND propriedades->>'{campo_fim}' IS NOT NULL")
+                text("propriedades->>'data_inicio' IS NOT NULL AND propriedades->>'data_fim' IS NOT NULL")
             )
         dados = session.exec(stmt).all()
         total = len(dados)
@@ -157,5 +158,5 @@ def batch_edit(query_id: int, batch: BatchInput, session: Session = Depends(get_
         for k, v in alteracoes_validas.items():
             setattr(db, k, v)
         session.add(db)
-    session.commit()
+    commit_with_handle(session, context="editar em lote")
     return {"ok": True}

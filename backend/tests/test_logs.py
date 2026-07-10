@@ -55,3 +55,11 @@ def test_delete_logs(client):
     assert r.status_code == 200
     r = client.get("/api/logs")
     assert r.json()["total"] == 0
+
+
+def test_delete_logs_after_post(client):
+    client.post("/api/logs", json={"message": "x", "context": "t"})
+    r = client.delete("/api/logs")
+    assert r.status_code == 200
+    r2 = client.get("/api/logs")
+    assert r2.json()["total"] == 0

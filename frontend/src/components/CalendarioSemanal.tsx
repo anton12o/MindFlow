@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, getTarefas, updateBloco } from '../api/rotina'
 import { formatDateLocal, hojeLocal } from '../utils/date'
+import { useNotify } from '../store/notification'
 import { DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import {
   SortableContext,
@@ -47,11 +48,13 @@ export default function CalendarioSemanal() {
   })
   const [showRecurrentModal, setShowRecurrentModal] = useState<{ blocoId: number; diaIdx: number; novaHoraInicio: string; novaHoraFim: string } | null>(null)
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const updateBlocoMut = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<BlocoRotina> }) => updateBloco(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['rotina', 'blocos'] })
     },
+    onError: (e) => { console.error('[CalendarioSemanal] updateBloco', e); notify('Erro ao salvar bloco') },
   })
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

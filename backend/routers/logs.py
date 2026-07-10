@@ -1,4 +1,5 @@
 import logging
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -22,7 +23,8 @@ def get_logs(n: int = 50, level: str | None = None):
 
     try:
         lines = LOG_FILE.read_text(encoding="utf-8").strip().split("\n")
-    except Exception:
+    except Exception as e:
+        logger.warning("[logs.get_logs] erro ao ler arquivo de log: %s", e)
         return {"entries": [], "total": 0}
     entries = []
     for line in reversed(lines):

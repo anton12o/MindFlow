@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRegistros, createRegistro, deleteRegistro } from '../api/habitos'
+import { useNotify } from '../store/notification'
 import type { RegistroHabito } from '../types'
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
@@ -10,6 +11,7 @@ interface Props {
 }
 export default function HabitoCalendario({ habitoId, cor }: Props) {
   const queryClient = useQueryClient()
+  const notify = useNotify()
   const hoje = new Date()
   const [monthOffset, setMonthOffset] = useState(0)
   const ano = hoje.getFullYear()
@@ -27,12 +29,14 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registros', habitoId] })
     },
+    onError: (e) => { console.error('[HabitoCalendario] create', e); notify('Erro ao registrar hábito') },
   })
   const deleteMut = useMutation({
     mutationFn: (data: string) => deleteRegistro(habitoId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['registros', habitoId] })
     },
+    onError: (e) => { console.error('[HabitoCalendario] delete', e); notify('Erro ao remover registro') },
   })
   const primeiroDia = new Date(safeAno, safeMes, 1).getDay()
   const diasNoMes = new Date(safeAno, safeMes + 1, 0).getDate()

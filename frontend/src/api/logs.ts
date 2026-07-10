@@ -52,7 +52,8 @@ async function flush() {
       body: JSON.stringify(batch.length === 1 ? batch[0] : batch),
     })
     consecutiveFailures = 0
-  } catch {
+  } catch (e) {
+    console.error('[logs.flush]', e)
     consecutiveFailures++
     if (consecutiveFailures < 3) {
       queue.unshift(...batch)

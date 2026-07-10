@@ -17,6 +17,7 @@ export interface Habito {
   cor: string | null
   ativo: boolean
   criado_em: string
+  dias_semana?: string | null
 }
 
 export interface RegistroHabito {
@@ -50,6 +51,12 @@ export interface Tarefa {
   tipo_id: number | null
   criado_em: string
   propriedades?: Record<string, unknown>
+  recorrente?: boolean
+  recorrencia_tipo?: string | null
+  recorrencia_intervalo?: number | null
+  descricao?: string | null
+  ordem?: number | null
+  total_foco_min?: number
 }
 
 export interface SessaoPomodoro {
@@ -84,6 +91,7 @@ export interface TipoObjeto {
   schema_campos: Record<string, unknown>
   schema_relacoes: Record<string, unknown>
   criado_em: string
+  contagem?: number
 }
 
 export interface Pasta {
@@ -118,9 +126,10 @@ export interface ConexaoNota {
 
 export interface Flashcard {
   id: number
-  nota_id: number
+  nota_id: number | null
   pergunta: string
   resposta: string
+  categoria?: string | null
   intervalo: number
   facilidade: number
   revisoes: number
@@ -141,4 +150,49 @@ export interface Template {
   conteudo: string
   propriedades: Record<string, unknown>
   criado_em: string
+}
+
+export interface Config {
+  tema: 'claro' | 'escuro' | 'sistema'
+  fonteTamanho: number
+  fonteFamilia: string
+  zoom: number
+  autoSaveInterval: number
+  hiddenSections: string[]
+  somAmbiente: boolean
+}
+
+export interface IdeasToolbarProps {
+  onNewNota: () => void
+  onSearch: () => void
+  onLocalTemplate: () => void
+  onServerTemplate: () => void
+  onGraph: () => void
+
+  selectedCount: number
+  onArchiveSelected: () => void
+  onDeleteSelected: () => void
+  onSelectMode: (enabled: boolean) => void
+
+  showFavoritas: boolean
+  onToggleFavoritas: () => void
+  tags: Tag[]
+  tagFilter: number[]
+  onToggleTag: (id: number) => void
+  onClearTags: () => void
+
+  pastaFilter: number | null
+  pastas: Pasta[]
+  onSelectPasta: (id: number | null) => void
+
+  isOnline: boolean
+
+  onSort?: (field: string) => void
+  onExport?: () => void
+  onImport?: (file: File) => void
+  onSavedFilters?: () => void
+  onDailyNote?: () => void
+  onRevealInExplorer?: () => void
+  onToggleView?: () => void
+  isViewMode?: boolean
 }

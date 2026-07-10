@@ -1,13 +1,73 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getGrafo, type GrafoNode } from '../api/grafo'
-import * as d3 from 'd3-force'
 
 interface SimNode extends GrafoNode {
   x: number
   y: number
   vx: number
   vy: number
+}
+
+function forceLayout(nodes: SimNode[], links: { source: number; target: number }[], width: number, height: number) {
+  const area = width * height
+  const k = Math.sqrt(area / nodes.length)
+  const iterations = 120
+  const gravity = 0.05
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const cooling = 1 - iter / iterations
+    const forces: { fx: number; fy: number }[] = nodes.map(() => ({ fx: 0, fy: 0 }))
+
+    const nodeMap = new Map(nodes.map(n => [n.id, n]))
+    const validLinks = links.filter(l => nodeMap.has(l.source) && nodeMap.has(l.target))
+
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[j].x - nodes[i].x
+        let dy = nodes[j].y - nodes[i].y
+        let dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < 1) { dist = 1; dx = Math.random() - 0.5; dy = Math.random() - 0.5 }
+        const repForce = (k * k) / dist
+        forces[i].fx -= (dx / dist) * repForce
+        forces[i].fy -= (dy / dist) * repForce
+        forces[j].fx += (dx / dist) * repForce
+        forces[j].fy += (dy / dist) * repForce
+      }
+    }
+
+    for (const l of validLinks) {
+      const s = nodeMap.get(l.source)!
+      const t = nodeMap.get(l.target)!
+      const dx = t.x - s.x
+      const dy = t.y - s.y
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1
+      const attrForce = (dist * dist) / k * 0.5
+      const si = nodes.indexOf(s)
+      const ti = nodes.indexOf(t)
+      forces[si].fx += (dx / dist) * attrForce
+      forces[si].fy += (dy / dist) * attrForce
+      forces[ti].fx -= (dx / dist) * attrForce
+      forces[ti].fy -= (dy / dist) * attrForce
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+      forces[i].fx -= (nodes[i].x - width / 2) * gravity
+      forces[i].fy -= (nodes[i].y - height / 2) * gravity
+
+      const displacement = Math.sqrt(forces[i].fx * forces[i].fx + forces[i].fy * forces[i].fy)
+      const maxDisp = cooling * k
+      if (displacement > maxDisp) {
+        forces[i].fx = (forces[i].fx / displacement) * maxDisp
+        forces[i].fy = (forces[i].fy / displacement) * maxDisp
+      }
+
+      nodes[i].x += forces[i].fx
+      nodes[i].y += forces[i].fy
+      nodes[i].x = Math.max(10, Math.min(width - 10, nodes[i].x))
+      nodes[i].y = Math.max(10, Math.min(height - 10, nodes[i].y))
+    }
+  }
 }
 
 interface Props {
@@ -52,24 +112,12 @@ export default function GrafoNotas({ onSelectNota }: Props) {
 
     const width = 800
     const height = 500
-    const nodes: SimNode[] = data.nodes.map(n => ({ ...n, x: width / 2, y: height / 2, vx: 0, vy: 0 }))
-    const links = data.links as d3.SimulationLinkDatum<SimNode>[]
+    const nodes: SimNode[] = data.nodes.map(n => ({
+      ...n, x: width / 2 + (Math.random() - 0.5) * 200, y: height / 2 + (Math.random() - 0.5) * 200, vx: 0, vy: 0
+    }))
 
-    const nodeMap = new Map(nodes.map(n => [n.id, n]))
-    const validLinks = links.filter(l => nodeMap.has(l.source as number) && nodeMap.has(l.target as number))
-
-    const simulation = d3.forceSimulation(nodes)
-      .force('link', d3.forceLink(validLinks).distance(100))
-      .force('charge', d3.forceManyBody().strength(-300))
-      .force('center', d3.forceCenter(width / 2, height / 2))
-
-    simulation.on('end', () => {
-      setSimNodes([...nodes])
-    })
-
-    const timeoutId = setTimeout(() => { simulation.stop(); setSimNodes([...nodes]) }, 2000)
-
-    return () => { simulation.stop(); clearTimeout(timeoutId) }
+    forceLayout(nodes, data.links, width, height)
+    setSimNodes([...nodes])
   }, [data])
 
   if (isLoading) {
@@ -101,6 +149,8 @@ export default function GrafoNotas({ onSelectNota }: Props) {
   const usedTipos = [...new Set(simNodes.map(n => n.tipo_nome).filter(Boolean))]
 
   const hoveredNode = hoveredId !== null ? simNodes.find(n => n.id === hoveredId) : null
+  const rootFontSize = typeof document !== 'undefined' ? parseFloat(getComputedStyle(document.documentElement).fontSize) : 14
+  const svgFontSize = Math.round(rootFontSize * 0.75)
 
   return (
     <div>
@@ -121,7 +171,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
             className="cursor-pointer">
             <circle cx={n.x} cy={n.y} r={hoveredId === n.id ? 10 : 8}
               fill={getNodeColor(n)} stroke="var(--color-bg-primary)" strokeWidth={2} />
-            <text x={n.x + 12} y={n.y + 4} fontSize={11}
+            <text x={n.x + 12} y={n.y + 4} fontSize={svgFontSize}
               fill="var(--color-text-secondary)" className="pointer-events-none"
               fontWeight={hoveredId === n.id ? 'bold' : 'normal'}>
               {n.label}

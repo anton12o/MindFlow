@@ -1,10 +1,11 @@
 import logging
 import os
-from sqlmodel import create_engine, Session
-from sqlalchemy import text, inspect, event
 from pathlib import Path
-from alembic.config import Config
+
 from alembic import command
+from alembic.config import Config
+from sqlalchemy import event, inspect, text
+from sqlmodel import Session, create_engine
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA cache_size=-40000")
     cursor.execute("PRAGMA temp_store=MEMORY")
+    cursor.execute("PRAGMA auto_vacuum=INCREMENTAL")
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.execute("PRAGMA mmap_size=268435456")
     cursor.close()
