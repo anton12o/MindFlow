@@ -3,16 +3,16 @@ import { test, expect } from '@playwright/test'
 test('dashboard carrega metricas principais', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('button', { name: 'Notas' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Rotina' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Flashcards' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Hábitos' })).toBeVisible()
+  await expect(page.locator('[title="Notas"]')).toBeVisible()
+  await expect(page.locator('[title="Rotina"]')).toBeVisible()
+  await expect(page.locator('[title="Flashcards"]')).toBeVisible()
+  await expect(page.locator('[title="Hábitos"]')).toBeVisible()
 })
 
 test('dashboard mostra habitos ativos', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('button', { name: /Captura/ })).toBeVisible()
+  await expect(page.locator('[title*="Captura"]')).toBeVisible()
 })
 
 test('navega para rotina pela sidebar', async ({ page }) => {
