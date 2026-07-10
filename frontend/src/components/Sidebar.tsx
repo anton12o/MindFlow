@@ -164,7 +164,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
               <>
                 <div className="flex items-center gap-2 flex-1 justify-center">
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base">🧠</div>
-                  <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>
+                  {sidebarWidth > 90 && <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>}
                 </div>
                 <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch { /* silent */ }; return v }) }}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"

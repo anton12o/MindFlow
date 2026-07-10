@@ -10,6 +10,7 @@ from sqlmodel import Session, create_engine
 logger = logging.getLogger(__name__)
 
 DB_PATH = Path(os.environ.get("MFLOW_DB_PATH", str(Path(__file__).parent / "mindflow.db")))
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 engine = create_engine(
     f"sqlite:///{DB_PATH}",
     connect_args={"check_same_thread": False},
