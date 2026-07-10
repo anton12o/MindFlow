@@ -89,12 +89,14 @@ export function KeybindingsProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ bindings, rebind, reset, match, getLastConflict }}>{children}</Ctx.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useKeybindings() {
   const ctx = useContext(Ctx)
   if (!ctx) throw new Error('useKeybindings must be inside KeybindingsProvider')
   return ctx
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function comboLabel(combo: KeyCombo): string {
   const parts: string[] = []
   if (combo.ctrl) parts.push('Ctrl')

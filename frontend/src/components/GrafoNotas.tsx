@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { startTransition, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getGrafo, type GrafoNode } from '../api/grafo'
 
@@ -117,7 +117,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
     }))
 
     forceLayout(nodes, data.links, width, height)
-    setSimNodes([...nodes])
+    startTransition(() => setSimNodes([...nodes]))
   }, [data])
 
   if (isLoading) {

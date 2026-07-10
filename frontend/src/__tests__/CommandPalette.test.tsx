@@ -64,7 +64,7 @@ describe('CommandPalette', () => {
   })
 
   it('mostra notas recentes no modo nota sem query', () => {
-    renderWithProviders(<CommandPalette commands={mockCommands} onClose={vi.fn()} mode="nota" notasRecentes={mockRecentes as any} />)
+    renderWithProviders(<CommandPalette commands={mockCommands} onClose={vi.fn()} mode="nota" notasRecentes={mockRecentes as unknown as Array<{id:number; titulo:string; conteudo:string}>} />)
     expect(screen.getByText('Recentes')).toBeInTheDocument()
     expect(screen.getByText('Nota recente 1')).toBeInTheDocument()
   })
@@ -130,7 +130,7 @@ describe('CommandPalette', () => {
 
   it('onNavigate chamado ao selecionar nota no modo nota', async () => {
     const onNavigate = vi.fn()
-    renderWithProviders(<CommandPalette commands={mockCommands} onClose={vi.fn()} mode="nota" notasRecentes={mockRecentes as any} onNavigate={onNavigate} />)
+    renderWithProviders(<CommandPalette commands={mockCommands} onClose={vi.fn()} mode="nota" notasRecentes={mockRecentes as unknown as Array<{id:number; titulo:string; conteudo:string}>} onNavigate={onNavigate} />)
     fireEvent.click(screen.getByText('Nota recente 1'))
     expect(onNavigate).toHaveBeenCalledWith(10)
   })

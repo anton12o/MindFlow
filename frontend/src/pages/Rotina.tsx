@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa, reorderTarefas } from '../api/rotina'
 import { getPomodoroStats } from '../api/stats'
@@ -36,6 +36,7 @@ export default function Rotina() {
   const queryClient = useQueryClient()
   const notify = useNotify()
   const { config } = usePomodoroContext()
+  const optCounterRef = useRef(0)
   const [view, setView] = useState<'lista' | 'semana'>('lista')
   const [novaTarefa, setNovaTarefa] = useState('')
   const [novaTarefaRec, setNovaTarefaRec] = useState(false)
@@ -81,7 +82,7 @@ export default function Rotina() {
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData<Tarefa[]>(queryKey)
       const optimistic: Tarefa = {
-        id: Date.now(),
+        id: --optCounterRef.current,
         titulo: payload.titulo,
         data: hoje,
         prioridade: 'normal',

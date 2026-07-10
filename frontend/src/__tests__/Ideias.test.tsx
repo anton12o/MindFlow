@@ -5,7 +5,7 @@ import Ideias from '../pages/Ideias'
 import { getNotas, getPastas, getTags, getNotaTags } from '../api/notas'
 import { getTipos } from '../api/tipos'
 import { getConexoes } from '../api/conexoes'
-import type { Nota, Pasta, Tag, TipoObjeto, ConexaoNota } from '../types'
+import type { Nota, Pasta, Tag, TipoObjeto } from '../types'
 
 vi.mock('../api/notas')
 vi.mock('../api/tipos')

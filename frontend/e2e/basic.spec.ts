@@ -29,11 +29,11 @@ test('app loads and navigates between pages', async ({ page }) => {
   await expect(page).toHaveURL(/\/habitos/)
   await expect(page.locator('h1')).toContainText('Hábitos')
 
-  await page.click('[title="Pomodoro"]')
+  await page.click('[title="Foco"]')
   await expect(page).toHaveURL(/\/pomodoro/)
   await expect(page.locator('h1')).toContainText('Pomodoro')
 
-  await page.click('[title="Ideias"]')
+  await page.click('[title="Notas"]')
   await expect(page).toHaveURL(/\/ideias/)
   await expect(page.locator('h1')).toContainText('Notas', { timeout: 8000 })
 })

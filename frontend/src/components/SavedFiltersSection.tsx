@@ -15,11 +15,11 @@ function loadSaved(): SavedFilter[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : []
-  } catch { return [] }
+  } catch { /* silent */; return [] }
 }
 
 function saveSaved(filters: SavedFilter[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filters)) } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(filters)) } catch { /* silent */ }
 }
 
 export default function SavedFiltersSection({

@@ -12,28 +12,28 @@ function loadCustom(): CustomTheme {
   try {
     const raw = localStorage.getItem(CUSTOM_KEY)
     return raw ? JSON.parse(raw) : {}
-  } catch { return {} }
+  } catch { /* silent */; return {} }
 }
 
 function saveCustom(t: CustomTheme) {
-  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(t)) } catch {}
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(t)) } catch { /* silent */ }
 }
 
 function loadTheme(): ThemeMode {
   try {
     const saved = localStorage.getItem('mindflow-theme')
     if (saved === 'light' || saved === 'dark' || saved === 'system') return saved
-  } catch {}
+  } catch { /* silent */ }
   return 'dark'
 }
 
 function saveTheme(theme: ThemeMode) {
-  try { localStorage.setItem('mindflow-theme', theme) } catch {}
+  try { localStorage.setItem('mindflow-theme', theme) } catch { /* silent */ }
 }
 
 function getSystemTheme(): Theme {
   try { return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' }
-  catch { return 'dark' }
+  catch { /* silent */; return 'dark' }
 }
 
 function resolveTheme(mode: ThemeMode): Theme {
@@ -52,6 +52,7 @@ const ThemeContext = createContext<{
 const NEXT_MODE: Record<ThemeMode, ThemeMode> = { dark: 'light', light: 'system', system: 'dark' }
 const MODE_ICON: Record<ThemeMode, string> = { dark: '🌙', light: '☀️', system: '🖥️' }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const PRESET_COLORS = [
   { name: 'Roxo', colors: { '--color-accent': '#8B5CF6', '--color-accent-hover': '#7C3AED' } },
   { name: 'Azul', colors: { '--color-accent': '#3B82F6', '--color-accent-hover': '#2563EB' } },
@@ -70,6 +71,7 @@ export const PRESET_COLORS = [
   { name: 'Default', colors: {} },
 ]
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function darkenColor(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16)
   const r = Math.max(0, (num >> 16) - Math.round(2.55 * percent))

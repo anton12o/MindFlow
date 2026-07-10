@@ -21,7 +21,7 @@ describe('useFocusTrap', () => {
 
   it('foca o primeiro elemento focado ao abrir', () => {
     const container = createContainer()
-    const { result } = renderHook(() => {
+    renderHook(() => {
       const ref = useRef<HTMLDivElement>(null!)
       ref.current = container as HTMLDivElement
       useFocusTrap(ref, true)
@@ -33,7 +33,7 @@ describe('useFocusTrap', () => {
 
   it('nao foca nada quando isOpen=false', () => {
     const container = createContainer()
-    const { result } = renderHook(() => {
+    renderHook(() => {
       const ref = useRef<HTMLDivElement>(null!)
       ref.current = container as HTMLDivElement
       useFocusTrap(ref, false)
@@ -50,7 +50,7 @@ describe('useFocusTrap', () => {
     prev.focus()
 
     const container = createContainer()
-    const { rerender, result } = renderHook(
+    const { rerender } = renderHook(
       ({ isOpen }) => {
         const ref = useRef<HTMLDivElement>(null!)
         ref.current = container as HTMLDivElement
@@ -101,7 +101,6 @@ describe('useFocusTrap', () => {
   })
 
   it('remove event listener no cleanup', () => {
-    const addSpy = vi.spyOn(window, 'addEventListener')
     const removeSpy = vi.spyOn(window, 'removeEventListener')
 
     const container = createContainer()

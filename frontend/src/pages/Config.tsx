@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { startTransition, useState, useRef, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTheme, MODE_ICON, PRESET_COLORS, darkenColor } from '../store/theme'
 import { useConfig } from '../hooks/useConfig'
@@ -446,7 +446,7 @@ function BackupListComponent() {
   const [loading, setLoading] = useState(false)
   const notify = useNotify()
   useEffect(() => {
-    setLoading(true)
+    startTransition(() => setLoading(true))
     listBackups().then(setBackups).catch((e) => { console.error('[Config] listBackups', e); notify('Erro ao listar backups') }).finally(() => setLoading(false))
   }, [])
   if (loading) return <p className="text-xs text-text-muted">Carregando...</p>

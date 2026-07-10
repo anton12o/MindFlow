@@ -77,14 +77,14 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
       draggingRef.current = false
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
-      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(lastWidthRef.current)) } catch {}
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(lastWidthRef.current)) } catch { /* silent */ }
     }
     const handleLeave = () => {
       if (!draggingRef.current) return
       draggingRef.current = false
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
-      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(lastWidthRef.current)) } catch {}
+      try { localStorage.setItem(SIDEBAR_WIDTH_KEY, String(lastWidthRef.current)) } catch { /* silent */ }
     }
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
@@ -154,7 +154,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
                 <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base" title="MindFlow">
                   🧠
                 </div>
-                <button onClick={() => { setDesktopCollapsed(false); try { localStorage.setItem('mindflow_sidebar_collapsed', 'false') } catch {} }}
+                <button onClick={() => { setDesktopCollapsed(false); try { localStorage.setItem('mindflow_sidebar_collapsed', 'false') } catch { /* silent */ } }}
                   className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Expandir sidebar">
                   <PanelLeft size={14} />
@@ -166,7 +166,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
                   <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base">🧠</div>
                   <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>
                 </div>
-                <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch {}; return v }) }}
+                <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch { /* silent */ }; return v }) }}
                   className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Recolher sidebar">
                   <PanelLeftClose size={16} />

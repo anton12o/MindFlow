@@ -79,8 +79,8 @@ export default function Revisao() {
 
   function buildTemplate(): string {
     const hojeStr = hojeLocal()
-    let titulo = ''
-    let corpo = ''
+    let titulo: string
+    let corpo: string
 
     if (periodo === 'diaria' && weekly) {
       const dia = weekly.semana.dias.find(d => d.data === hojeStr)
