@@ -12,7 +12,7 @@ test('dashboard carrega metricas principais', async ({ page }) => {
 test('dashboard mostra habitos ativos', async ({ page }) => {
   await page.goto('/')
 
-  await expect(page.getByRole('button', { name: 'Inbox' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Captura/ })).toBeVisible()
 })
 
 test('navega para rotina pela sidebar', async ({ page }) => {
