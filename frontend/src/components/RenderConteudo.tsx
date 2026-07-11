@@ -77,6 +77,23 @@ function parseGraph(data: string): string {
   return `<span class="text-danger text-xs">gráfico não suportado: ${esc(type)}</span>`
 }
 
+function parseMdTable(text: string): string | null {
+  const lines = text.split('\n').filter(l => l.trim())
+  if (lines.length < 2) return null
+  if (!/^\|/.test(lines[0]) || !/\|/.test(lines[1])) return null
+  const alignments = lines[1].split('|').filter(Boolean).map(s => {
+    const t = s.trim()
+    if (t.startsWith(':') && t.endsWith(':')) return 'text-center'
+    if (t.endsWith(':')) return 'text-right'
+    return ''
+  })
+  const headers = lines[0].split('|').filter(Boolean).map(s => esc(s.trim()))
+  const body = lines.slice(2)
+  const hRow = `<tr>${headers.map((h, i) => `<th class="border border-border px-2 py-1 text-xs font-semibold ${alignments[i] || 'text-left'}">${h}</th>`).join('')}</tr>`
+  const bRows = body.length > 0 ? `<tbody>${body.map(r => `<tr>${r.split('|').filter(Boolean).map((c, i) => `<td class="border border-border px-2 py-1 text-xs ${alignments[i] || ''}">${esc(c.trim())}</td>`).join('')}</tr>`).join('')}</tbody>` : ''
+  return `<table class="w-full border-collapse border border-border my-2">${hRow}${bRows}</table>`
+}
+
 function applyKatexOutsideCode(html: string): string {
   const parts = html.split(/(<code[^>]*>.*?<\/code>)/gs)
   return parts.map((part, i) => {
@@ -127,6 +144,8 @@ function renderMarkdown(text: string): string {
     if (!trimmed) return ''
     const isCustom = trimmed.length > 5 && trimmed.startsWith('\x00BL') && trimmed.endsWith('\x00') && /^\d+$/.test(trimmed.slice(4, -1))
     if (isCustom) return trimmed
+    const isTable = /^\|.+\|\n\|[-: |]+\|/.test(trimmed)
+    if (isTable) { const th = parseMdTable(trimmed); if (th) return th }
     const isHeading = /^#{1,6}\s/.test(trimmed)
     const isList = /^[-*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)
     const isHr = /^---+\s*$/.test(trimmed)
@@ -151,6 +170,8 @@ function renderMarkdown(text: string): string {
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/`(.+?)`/g, '<code class="bg-bg-tertiary px-1 rounded text-xs">$1</code>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-accent hover:underline">$1</a>')
+      .replace(/==(.+?)==/g, '<mark class="bg-accent-light/40 text-text-primary rounded-sm px-0.5">$1</mark>')
+      .replace(/%%(.+?)%%/g, '<!-- $1 -->')
     p = applyKatexOutsideCode(p)
     return `<p id="p${paraIdx}" class="my-1">${p}</p>`
   }).join('\n')
@@ -215,7 +236,7 @@ const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect,
         const m = part.match(/^\[\[([^\]]+?)(?:#p(\d+))?(?:\|([^\]]+))?\]\]$/)
         if (!m) return <span key={i} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(part), {
           ALLOWED_TAGS: [
-            'b','strong','em','i','a','code','span','div','br','img','pre','p','hr',
+            'b','strong','em','i','a','code','span','div','br','img','pre','p','hr','mark',
             'h1','h2','h3','h4','h5','h6','ul','ol','li',
             'table','thead','tbody','tr','td','th',
             'svg','g','rect','line','circle','path','polyline',

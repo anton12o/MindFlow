@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 
 from fastapi import HTTPException
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ def commit_with_handle(session: Session, db=None, context: str = "operação"):
         session.commit()
     except HTTPException:
         raise
-    except Exception as e:
+    except (DataError, IntegrityError, OperationalError) as e:
         session.rollback()
         logger.error("[%s] %s", context, e)
         raise HTTPException(status_code=500, detail=f"Erro ao {context}")

@@ -18,6 +18,7 @@ from _version import VERSION
 from database import check_db_integrity, get_session, run_migrations, setup_fts
 from exceptions import AppException, BadRequestException, ConflictException, NotFoundException
 from logging_config import setup_logging
+from rate_limiter import crud_limiter
 from routers import (
     export,
     flashcards,
@@ -92,10 +93,21 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "0"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: http:; font-src 'self' data:"  # noqa: E501
+        response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; object-src 'none'; base-uri 'self'; form-action 'self'"  # noqa: E501
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request, call_next):
+        if request.method in ("POST", "PATCH", "DELETE") and request.url.path.startswith("/api/"):
+            path = request.url.path
+            if not any(p in path for p in ("/search", "/import", "/shutdown", "/export", "/attachments", "/auth", "/backup")):
+                client_key = request.client.host if request.client else "unknown"
+                crud_limiter.check(client_key)
+        return await call_next(request)
+
+app.add_middleware(RateLimitMiddleware)
 
 app.include_router(inbox.router, prefix="/api/inbox", tags=["Inbox"])
 app.include_router(habitos.router, prefix="/api/habitos", tags=["Hábitos"])
@@ -166,14 +178,18 @@ async def upload_attachment(file: UploadFile = File(...)):
 
 @app.get("/api/attachments/{filepath:path}")
 def get_attachment(filepath: str):
-    full = ATTACHMENTS_DIR / filepath
+    full = (ATTACHMENTS_DIR / filepath).resolve()
+    if not str(full).startswith(str(ATTACHMENTS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Acesso negado")
     if not full.exists() or not full.is_file():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     return FileResponse(str(full), media_type=None, headers={"Cache-Control": "public, max-age=31536000"})
 
 @app.delete("/api/attachments/{filepath:path}")
 def delete_attachment(filepath: str):
-    full = ATTACHMENTS_DIR / filepath
+    full = (ATTACHMENTS_DIR / filepath).resolve()
+    if not str(full).startswith(str(ATTACHMENTS_DIR.resolve())):
+        raise HTTPException(status_code=400, detail="Acesso negado")
     if not full.exists() or not full.is_file():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
     full.unlink()

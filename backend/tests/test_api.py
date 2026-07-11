@@ -758,3 +758,64 @@ def test_delete_tag_404(client):
 def test_add_tag_nota_404(client):
     r = client.post("/api/notas/99999/tags/99999")
     assert r.status_code == 404
+
+
+def test_versoes_nota_crud(client):
+    r = client.post("/api/notas", json={"titulo": "Versão teste", "conteudo": "v1"})
+    assert r.status_code == 200
+    nota_id = r.json()["id"]
+
+    r = client.get(f"/api/notas/{nota_id}/versoes")
+    assert r.status_code == 200
+    assert r.json() == []
+
+    r = client.patch(f"/api/notas/{nota_id}", json={"conteudo": "v2"})
+    assert r.status_code == 200
+
+    r = client.get(f"/api/notas/{nota_id}/versoes")
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["titulo"] == "Versão teste"
+    assert data[0]["conteudo"] == "v1"
+
+    versao_id = data[0]["id"]
+    r = client.get(f"/api/notas/{nota_id}/versoes/{versao_id}")
+    assert r.status_code == 200
+    assert r.json()["conteudo"] == "v1"
+
+    r = client.post(f"/api/notas/{nota_id}/restaurar/{versao_id}")
+    assert r.status_code == 200
+    r = client.get(f"/api/notas/{nota_id}")
+    assert r.json()["conteudo"] == "v1"
+
+
+def test_versoes_restaurar_ignora_igual(client):
+    r = client.post("/api/notas", json={"titulo": "Igual", "conteudo": "fixo"})
+    nota_id = r.json()["id"]
+
+    r = client.patch(f"/api/notas/{nota_id}", json={"conteudo": "fixo"})
+    versoes = client.get(f"/api/notas/{nota_id}/versoes").json()
+    assert versoes == []
+
+
+def test_versoes_404(client):
+    r = client.get("/api/notas/99999/versoes")
+    assert r.status_code == 404
+
+    r = client.get("/api/notas/99999/versoes/99999")
+    assert r.status_code == 404
+
+    r = client.post("/api/notas/99999/restaurar/99999")
+    assert r.status_code == 404
+
+
+def test_versoes_snapshot_mantem_propriedades(client):
+    r = client.post("/api/notas", json={"titulo": "Props", "conteudo": "original", "propriedades": {"autor": "teste"}})
+    nota_id = r.json()["id"]
+
+    r = client.patch(f"/api/notas/{nota_id}", json={"conteudo": "atualizado"})
+    r = client.get(f"/api/notas/{nota_id}/versoes")
+    data = r.json()
+    assert len(data) == 1
+    assert data[0]["propriedades"] == {"autor": "teste"}

@@ -1,15 +1,14 @@
 import request from './client'
 
 export interface GrafoNode {
-  id: number
+  id: string
   label: string
-  tipo_id: number | null
   tipo_nome: string | null
 }
 
 export interface GrafoLink {
-  source: number
-  target: number
+  source: string
+  target: string
 }
 
 export const getGrafo = () =>

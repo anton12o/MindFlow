@@ -34,8 +34,9 @@ def list_flashcards(
     if nota_id:
         stmt = stmt.where(Flashcard.nota_id == nota_id)
     if q:
+        escaped = q.replace('%', '\\%').replace('_', '\\_')
         stmt = stmt.where(
-            Flashcard.pergunta.ilike(f"%{q}%") | Flashcard.resposta.ilike(f"%{q}%")
+            Flashcard.pergunta.ilike(f"%{escaped}%", escape='\\') | Flashcard.resposta.ilike(f"%{escaped}%", escape='\\')
         )
     sort_map = {'criado_em': Flashcard.criado_em, 'pergunta': Flashcard.pergunta, 'proxima_revisao': Flashcard.proxima_revisao}
     order = sort_map.get(sort, Flashcard.criado_em)

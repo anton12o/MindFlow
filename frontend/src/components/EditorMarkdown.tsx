@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect } from 'react'
+import React, { useRef, useCallback, useEffect, useState } from 'react'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState, Transaction } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -9,6 +9,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { foldGutter } from '@codemirror/language'
 import { defaultKeymap, indentWithTab, undo, redo, history } from '@codemirror/commands'
 import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
+import { Bold, Italic, Strikethrough, Code, Sigma, List, ListOrdered, CheckSquare, TextQuote, Link2, Table, Minus, RemoveFormatting, Undo2, Redo2 } from 'lucide-react'
 import { useTheme } from '../store/theme'
 import { htmlToMarkdown } from '../utils/pasteHandler'
 
@@ -183,19 +184,141 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
     const view = viewRef.current; if (view) redo(view)
   }, [])
 
+  const wrapMark = useCallback((view: EditorView, mark: string) => {
+    const { from, to } = view.state.selection.main
+    const selected = view.state.sliceDoc(from, to)
+    const len = mark.length
+    if (selected.startsWith(mark) && selected.endsWith(mark)) {
+      view.dispatch({ changes: { from, to, insert: selected.slice(len, -len) } })
+    } else {
+      view.dispatch({ changes: { from, to, insert: `${mark}${selected}${mark}` } })
+    }
+  }, [])
+
+  const handleBold = useCallback(() => { const v = viewRef.current; if (v) wrapMark(v, '**') }, [wrapMark])
+  const handleItalic = useCallback(() => { const v = viewRef.current; if (v) wrapMark(v, '*') }, [wrapMark])
+  const handleStrikethrough = useCallback(() => { const v = viewRef.current; if (v) wrapMark(v, '~~') }, [wrapMark])
+  const handleCode = useCallback(() => { const v = viewRef.current; if (v) wrapMark(v, '`') }, [wrapMark])
+  const handleMath = useCallback(() => { const v = viewRef.current; if (v) wrapMark(v, '$') }, [wrapMark])
+
+  const insertLinePrefix = useCallback((prefix: string) => {
+    const view = viewRef.current
+    if (!view) return
+    const pos = view.state.selection.main.from
+    const line = view.state.doc.lineAt(pos)
+    const lineText = line.text
+    if (lineText.startsWith(prefix)) {
+      view.dispatch({ changes: { from: line.from, to: line.from + prefix.length, insert: '' } })
+    } else {
+      view.dispatch({ changes: { from: line.from, insert: prefix } })
+    }
+  }, [])
+
+  const handleHeading = useCallback((level: number) => {
+    const view = viewRef.current
+    if (!view) return
+    const pos = view.state.selection.main.from
+    const line = view.state.doc.lineAt(pos)
+    const prefix = level > 0 ? '#'.repeat(level) + ' ' : ''
+    const lineText = line.text
+    const existing = lineText.match(/^(#{1,6} )/)
+    if (existing) {
+      if (lineText.startsWith(prefix)) {
+        view.dispatch({ changes: { from: line.from, to: line.from + prefix.length, insert: '' } })
+      } else {
+        view.dispatch({ changes: { from: line.from, to: line.from + existing[0].length, insert: prefix } })
+      }
+    } else if (prefix) {
+      view.dispatch({ changes: { from: line.from, insert: prefix } })
+    }
+  }, [])
+
+  const handleLink = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    const selected = view.state.sliceDoc(from, to)
+    if (selected) {
+      view.dispatch({ changes: { from, to, insert: `[${selected}](url)` } })
+      const newPos = from + selected.length + 3
+      view.dispatch({ selection: { anchor: newPos, head: newPos + 3 } })
+    } else {
+      view.dispatch({ changes: { from, insert: '[texto](url)' } })
+      view.dispatch({ selection: { anchor: from + 7, head: from + 10 } })
+    }
+  }, [])
+
+  const handleTable = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const pos = view.state.selection.main.from
+    const tbl = '| col1 | col2 |\n|------|------|\n|      |      |'
+    view.dispatch({ changes: { from: pos, insert: tbl } })
+  }, [])
+
+  const handleClearFormatting = useCallback(() => {
+    const view = viewRef.current
+    if (!view) return
+    const { from, to } = view.state.selection.main
+    let text = view.state.sliceDoc(from, to)
+    if (!text) return
+    text = text.replace(/(\*{1,2}|~~|`|\$)(.*?)\1/g, '$2')
+    text = text.replace(/^#{1,6} /gm, '')
+    text = text.replace(/^[-*] /gm, '')
+    text = text.replace(/^\d+\. /gm, '')
+    text = text.replace(/^> /gm, '')
+    view.dispatch({ changes: { from, to, insert: text } })
+  }, [])
+
+  const [showHeading, setShowHeading] = useState(false)
+  const headingRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (headingRef.current && !headingRef.current.contains(e.target as Node)) setShowHeading(false)
+    }
+    if (showHeading) document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [showHeading])
+
+  const btn = 'p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors'
+  const sep = <div className="w-px h-4 bg-border mx-0.5" />
+
   return (
     <div>
-      <div className="flex items-center gap-1 px-1 py-1 border-b border-border/50 mb-1">
-        <button onClick={handleUndo}
-          className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
-          title="Desfazer (Ctrl+Z)" aria-label="Desfazer">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg>
-        </button>
-        <button onClick={handleRedo}
-          className="p-1 rounded text-text-muted hover:text-text-primary hover:bg-bg-tertiary transition-colors"
-          title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 7v6h-6"/><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"/></svg>
-        </button>
+      <div className="flex items-center gap-0.5 px-1 py-1 border-b border-border/50 mb-1 overflow-x-auto">
+        <button onClick={handleUndo} className={btn} title="Desfazer (Ctrl+Z)" aria-label="Desfazer"><Undo2 size={14} /></button>
+        <button onClick={handleRedo} className={btn} title="Refazer (Ctrl+Shift+Z)" aria-label="Refazer"><Redo2 size={14} /></button>
+        {sep}
+        <button onClick={handleBold} className={btn} title="Negrito (Ctrl+B)" aria-label="Negrito"><Bold size={14} /></button>
+        <button onClick={handleItalic} className={btn} title="Itálico (Ctrl+I)" aria-label="Itálico"><Italic size={14} /></button>
+        <button onClick={handleStrikethrough} className={btn} title="Riscado (Ctrl+Shift+X)" aria-label="Riscado"><Strikethrough size={14} /></button>
+        <button onClick={handleCode} className={btn} title="Código inline" aria-label="Código"><Code size={14} /></button>
+        <button onClick={handleMath} className={btn} title="Equação inline" aria-label="Equação"><Sigma size={14} /></button>
+        {sep}
+        <div className="relative" ref={headingRef}>
+          <button onClick={() => setShowHeading(p => !p)} className={`${btn} text-xs font-semibold w-6`} title="Cabeçalho" aria-label="Cabeçalho">H</button>
+          {showHeading && (
+            <div className="absolute left-0 top-full mt-1 bg-bg-secondary border border-border rounded-lg shadow-lg z-50 p-1 w-24 animate-fade-in">
+              {[['Texto', 0], ['H1', 1], ['H2', 2], ['H3', 3], ['H4', 4], ['H5', 5], ['H6', 6]].map(([label, level]) => (
+                <button key={String(level)} onClick={() => { handleHeading(level as number); setShowHeading(false) }}
+                  className="w-full text-left px-2 py-1 text-sm rounded hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors">
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+        {sep}
+        <button onClick={() => insertLinePrefix('- ')} className={btn} title="Lista de marcadores" aria-label="Lista de marcadores"><List size={14} /></button>
+        <button onClick={() => insertLinePrefix('1. ')} className={btn} title="Lista numerada" aria-label="Lista numerada"><ListOrdered size={14} /></button>
+        <button onClick={() => insertLinePrefix('- [ ] ')} className={btn} title="Lista de tarefas (Ctrl+Shift+K)" aria-label="Lista de tarefas"><CheckSquare size={14} /></button>
+        <button onClick={() => insertLinePrefix('> ')} className={btn} title="Citação" aria-label="Citação"><TextQuote size={14} /></button>
+        {sep}
+        <button onClick={handleLink} className={btn} title="Inserir link" aria-label="Inserir link"><Link2 size={14} /></button>
+        <button onClick={handleTable} className={btn} title="Inserir tabela" aria-label="Inserir tabela"><Table size={14} /></button>
+        <button onClick={() => insertLinePrefix('---\n')} className={btn} title="Linha horizontal" aria-label="Linha horizontal"><Minus size={14} /></button>
+        {sep}
+        <button onClick={handleClearFormatting} className={btn} title="Limpar formatação" aria-label="Limpar formatação"><RemoveFormatting size={14} /></button>
       </div>
       <div ref={ref} className="min-h-[calc(100vh-280px)]" />
     </div>

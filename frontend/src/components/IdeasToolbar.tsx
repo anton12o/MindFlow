@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import { Menu, Popover, Transition } from '@headlessui/react'
-import { Plus, Search, FileText, GitBranch, Calendar, Archive, Trash2, Square, MoreHorizontal, ArrowUpDown, Download, Upload, Bookmark, FolderOpen, Eye, EyeOff, Star, Tag, Folder } from 'lucide-react'
+import { Plus, Search, FileText, GitBranch, Calendar, Archive, Trash2, Square, MoreHorizontal, ArrowUpDown, Download, Upload, Bookmark, FolderOpen, Eye, EyeOff, Star, Tag, Folder, Table } from 'lucide-react'
 import type { IdeasToolbarProps } from '../types'
 
 export default function IdeasToolbar({
@@ -21,7 +21,10 @@ export default function IdeasToolbar({
   onSort,
   onExport,
   onImport,
+  onImportMarkdown,
+  onImportCSV,
   onSavedFilters,
+  onSaveAsQuery,
   onDailyNote,
   onRevealInExplorer,
   onToggleView,
@@ -31,6 +34,8 @@ export default function IdeasToolbar({
   onSelectPasta,
 }: IdeasToolbarProps) {
   const importInputRef = useRef<HTMLInputElement>(null)
+  const importMdRef = useRef<HTMLInputElement>(null)
+  const importCsvRef = useRef<HTMLInputElement>(null)
   return (
     <div className="flex flex-wrap items-center gap-2 p-2 bg-bg-secondary border-b border-border">
       <div className="flex items-center gap-1 border-r border-border pr-2">
@@ -305,6 +310,38 @@ export default function IdeasToolbar({
                   </div>
                 )}
               </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <div>
+                    <input type="file" accept=".md" ref={importMdRef}
+                      onChange={e => { if (e.target.files?.[0]) { onImportMarkdown?.(e.target.files[0]); e.target.value = '' } }}
+                      className="hidden" />
+                    <button
+                      onClick={() => importMdRef.current?.click()}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${active ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'}`}
+                    >
+                      <Upload size={14} />
+                      <span>Importar (.md)</span>
+                    </button>
+                  </div>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <div>
+                    <input type="file" accept=".csv" ref={importCsvRef}
+                      onChange={e => { if (e.target.files?.[0]) { onImportCSV?.(e.target.files[0]); e.target.value = '' } }}
+                      className="hidden" />
+                    <button
+                      onClick={() => importCsvRef.current?.click()}
+                      className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${active ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'}`}
+                    >
+                      <Upload size={14} />
+                      <span>Importar (.csv)</span>
+                    </button>
+                  </div>
+                )}
+              </Menu.Item>
               <div className="border-t border-border my-1" />
               <Menu.Item>
                 {({ active }) => (
@@ -314,6 +351,17 @@ export default function IdeasToolbar({
                   >
                     <Bookmark size={14} />
                     <span>Filtros salvos</span>
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    onClick={onSaveAsQuery}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${active ? 'bg-bg-tertiary text-text-primary' : 'text-text-secondary hover:bg-bg-tertiary hover:text-text-primary'}`}
+                  >
+                    <Table size={14} />
+                    <span>Salvar como consulta</span>
                   </button>
                 )}
               </Menu.Item>

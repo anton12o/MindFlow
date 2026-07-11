@@ -25,7 +25,7 @@ def extract_frontmatter(content: str) -> tuple[dict[str, Any], str]:
             logger.warning('frontmatter YAML não é um dict: %s', type(props))
             return {}, content
         return props, body
-    except Exception as e:
+    except yaml.YAMLError as e:
         logger.warning('erro ao parsear frontmatter: %s', e)
         return {}, content
 
@@ -40,7 +40,7 @@ def inject_frontmatter(content: str, props: dict[str, Any]) -> str:
     try:
         import yaml
         fm = yaml.dump(props, allow_unicode=True, default_flow_style=False, sort_keys=False).strip()
-    except Exception as e:
+    except yaml.YAMLError as e:
         logger.warning('erro ao gerar frontmatter YAML: %s', e)
         return content or ''
 

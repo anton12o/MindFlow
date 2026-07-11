@@ -1,5 +1,5 @@
 import request from './client'
-import type { Nota, Pasta, Tag } from '../types'
+import type { Nota, Pasta, Tag, VersaoNota } from '../types'
 
 export const getNotas = (q?: string, data?: string, tagIds?: number[], sort?: string, limit?: number, offset?: number) => {
   const params = new URLSearchParams()
@@ -67,3 +67,12 @@ export const addTagToNota = (notaId: number, tagId: number) =>
 
 export const createFromWikilink = (titulo: string) =>
   request<Nota>('/notas/from-wikilink', { method: 'POST', body: JSON.stringify({ titulo }) })
+
+export const getVersoes = (nota_id: number) =>
+  request<VersaoNota[]>(`/notas/${nota_id}/versoes`)
+
+export const getVersao = (nota_id: number, versao_id: number) =>
+  request<VersaoNota>(`/notas/${nota_id}/versoes/${versao_id}`)
+
+export const restaurarVersao = (nota_id: number, versao_id: number) =>
+  request<Nota>(`/notas/${nota_id}/restaurar/${versao_id}`, { method: 'POST' })

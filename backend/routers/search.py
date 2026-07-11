@@ -1,5 +1,6 @@
 import logging
 import re
+import sqlite3
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
@@ -28,7 +29,8 @@ def search(
     session: Session = Depends(get_session),
     _rl: None = Depends(search_limiter),
 ):
-    pattern = f"%{q}%"
+    esc = q.replace('%', '\\%').replace('_', '\\_')
+    pattern = f"%{esc}%"
 
     try:
         fts_q = _sanitize_fts(q)
@@ -45,29 +47,29 @@ def search(
             ).all()
         else:
             notas = []
-    except Exception:
+    except (sqlite3.OperationalError, sqlite3.DatabaseError):
         logger.warning("[search] FTS5 fallback para LIKE")
         notas = session.exec(
             select(Nota.id, Nota.titulo).where(
-                or_(Nota.titulo.ilike(pattern), Nota.conteudo.ilike(pattern))
+                or_(Nota.titulo.ilike(pattern, escape='\\'), Nota.conteudo.ilike(pattern, escape='\\'))
             ).offset(offset).limit(limit)
         ).all()
 
     tarefas = session.exec(
         select(Tarefa.id, Tarefa.titulo).where(
-            Tarefa.titulo.ilike(pattern)
+            Tarefa.titulo.ilike(pattern, escape='\\')
         ).offset(offset).limit(limit)
     ).all()
 
     flashcards = session.exec(
         select(Flashcard.id, Flashcard.pergunta, Flashcard.resposta).where(
-            Flashcard.pergunta.ilike(pattern)
+            Flashcard.pergunta.ilike(pattern, escape='\\')
         ).offset(offset).limit(limit)
     ).all()
 
     habitos = session.exec(
         select(Habito.id, Habito.nome).where(
-            Habito.nome.ilike(pattern)
+            Habito.nome.ilike(pattern, escape='\\')
         ).offset(offset).limit(limit)
     ).all()
 

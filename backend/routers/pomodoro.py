@@ -64,7 +64,7 @@ def finalizar_sessao(sessao_id: int, body: FinalizarSessaoBody, session: Session
 @router.delete("/sessoes")
 def delete_sessoes(antes_de: str, session: Session = Depends(get_session)):
     validate_date(antes_de)
-    stmt = select(SessaoPomodoro).where(SessaoPomodoro.iniciado_em < antes_de)
+    stmt = select(SessaoPomodoro).where(SessaoPomodoro.iniciado_em < antes_de + "~")
     sessoes = session.exec(stmt).all()
     for s in sessoes:
         session.delete(s)

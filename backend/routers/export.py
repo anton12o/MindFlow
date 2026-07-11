@@ -1,6 +1,7 @@
 import csv
 import io
 import shutil
+import sqlite3
 import tempfile
 import zipfile
 from datetime import datetime
@@ -49,12 +50,11 @@ def _generate_portability_pack() -> str:
         att_dest.mkdir(parents=True, exist_ok=True)
     schema_dest = tmp_dir / 'schema.sql'
     try:
-        import sqlite3
         conn = sqlite3.connect(str(db_dest))
         tables = conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND sql IS NOT NULL ORDER BY name").fetchall()
         schema_dest.write_text('\n'.join(r[0] for r in tables) + '\n', encoding='utf-8')
         conn.close()
-    except Exception as e:
+    except (sqlite3.DatabaseError, OSError) as e:
         schema_dest.write_text(f'-- Erro ao extrair schema: {e}\n', encoding='utf-8')
     zip_path = tmp_dir.parent / f'mindflow-pack-{datetime.now().strftime("%Y%m%d-%H%M%S")}.zip'
     with zipfile.ZipFile(str(zip_path), 'w', zipfile.ZIP_DEFLATED) as zf:

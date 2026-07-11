@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 from pathlib import Path
 
 from alembic import command
@@ -28,6 +29,7 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor.execute("PRAGMA cache_size=-40000")
     cursor.execute("PRAGMA temp_store=MEMORY")
     cursor.execute("PRAGMA auto_vacuum=INCREMENTAL")
+    cursor.execute("PRAGMA incremental_vacuum(100)")
     cursor.execute("PRAGMA busy_timeout=5000")
     cursor.execute("PRAGMA mmap_size=268435456")
     cursor.close()
@@ -57,11 +59,12 @@ def check_db_integrity():
         with Session(engine) as session:
             result = session.execute(text("PRAGMA quick_check")).scalar()
             if result and result != "ok":
-                logger.warning("Integrity check do banco: %s", result)
-            else:
-                logger.info("Integrity check: OK")
+                logger.error("Banco de dados corrompido: %s", result)
+                sys.exit(1)
+            logger.info("Integrity check: OK")
     except Exception as e:
-        logger.warning("Não foi possível verificar integridade do banco: %s", e)
+        logger.error("Não foi possível verificar integridade do banco: %s", e)
+        sys.exit(1)
 
 def setup_fts():
     try:
@@ -90,8 +93,9 @@ def setup_fts():
                     INSERT INTO notas_fts(rowid, titulo, conteudo) VALUES (new.id, new.titulo, new.conteudo);
                 END
             """))
-            count = session.execute(text("SELECT COUNT(*) FROM notas_fts")).scalar()
-            if count == 0:
+            fts_count = session.execute(text("SELECT COUNT(*) FROM notas_fts")).scalar()
+            nota_count = session.execute(text("SELECT COUNT(*) FROM notas")).scalar()
+            if fts_count != nota_count:
                 session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
             session.commit()
             logger.info("FTS5 configurado com sucesso")

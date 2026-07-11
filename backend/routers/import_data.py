@@ -1,10 +1,15 @@
 import asyncio
+import csv
+import io
 import json
 import logging
+import os
 import re
+import sqlite3
 from datetime import date, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 from sqlmodel import Session, select, text
 
 from database import engine
@@ -26,6 +31,7 @@ from models import (
     TipoObjeto,
 )
 from rate_limiter import import_limiter
+from services.frontmatter import extract_frontmatter
 
 logger = logging.getLogger(__name__)
 
@@ -172,7 +178,7 @@ async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
                 try:
                     rows = session.exec(select(model_cls.id)).all()
                     existing_ids = set(rows)
-                except Exception as e:
+                except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
                     logger.warning("ID pre-fetch para %s falhou (prosseguindo sem): %s", nome_tabela, e)
 
                 inseridos = 0
@@ -249,7 +255,7 @@ async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
 
             session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
             session.commit()
-        except Exception as e:
+        except (DataError, IntegrityError, OperationalError) as e:
             session.rollback()
             logger.error("Erro ao importar dados: %s", e)
             raise HTTPException(500, f"Erro durante import — transação revertida: {e}")
@@ -259,3 +265,97 @@ async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
         "importado_em": datetime.now().isoformat(),
         "tabelas": counts,
     }
+
+
+@router.post("/markdown")
+async def import_markdown(file: UploadFile, tipo_id: int = Form(1), pasta_id: int | None = Form(None), _rl: None = Depends(import_limiter)):
+    try:
+        contents = await asyncio.wait_for(asyncio.to_thread(file.file.read), timeout=30)
+    except TimeoutError:
+        raise HTTPException(408, "Tempo limite excedido")
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(413, "Arquivo muito grande")
+
+    text = contents.decode("utf-8", errors="replace")
+    props, body = extract_frontmatter(text)
+    titulo = props.get("titulo") or os.path.splitext(file.filename or "importado.md")[0]
+    tags_nomes = props.get("tags") or props.get("tag") or []
+    if isinstance(tags_nomes, str):
+        tags_nomes = [t.strip() for t in tags_nomes.split(",") if t.strip()]
+
+    with Session(engine) as session:
+        try:
+            tag_ids = []
+            for nome in tags_nomes:
+                tag = session.exec(select(Tag).where(Tag.nome == nome)).first()
+                if not tag:
+                    tag = Tag(nome=nome)
+                    session.add(tag)
+                    session.flush()
+                tag_ids.append(tag.id)
+
+            nota = Nota(
+                titulo=titulo,
+                conteudo=body or text,
+                tipo_id=tipo_id if tipo_id > 0 else None,
+                pasta_id=pasta_id,
+                propriedades={k: v for k, v in props.items() if k not in ("titulo", "tags", "tag")},
+            )
+            session.add(nota)
+            session.flush()
+
+            for tag_id in tag_ids:
+                session.add(NotaTag(nota_id=nota.id, tag_id=tag_id))
+
+            session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
+            session.commit()
+            return {"sucesso": True, "id": nota.id, "titulo": titulo}
+        except (DataError, IntegrityError, OperationalError) as e:
+            session.rollback()
+            logger.error("Erro ao importar .md: %s", e)
+            raise HTTPException(500, f"Erro ao importar markdown: {e}")
+
+
+@router.post("/csv")
+async def import_csv(file: UploadFile, tipo_id: int = Form(1), pasta_id: int | None = Form(None), _rl: None = Depends(import_limiter)):
+    try:
+        contents = await asyncio.wait_for(asyncio.to_thread(file.file.read), timeout=30)
+    except TimeoutError:
+        raise HTTPException(408, "Tempo limite excedido")
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(413, "Arquivo muito grande")
+
+    text = contents.decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(422, "CSV sem cabeçalho")
+
+    colunas = reader.fieldnames
+    titulo_col = "titulo" if "titulo" in colunas else colunas[0]
+
+    with Session(engine) as session:
+        try:
+            importados = 0
+            for row in reader:
+                if not any(row.values()):
+                    continue
+                titulo = (row.get(titulo_col) or "").strip()
+                if not titulo:
+                    continue
+                props = {k: v for k, v in row.items() if k != titulo_col and v}
+                nota = Nota(titulo=titulo, conteudo="", tipo_id=tipo_id if tipo_id > 0 else None, pasta_id=pasta_id, propriedades=props)
+                session.add(nota)
+                importados += 1
+
+            if importados == 0:
+                raise HTTPException(422, "Nenhuma linha válida encontrada no CSV")
+
+            session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
+            session.commit()
+            return {"sucesso": True, "importados": importados}
+        except HTTPException:
+            raise
+        except (DataError, IntegrityError, OperationalError) as e:
+            session.rollback()
+            logger.error("Erro ao importar CSV: %s", e)
+            raise HTTPException(500, f"Erro ao importar CSV: {e}")

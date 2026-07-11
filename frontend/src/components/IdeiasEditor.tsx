@@ -1,4 +1,4 @@
-import { startTransition, useState, useRef, useCallback, useEffect } from 'react'
+import { startTransition, useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Nota, Tag, TipoObjeto, Pasta } from '../types'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
@@ -7,7 +7,9 @@ import { useConfig } from '../hooks/useConfig'
 import { API_BASE } from '../api/client'
 import { useNotify } from '../store/notification'
 import { wordCount, readTime } from '../utils/wordCount'
-import { Folder, Scissors, Plus, Star, ArrowRight, ArrowLeft, X, CheckSquare, Link2, FileText, Lightbulb, Tag as TagIcon } from 'lucide-react'
+import { evaluarFormula, FormulaError } from '../utils/formulaEvaluator'
+import VersionHistoryModal from './VersionHistoryModal'
+import { Folder, Scissors, Plus, Star, History, ArrowRight, ArrowLeft, X, CheckSquare, Link2, FileText, Lightbulb, Tag as TagIcon } from 'lucide-react'
 import EditorMarkdown from './EditorMarkdown'
 import RenderConteudo from './RenderConteudo'
 import ChecklistBar from './ChecklistBar'
@@ -67,6 +69,7 @@ export default function IdeiasEditor({
   const [zenMode, setZenMode] = useState(false)
   const [sugestoes, setSugestoes] = useState<{ tag_id: number; score: number }[]>([])
   const [tagsMap, setTagsMap] = useState<Record<number, Tag>>({})
+  const [showVersoes, setShowVersoes] = useState(false)
   const attachmentInputRef = useRef<HTMLInputElement>(null)
   const handleAttachmentUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -106,6 +109,40 @@ export default function IdeiasEditor({
   useEffect(() => {
     getTags().then(all => setTagsMap(Object.fromEntries(all.map(t => [t.id, t])))).catch((e) => { console.error('[IdeiasEditor] getTags', e); notify('Erro ao carregar tags') })
   }, [])
+
+  const tipo = useMemo(() => tipos?.find(t => t.id === notaAtual.tipo_id), [tipos, notaAtual.tipo_id])
+
+  const formulaFields = useMemo(() => {
+    if (!tipo?.schema_campos) return {} as Record<string, string>
+    const result: Record<string, string> = {}
+    for (const [key, cfg] of Object.entries(tipo.schema_campos)) {
+      const field = cfg as Record<string, unknown>
+      if (field.type === 'formula' && typeof field.expressao === 'string' && field.expressao) {
+        result[key] = field.expressao
+      }
+    }
+    return result
+  }, [tipo])
+
+  const formulaValues = useMemo(() => {
+    const result: Record<string, unknown> = {}
+    const keys = Object.keys(formulaFields).sort()
+    const ctx: Record<string, unknown> = {}
+    for (const key of keys) {
+      const expr = formulaFields[key]
+      try {
+        const val = evaluarFormula(expr, { ...propriedades, ...ctx })
+        result[key] = val
+        ctx[key] = val
+      } catch (e) {
+        result[key] = `[erro: ${e instanceof FormulaError ? e.message : e}]`
+      }
+    }
+    return result
+  }, [propriedades, formulaFields])
+
+  const formulaFieldsRef = useRef(formulaFields)
+  useEffect(() => { formulaFieldsRef.current = formulaFields }, [formulaFields])
 
   const { data: relacionadas } = useQuery({
     queryKey: ['notas-relacionadas', notaAtual.id],
@@ -202,9 +239,10 @@ export default function IdeiasEditor({
 
   function saveNote() {
     if (!selectedId) return
+    const formulaKeys = formulaFieldsRef.current
     const props: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(propriedadesRef.current)) {
-      if (k.trim()) props[k.trim()] = v
+      if (k.trim() && !(k in formulaKeys)) props[k.trim()] = v
     }
     setSaveStatus('saving')
     onSave(selectedId, { titulo: tituloRef.current, conteudo: conteudoRef.current, propriedades: props })
@@ -458,6 +496,10 @@ export default function IdeiasEditor({
                 className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como JSON">
                 ↓.json
               </button>
+              <button onClick={() => { if (selectedId) setShowVersoes(true) }}
+                className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Histórico de versões">
+                <History size={14} />
+              </button>
               <button onClick={() => { if (selectedId) onFavoritar(selectedId) }}
                 className={`px-2 py-1.5 text-xs rounded-lg transition-colors ${notaAtual.favoritado ? 'text-yellow-500 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-text-muted bg-bg-tertiary hover:bg-bg-hover hover:text-text-primary'}`}
                 title={notaAtual.favoritado ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}>
@@ -516,11 +558,11 @@ export default function IdeiasEditor({
               </div>
             </div>
           )}
-          {(Object.keys(propriedades).length > 0 || editando) && (
+          {(Object.keys(propriedades).length > 0 || Object.keys(formulaValues).length > 0 || editando) && (
             <div className="w-56 shrink-0">
               <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Propriedades</h3>
               <div className="space-y-2">
-                {Object.entries(propriedades).map(([k, v]) => (
+                {Object.entries(propriedades).filter(([k]) => !(k in formulaFields)).map(([k, v]) => (
                   <div key={k} className="bg-bg-tertiary rounded-lg p-2">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text-muted font-medium">{k}</span>
@@ -534,6 +576,14 @@ export default function IdeiasEditor({
                     ) : (
                       <p className="text-sm mt-0.5">{v}</p>
                     )}
+                  </div>
+                ))}
+                {Object.entries(formulaValues).map(([k, v]) => (
+                  <div key={k} className="bg-bg-tertiary rounded-lg p-2 border-l-2 border-accent/30">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-text-muted font-medium">{k}</span>
+                    </div>
+                    <p className="text-sm mt-0.5 text-text-muted italic">{'= '}{String(v ?? '')}</p>
                   </div>
                 ))}
                 {editando && (
@@ -580,6 +630,9 @@ export default function IdeiasEditor({
           </div>
         )}
       </div>
+      {selectedId && (
+        <VersionHistoryModal notaId={selectedId} isOpen={showVersoes} onClose={() => setShowVersoes(false)} />
+      )}
     </div>
   )
 }

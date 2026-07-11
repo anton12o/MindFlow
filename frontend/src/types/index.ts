@@ -106,6 +106,16 @@ export interface Tag {
   cor: string | null
 }
 
+export interface VersaoNota {
+  id: number
+  nota_id: number
+  versao: number
+  titulo: string
+  conteudo: string
+  propriedades: Record<string, unknown>
+  criado_em: string
+}
+
 export interface QuerieSalva {
   id: number
   nome: string
@@ -190,7 +200,10 @@ export interface IdeasToolbarProps {
   onSort?: (field: string) => void
   onExport?: () => void
   onImport?: (file: File) => void
+  onImportMarkdown?: (file: File) => void
+  onImportCSV?: (file: File) => void
   onSavedFilters?: () => void
+  onSaveAsQuery?: () => void
   onDailyNote?: () => void
   onRevealInExplorer?: () => void
   onToggleView?: () => void

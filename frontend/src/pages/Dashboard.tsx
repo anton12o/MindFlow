@@ -5,6 +5,7 @@ import { useMutateNotify } from '../hooks/useMutateNotify'
 import { updateTarefa } from '../api/rotina'
 import { createNota } from '../api/notas'
 import { getDashboardStats, getLeituraStats } from '../api/stats'
+import { getQueries } from '../api/queries'
 import type { DashboardStats } from '../api/stats'
 import PomodoroTimer from '../components/PomodoroTimer'
 import TourModal from '../components/TourModal'
@@ -26,6 +27,27 @@ const Card = React.memo(function Card({ titulo, children, loading, erro, vazio, 
     </div>
   )
 })
+
+function QueriesSection() {
+  const navigate = useNavigate()
+  const { data: queries } = useQuery({ queryKey: ['queries'], queryFn: getQueries, staleTime: 60_000 })
+  if (!queries || queries.length === 0) return null
+  const pinned = queries.slice(0, 4)
+  return (
+    <div className="mt-6">
+      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 px-1">📌 Consultas</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {pinned.map(q => (
+          <button key={q.id} onClick={() => navigate(`/consultas?id=${q.id}`)}
+            className="bg-bg-secondary border border-border rounded-xl p-4 text-left hover:border-accent/30 hover:bg-bg-hover transition-all text-sm group">
+            <p className="font-medium text-text-primary truncate group-hover:text-accent transition-colors">{q.nome}</p>
+            <p className="text-xs text-text-muted mt-1 capitalize">{q.visualizacao}</p>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -209,6 +231,7 @@ export default function Dashboard() {
 
       </div>
 
+      <QueriesSection />
       <TourModal open={onboardingOpen} onClose={closeTour} />
     </div>
   )
