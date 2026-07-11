@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { FormulaParser, FormulaError, evaluarFormula } from '../utils/formulaEvaluator'
+import { FormulaError, evaluarFormula } from '../utils/formulaEvaluator'
 
 describe('formulaEvaluator', () => {
   it('soma', () => {
