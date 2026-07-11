@@ -4,6 +4,7 @@ import math
 import re
 from collections import Counter
 from datetime import date, datetime
+from typing import Any
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -17,6 +18,7 @@ from models import (
     ConexaoNota,
     ConexaoNotaRead,
     Flashcard,
+    Habito,
     Nota,
     NotaCreate,
     NotaRead,
@@ -31,13 +33,17 @@ from models import (
     TagRead,
     TagUpdate,
     TagWithCount,
+    Tarefa,
     TemplateBase,
     TemplateNota,
     TemplateRead,
     TipoObjeto,
+    VersaoNota,
+    VersaoNotaRead,
 )
 from services import processar_wikilinks
 from services.estatisticas import calcular_estatisticas
+from services.formulas import FormulaError, evaluar_formula
 from services.frontmatter import extract_frontmatter, inject_frontmatter
 from services.metadata_index import metadata_index
 from services.notes import cleanup_nota_relations, extrair_cover_url
@@ -52,6 +58,83 @@ class BatchDeleteRequest(BaseModel):
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+def _compute_formulas(nota: "Nota", session: Session) -> dict[str, Any]:
+    if not nota.tipo_id:
+        return {}
+    tipo = session.get(TipoObjeto, nota.tipo_id)
+    if not tipo or not tipo.schema_campos:
+        return {}
+    props = dict(nota.propriedades or {})
+    computed: dict[str, Any] = {}
+    for field_name in sorted(tipo.schema_campos.keys()):
+        field_config = tipo.schema_campos[field_name]
+        if isinstance(field_config, dict) and field_config.get("type") == "formula":
+            expr = field_config.get("expressao", "")
+            if expr:
+                try:
+                    val = evaluar_formula(expr, {**props, **computed})
+                    computed[field_name] = val
+                except FormulaError as e:
+                    computed[field_name] = f"[erro: {e}]"
+    return computed
+
+
+def _salvar_snapshot(nota: "Nota", session: Session) -> None:
+    ultima = session.exec(
+        select(VersaoNota).where(VersaoNota.nota_id == nota.id).order_by(VersaoNota.versao.desc()).limit(1)
+    ).first()
+    if ultima and ultima.titulo == nota.titulo and ultima.conteudo == nota.conteudo and ultima.propriedades == nota.propriedades:
+        return
+    nova_versao = (ultima.versao + 1) if ultima else 1
+    v = VersaoNota(
+        nota_id=nota.id,
+        versao=nova_versao,
+        titulo=nota.titulo or "",
+        conteudo=nota.conteudo or "",
+        propriedades=dict(nota.propriedades or {}),
+    )
+    session.add(v)
+
+
+def _apply_formulas(notas: list["Nota"], session: Session) -> list["Nota"]:
+    tipo_ids = {n.tipo_id for n in notas if n.tipo_id}
+    if not tipo_ids:
+        return notas
+    tipos = {t.id: t for t in session.exec(select(TipoObjeto).where(TipoObjeto.id.in_(tipo_ids))).all()}
+    schemas: dict[int, dict[str, Any]] = {}
+    for tid, tipo in tipos.items():
+        if tipo.schema_campos:
+            formula_fields = {
+                k: v.get("expressao", "")
+                for k, v in tipo.schema_campos.items()
+                if isinstance(v, dict) and v.get("type") == "formula"
+            }
+            if formula_fields:
+                schemas[tid] = formula_fields
+    if not schemas:
+        return notas
+    result: list[Nota] = []
+    for nota in notas:
+        if nota.tipo_id and nota.tipo_id in schemas:
+            props = dict(nota.propriedades or {})
+            computed: dict[str, Any] = {}
+            for field_name in sorted(schemas[nota.tipo_id].keys()):
+                expr = schemas[nota.tipo_id][field_name]
+                if expr:
+                    try:
+                        val = evaluar_formula(expr, {**props, **computed})
+                        props[field_name] = val
+                        computed[field_name] = val
+                    except FormulaError as e:
+                        props[field_name] = f"[erro: {e}]"
+            nota_copy = nota.model_copy(deep=True)
+            nota_copy.propriedades = props
+            result.append(nota_copy)
+        else:
+            result.append(nota)
+    return result
 
 # ─── Pastas ───
 @router.get("/pastas", response_model=list[PastaRead])
@@ -166,7 +249,7 @@ def list_notas(
             stmt = select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
             valid_nota_ids = set(session.exec(stmt).all())
             notas = [n for n in notas if n.id in valid_nota_ids]
-            return notas[offset:offset + limit]
+            return _apply_formulas(notas[offset:offset + limit], session)
 
     stmt = select(Nota)
     if data:
@@ -181,7 +264,8 @@ def list_notas(
         order = Nota.acessos.desc().nullslast()
     elif sort == 'titulo':
         order = Nota.titulo.asc()
-    return session.exec(stmt.order_by(order).offset(offset).limit(limit)).all()
+    notas = session.exec(stmt.order_by(order).offset(offset).limit(limit)).all()
+    return _apply_formulas(notas, session)
 
 @router.post("", response_model=NotaRead)
 def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
@@ -211,17 +295,35 @@ def create_nota(n: NotaCreate, session: Session = Depends(get_session)):
 @router.get("/grafo")
 def get_grafo(session: Session = Depends(get_session)):
     notas = session.exec(select(Nota).limit(500)).all()
-    ids = {n.id for n in notas}
+    tarefas = session.exec(select(Tarefa).limit(200)).all()
+    flashcards = session.exec(select(Flashcard).limit(200)).all()
+    habitos = session.exec(select(Habito).limit(50)).all()
+
+    nota_ids = {n.id for n in notas}
     conexoes = session.exec(
         select(ConexaoNota).where(
-            or_(ConexaoNota.nota_origem_id.in_(ids), ConexaoNota.nota_destino_id.in_(ids))
+            or_(ConexaoNota.nota_origem_id.in_(nota_ids), ConexaoNota.nota_destino_id.in_(nota_ids))
         ).limit(2000)
     ).all()
     tipos = {t.id: t for t in session.exec(select(TipoObjeto)).all()}
-    return {
-        "nodes": [{"id": n.id, "label": n.titulo, "tipo_id": n.tipo_id, "tipo_nome": tipos[n.tipo_id].nome if n.tipo_id and n.tipo_id in tipos else None} for n in notas],
-        "links": [{"source": c.nota_origem_id, "target": c.nota_destino_id} for c in conexoes],
-    }
+
+    nodes = [{"id": f"n{n.id}", "label": n.titulo, "tipo_nome": tipos[n.tipo_id].nome if n.tipo_id and n.tipo_id in tipos else None} for n in notas]
+    for t in tarefas:
+        nodes.append({"id": f"t{t.id}", "label": t.titulo, "tipo_nome": "Tarefa"})
+    for f in flashcards:
+        nodes.append({"id": f"f{f.id}", "label": f.pergunta[:60], "tipo_nome": "Flashcard"})
+    for h in habitos:
+        nodes.append({"id": f"h{h.id}", "label": h.nome, "tipo_nome": "Habito"})
+
+    links = [{"source": f"n{c.nota_origem_id}", "target": f"n{c.nota_destino_id}"} for c in conexoes]
+    for f in flashcards:
+        if f.nota_id and f.nota_id in nota_ids:
+            links.append({"source": f"f{f.id}", "target": f"n{f.nota_id}"})
+    sessoes = session.exec(select(SessaoPomodoro).where(SessaoPomodoro.resumo_nota_id.in_(nota_ids)).limit(200)).all()
+    for s in sessoes:
+        links.append({"source": f"n{s.resumo_nota_id}" if s.contexto_tipo == "nota" else f"t{s.contexto_id}", "target": f"n{s.resumo_nota_id}"})
+
+    return {"nodes": nodes, "links": links}
 
 @router.get("/templates", response_model=list[TemplateRead])
 def list_templates(session: Session = Depends(get_session)):
@@ -351,6 +453,9 @@ def get_nota(nota_id: int, session: Session = Depends(get_session)):
     )
     session.commit()
     session.refresh(nota)
+    formula_props = _compute_formulas(nota, session)
+    if formula_props:
+        nota.propriedades = {**(nota.propriedades or {}), **formula_props}
     return nota
 
 @router.patch("/{nota_id}", response_model=NotaRead)
@@ -374,6 +479,8 @@ def update_nota(nota_id: int, n: NotaUpdate, session: Session = Depends(get_sess
         request_props = data.get('propriedades') or {}
         merged = {**existing_props, **props_from_body, **request_props}
         data['propriedades'] = merged
+    if any(k != "atualizado_em" and getattr(db, k, None) != v for k, v in data.items()):
+        _salvar_snapshot(db, session)
     for k, v in data.items():
         setattr(db, k, v)
     if "conteudo" in data or "propriedades" in data:
@@ -473,6 +580,42 @@ def export_nota_json(nota_id: int, session: Session = Depends(get_session)):
     return Response(content=json.dumps(data, indent=2, default=str), media_type="application/json", headers=headers)
 
 
+
+
+# ─── Histórico de Versões ───
+@router.get("/{nota_id}/versoes", response_model=list[VersaoNotaRead])
+def listar_versoes(nota_id: int, limit: int = Query(default=50, ge=1, le=200), session: Session = Depends(get_session)):
+    if not session.get(Nota, nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    return session.exec(
+        select(VersaoNota).where(VersaoNota.nota_id == nota_id).order_by(VersaoNota.versao.desc()).limit(limit)
+    ).all()
+
+@router.get("/{nota_id}/versoes/{versao_id}", response_model=VersaoNotaRead)
+def get_versao(nota_id: int, versao_id: int, session: Session = Depends(get_session)):
+    if not session.get(Nota, nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    v = session.get(VersaoNota, versao_id)
+    if not v or v.nota_id != nota_id:
+        raise HTTPException(status_code=404, detail="Versão não encontrada")
+    return v
+
+@router.post("/{nota_id}/restaurar/{versao_id}", response_model=NotaRead)
+def restaurar_versao(nota_id: int, versao_id: int, session: Session = Depends(get_session)):
+    nota = session.get(Nota, nota_id)
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    v = session.get(VersaoNota, versao_id)
+    if not v or v.nota_id != nota_id:
+        raise HTTPException(status_code=404, detail="Versão não encontrada")
+    _salvar_snapshot(nota, session)
+    nota.titulo = v.titulo
+    nota.conteudo = v.conteudo
+    nota.propriedades = dict(v.propriedades or {})
+    nota.atualizado_em = datetime.now().isoformat()
+    session.add(nota)
+    commit_with_handle(session, nota, "restaurar versao")
+    return nota
 
 
 class ExtrairInput(SQLModel):

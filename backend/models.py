@@ -290,6 +290,26 @@ class NotaUpdate(SQLModel):
     tipo_id: int | None = None
     propriedades: dict[str, object] | None = None
 
+# ─── Histórico de Versões ───
+class VersaoNota(SQLModel, table=True):
+    __tablename__ = "versoes_nota"
+    id: int | None = Field(default=None, primary_key=True)
+    nota_id: int = Field(foreign_key="notas.id", ondelete="CASCADE", index=True)
+    versao: int = Field(default=1)
+    titulo: str = ""
+    conteudo: str = ""
+    propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    criado_em: str = Field(default_factory=now)
+
+class VersaoNotaRead(SQLModel):
+    id: int
+    nota_id: int
+    versao: int
+    titulo: str
+    conteudo: str
+    propriedades: dict
+    criado_em: str
+
 class NotaTag(SQLModel, table=True):
     __tablename__ = "notas_tags"
     nota_id: int = Field(foreign_key="notas.id", ondelete="CASCADE", primary_key=True, index=True)

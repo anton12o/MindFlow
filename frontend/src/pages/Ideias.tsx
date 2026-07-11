@@ -6,6 +6,7 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 import { getNotas, createNota, updateNota, deleteNota, batchDeleteNotas, getPastas, createPasta, deletePasta, getTags, createTag, updateTag, getNotaTags, createFromWikilink } from '../api/notas'
 import request, { API_BASE } from '../api/client'
 import { getConexoes } from '../api/conexoes'
+import { createQuery } from '../api/queries'
 import { getTipos } from '../api/tipos'
 import { favoritarNota } from '../api/notas'
 import TemplateModal from '../components/TemplateModal'
@@ -247,9 +248,42 @@ export default function Ideias() {
       notify('Erro ao importar')
     }
   }, [queryClient, notify])
+  const handleImportMarkdown = useCallback(async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('tipo_id', '1')
+    try {
+      const res = await fetch(API_BASE + '/import/markdown', { method: 'POST', body: form })
+      if (!res.ok) throw new Error(res.statusText)
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+      notify('Nota(s) importada(s) do Markdown')
+    } catch (e) { console.error('[import-md]', e); notify('Erro ao importar .md') }
+  }, [queryClient, notify])
+  const handleImportCSV = useCallback(async (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    form.append('tipo_id', '1')
+    try {
+      const res = await fetch(API_BASE + '/import/csv', { method: 'POST', body: form })
+      if (!res.ok) throw new Error(res.statusText)
+      queryClient.invalidateQueries({ queryKey: ['notas'] })
+      notify('Nota(s) importada(s) do CSV')
+    } catch (e) { console.error('[import-csv]', e); notify('Erro ao importar CSV') }
+  }, [queryClient, notify])
   const handleSavedFilters = useCallback(() => {
     setShowSavedFilters(true)
   }, [])
+  const handleSaveAsQuery = useCallback(async () => {
+    if (!selectedId) return
+    const nome = window.prompt('Nome da consulta:')
+    if (!nome?.trim()) return
+    const currentNota = notas?.find(n => n.id === selectedId)
+    const tipoId = currentNota?.tipo_id || 1
+    try {
+      await createQuery({ nome: nome.trim(), tipo_objeto_id: tipoId, visualizacao: 'lista', filtros: { q: searchDebounced || undefined, tag_ids: tagFilter.length > 0 ? tagFilter : undefined, data: filterData || undefined, pasta_id: pastaFilter || undefined }, ordem: sortBy || 'atualizado_em DESC' })
+      notify('Consulta salva com sucesso')
+    } catch (e) { console.error('[saveAsQuery]', e); notify('Erro ao salvar consulta') }
+  }, [selectedId, notas, searchDebounced, tagFilter, filterData, pastaFilter, sortBy, notify])
   const handleRevealInExplorer = useCallback(async () => {
     if (!selectedId) return
     try {
@@ -559,8 +593,11 @@ export default function Ideias() {
           isOnline={navigator.onLine}
           onExport={handleExport}
           onImport={handleImport}
+          onImportMarkdown={handleImportMarkdown}
+          onImportCSV={handleImportCSV}
           onSort={(field) => setSortBy(field === 'titulo' ? (sortBy === 'titulo' ? '' : 'titulo') : '')}
           onSavedFilters={handleSavedFilters}
+          onSaveAsQuery={handleSaveAsQuery}
           onDailyNote={handleDailyNote}
           onRevealInExplorer={handleRevealInExplorer}
           onToggleView={handleToggleView}

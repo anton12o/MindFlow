@@ -9,7 +9,7 @@ interface SimNode extends GrafoNode {
   vy: number
 }
 
-function forceLayout(nodes: SimNode[], links: { source: number; target: number }[], width: number, height: number) {
+function forceLayout(nodes: SimNode[], links: { source: string; target: string }[], width: number, height: number) {
   const area = width * height
   const k = Math.sqrt(area / nodes.length)
   const iterations = 120
@@ -80,6 +80,8 @@ const TIPO_CORES: Record<string, string> = {
   Projeto: '#FF9800',
   Pessoa: '#E91E63',
   Recurso: '#9C27B0',
+  Flashcard: '#FF6B6B',
+  Habito: '#FFD93D',
 }
 
 const TIPO_ICONES: Record<string, string> = {
@@ -88,6 +90,8 @@ const TIPO_ICONES: Record<string, string> = {
   Projeto: '📋',
   Pessoa: '👤',
   Recurso: '🔗',
+  Flashcard: '🃏',
+  Habito: '🎯',
 }
 
 function getNodeColor(node: SimNode): string {
@@ -100,10 +104,15 @@ function getNodeIcon(node: SimNode): string {
   return '📝'
 }
 
+function nodeIdToNum(id: string): number {
+  const m = id.match(/^\w(\d+)$/)
+  return m ? parseInt(m[1], 10) : 0
+}
+
 export default function GrafoNotas({ onSelectNota }: Props) {
   const svgRef = useRef<SVGSVGElement>(null)
   const [simNodes, setSimNodes] = useState<SimNode[]>([])
-  const [hoveredId, setHoveredId] = useState<number | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const { data, isLoading, isError } = useQuery({ queryKey: ['grafo'], queryFn: getGrafo, staleTime: 300_000 })
 
@@ -139,7 +148,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
   if (!data || data.nodes.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-text-muted text-sm">
-        Crie notas com [[links]] para ver o grafo
+        Crie notas, tarefas ou flashcards com [[links]] para ver o grafo
       </div>
     )
   }
@@ -166,7 +175,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
           )
         })}
         {simNodes.map(n => (
-          <g key={n.id} onClick={() => onSelectNota?.(n.id)}
+          <g key={n.id} onClick={() => onSelectNota?.(nodeIdToNum(n.id))}
             onMouseEnter={() => setHoveredId(n.id)} onMouseLeave={() => setHoveredId(null)}
             className="cursor-pointer">
             <circle cx={n.x} cy={n.y} r={hoveredId === n.id ? 10 : 8}
