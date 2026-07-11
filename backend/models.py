@@ -14,7 +14,7 @@ class InboxItemBase(SQLModel):
     conteudo: str = Field(min_length=1)
     tipo_destino: str | None = None
     destino_id: int | None = Field(default=None, foreign_key="notas.id", ondelete="SET NULL", index=True)
-    arquivado: bool = False
+    arquivado: bool = Field(default=False, index=True)
 
 class InboxItem(InboxItemBase, table=True):
     __tablename__ = "inbox"
@@ -49,7 +49,7 @@ class HabitoBase(SQLModel):
     unidade: str | None = None
     categoria: str | None = None
     cor: str | None = None
-    ativo: bool = True
+    ativo: bool = Field(default=True, index=True)
     dias_semana: str | None = None
 
 class Habito(HabitoBase, table=True):
@@ -253,7 +253,7 @@ class TagUpdate(SQLModel):
     cor: str | None = None
 
 class NotaBase(SQLModel):
-    titulo: str = Field(min_length=1, max_length=500)
+    titulo: str = Field(min_length=1, max_length=500, index=True)
     conteudo: str = ""
     pasta_id: int | None = Field(default=None, foreign_key="pastas.id", ondelete="SET NULL", index=True)
     tipo_id: int | None = Field(default=None, foreign_key="tipos_objeto.id", ondelete="SET NULL", index=True)
@@ -267,8 +267,8 @@ class Nota(NotaBase, table=True):
     ordem: int = Field(default=0)
     cover_url: str | None = None
     favoritado: bool = False
-    acessos: int = Field(default=0)
-    ultimo_acesso: str | None = None
+    acessos: int = Field(default=0, index=True)
+    ultimo_acesso: str | None = Field(default=None, index=True)
 
 class NotaCreate(NotaBase):
     pass

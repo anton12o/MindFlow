@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 from sqlmodel import Session, and_, select
 
 from database import get_session
@@ -194,7 +195,7 @@ def update_tarefa(tarefa_id: int, t: TarefaUpdate, session: Session = Depends(ge
 
         session.commit()
         session.refresh(db)
-    except Exception as e:
+    except (DataError, IntegrityError, OperationalError) as e:
         session.rollback()
         logger.error("[rotina.update_tarefa] %s", e)
         raise HTTPException(status_code=500, detail="Erro ao atualizar tarefa")

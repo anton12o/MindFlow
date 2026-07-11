@@ -1,4 +1,5 @@
 def sm2_calculo(qualidade: int, intervalo: float, facilidade: float, revisoes: int):
+    qualidade = max(0, min(5, qualidade))
     if qualidade < 3:
         return 0.0, facilidade, 0
     facilidade = max(1.3, facilidade + (0.1 - (5 - qualidade) * (0.08 + (5 - qualidade) * 0.02)))

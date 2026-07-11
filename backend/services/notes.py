@@ -21,7 +21,7 @@ def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | 
             path_lower = parsed.path.lower()
             ext = path_lower[path_lower.rfind('.'):] if '.' in path_lower else ''
             return not ext or ext in EXTENSOES_IMAGEM
-        except Exception:
+        except ValueError:
             return False
     if propriedades and propriedades.get('cover_url'):
         url = propriedades['cover_url']

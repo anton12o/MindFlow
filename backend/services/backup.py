@@ -8,12 +8,12 @@ logger = logging.getLogger(__name__)
 _backup_lock = threading.Lock()
 
 
-def cold_backup(db_path: Path, backup_dir: Path, src_conn: sqlite3.Connection | None = None) -> None:
+def cold_backup(db_path: Path, backup_dir: Path, src_conn: sqlite3.Connection | None = None) -> bool:
     if not db_path.exists():
-        return
+        return False
     if not _backup_lock.acquire(blocking=False):
         logger.warning("Backup já em andamento — ignorando")
-        return
+        return False
     try:
         backup_dir.mkdir(parents=True, exist_ok=True)
         now = time.strftime("%Y-%m-%d_%H-%M-%S")
@@ -31,7 +31,9 @@ def cold_backup(db_path: Path, backup_dir: Path, src_conn: sqlite3.Connection | 
         backups = sorted(backup_dir.glob("mindflow-*.db"))
         while len(backups) > 6:
             backups.pop(0).unlink()
+        return True
     except Exception as e:
-        logger.warning("Falha ao fazer backup: %s", e)
+        logger.error("Falha ao fazer backup: %s", e)
+        return False
     finally:
         _backup_lock.release()

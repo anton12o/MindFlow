@@ -2,6 +2,7 @@ import json
 import logging
 import math
 import re
+import sqlite3
 from collections import Counter
 from datetime import date, datetime
 from typing import Any
@@ -10,7 +11,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func, text
-from sqlmodel import Session, SQLModel, or_, select
+from sqlmodel import Session, SQLModel, delete, or_, select
 
 from cache import cache_clear, cache_get, cache_set
 from database import get_session
@@ -96,6 +97,15 @@ def _salvar_snapshot(nota: "Nota", session: Session) -> None:
         propriedades=dict(nota.propriedades or {}),
     )
     session.add(v)
+    MAX_VERSAO = 50
+    versao_mais_antiga = nova_versao - MAX_VERSAO
+    if versao_mais_antiga > 0:
+        session.execute(
+            delete(VersaoNota).where(
+                VersaoNota.nota_id == nota.id,
+                VersaoNota.versao <= versao_mais_antiga,
+            )
+        )
 
 
 def _apply_formulas(notas: list["Nota"], session: Session) -> list["Nota"]:
@@ -237,7 +247,7 @@ def list_notas(
                     {"q": fts_query},
                 ).all()
             ]
-        except Exception as e:
+        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.warning("FTS5 query falhou (fallback para vazio): %s", e)
             ids = []
         notas_map = {n.id: n for n in session.exec(select(Nota).where(Nota.id.in_(ids))).all()}
@@ -249,7 +259,7 @@ def list_notas(
             stmt = select(NotaTag.nota_id).where(NotaTag.tag_id.in_(tag_id_list)).group_by(NotaTag.nota_id).having(func.count(NotaTag.tag_id) == len(tag_id_list))
             valid_nota_ids = set(session.exec(stmt).all())
             notas = [n for n in notas if n.id in valid_nota_ids]
-            return _apply_formulas(notas[offset:offset + limit], session)
+        return _apply_formulas(notas[offset:offset + limit], session)
 
     stmt = select(Nota)
     if data:
@@ -616,6 +626,22 @@ def restaurar_versao(nota_id: int, versao_id: int, session: Session = Depends(ge
     session.add(nota)
     commit_with_handle(session, nota, "restaurar versao")
     return nota
+
+@router.delete("/{nota_id}/versoes")
+def limpar_versoes_antigas(nota_id: int, manter: int = Query(default=50, ge=1, le=200), session: Session = Depends(get_session)):
+    if not session.get(Nota, nota_id):
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    versoes = session.exec(
+        select(VersaoNota.versao).where(VersaoNota.nota_id == nota_id).order_by(VersaoNota.versao.desc()).offset(manter).limit(1)
+    ).all()
+    if not versoes:
+        return {"deletadas": 0}
+    limite = versoes[0]
+    result = session.execute(
+        delete(VersaoNota).where(VersaoNota.nota_id == nota_id, VersaoNota.versao <= limite)
+    )
+    session.commit()
+    return {"deletadas": result.rowcount}
 
 
 class ExtrairInput(SQLModel):

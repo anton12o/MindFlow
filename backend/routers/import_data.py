@@ -5,9 +5,11 @@ import json
 import logging
 import os
 import re
+import sqlite3
 from datetime import date, datetime
 
 from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile
+from sqlalchemy.exc import DataError, IntegrityError, OperationalError
 from sqlmodel import Session, select, text
 
 from database import engine
@@ -176,7 +178,7 @@ async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
                 try:
                     rows = session.exec(select(model_cls.id)).all()
                     existing_ids = set(rows)
-                except Exception as e:
+                except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
                     logger.warning("ID pre-fetch para %s falhou (prosseguindo sem): %s", nome_tabela, e)
 
                 inseridos = 0
@@ -253,7 +255,7 @@ async def import_data(file: UploadFile, _rl: None = Depends(import_limiter)):
 
             session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
             session.commit()
-        except Exception as e:
+        except (DataError, IntegrityError, OperationalError) as e:
             session.rollback()
             logger.error("Erro ao importar dados: %s", e)
             raise HTTPException(500, f"Erro durante import — transação revertida: {e}")
@@ -308,7 +310,7 @@ async def import_markdown(file: UploadFile, tipo_id: int = Form(1), pasta_id: in
             session.execute(text("INSERT INTO notas_fts(notas_fts) VALUES('rebuild')"))
             session.commit()
             return {"sucesso": True, "id": nota.id, "titulo": titulo}
-        except Exception as e:
+        except (DataError, IntegrityError, OperationalError) as e:
             session.rollback()
             logger.error("Erro ao importar .md: %s", e)
             raise HTTPException(500, f"Erro ao importar markdown: {e}")
@@ -353,7 +355,7 @@ async def import_csv(file: UploadFile, tipo_id: int = Form(1), pasta_id: int | N
             return {"sucesso": True, "importados": importados}
         except HTTPException:
             raise
-        except Exception as e:
+        except (DataError, IntegrityError, OperationalError) as e:
             session.rollback()
             logger.error("Erro ao importar CSV: %s", e)
             raise HTTPException(500, f"Erro ao importar CSV: {e}")

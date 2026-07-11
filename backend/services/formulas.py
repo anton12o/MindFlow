@@ -64,10 +64,13 @@ class FormulaParser:
         while self._peek()[1] in ("+", "-"):
             op = self._consume()[1]
             right = self._parse_term()
-            if op == "+":
-                left = left + right
-            else:
-                left = left - right
+            try:
+                if op == "+":
+                    left = left + right
+                else:
+                    left = left - right
+            except TypeError as e:
+                raise FormulaError(str(e))
         return left
 
     def _parse_term(self) -> Any:
@@ -75,14 +78,17 @@ class FormulaParser:
         while self._peek()[1] in ("*", "/", "%"):
             op = self._consume()[1]
             right = self._parse_factor()
-            if op == "*":
-                left = left * right
-            elif op == "/":
-                if right == 0:
-                    raise FormulaError("Divisão por zero")
-                left = left / right
-            else:
-                left = left % right
+            try:
+                if op == "*":
+                    left = left * right
+                elif op == "/":
+                    if right == 0:
+                        raise FormulaError("Divisão por zero")
+                    left = left / right
+                else:
+                    left = left % right
+            except TypeError as e:
+                raise FormulaError(str(e))
         return left
 
     def _parse_factor(self) -> Any:

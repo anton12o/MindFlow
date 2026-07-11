@@ -1,5 +1,6 @@
 import logging
 import re
+import sqlite3
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -102,7 +103,7 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
                                 {"q": fts_query},
                             ).all()
                         ]
-                    except Exception as e:
+                    except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
                         logger.warning("FTS5 query falhou (fallback para vazio): %s", e)
                         ids = []
                     if ids:
