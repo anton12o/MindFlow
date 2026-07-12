@@ -68,7 +68,7 @@ export default function CalendarioView({ query, result, resLoad, resErr, mesAtua
               if (dia === null) return <div key={di} className="h-20 bg-bg-tertiary/50" />
               const notas = notasPorDia[dia] || []
               return (
-                <div key={di} className="relative h-20 bg-bg-secondary border border-border rounded-lg p-1 transition-colors hover:bg-bg-hover">
+                <div key={di} className="relative h-20 overflow-hidden bg-bg-secondary border border-border rounded-lg p-1 transition-colors hover:bg-bg-hover">
                   <div className="text-xs font-semibold text-text-muted mb-1">{dia}</div>
                   <div className="space-y-1 overflow-y-auto h-[calc(100%-18px)]">
                     {notas.slice(0, 3).map(n => (

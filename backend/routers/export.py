@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from database import get_session
+from database import DB_PATH, get_session
 from models import (
     BlocoRotina,
     ConexaoNota,
@@ -39,7 +39,7 @@ ATTACHMENTS_DIR = Path.home() / '.mindflow' / 'attachments'
 def _generate_portability_pack() -> str:
     import os as _os
     tmp_dir = Path(tempfile.mkdtemp(prefix='mindflow_portability_'))
-    db_src = _os.getenv('DATABASE_URL', 'sqlite:///mindflow.db').replace('sqlite:///', '')
+    db_src = str(DB_PATH)
     db_dest = tmp_dir / 'mindflow.db'
     if _os.path.exists(db_src):
         shutil.copy2(db_src, db_dest)

@@ -55,7 +55,7 @@ export default function LogsModal({ onClose }: Props) {
           {loading && <p className="text-sm text-text-muted text-center animate-pulse">Carregando...</p>}
           {!loading && entries.length === 0 && <p className="text-sm text-text-muted text-center">Nenhum log encontrado</p>}
           {!loading && entries.map((e, i) => (
-            <div key={i} className="text-xs font-mono bg-bg-tertiary rounded-lg px-3 py-2 leading-relaxed">
+            <div key={`${e.timestamp}-${e.level}-${i}`} className="text-xs font-mono bg-bg-tertiary rounded-lg px-3 py-2 leading-relaxed">
               <span className="text-text-muted">[{e.timestamp}]</span>{' '}
               <span className={e.level === 'ERROR' ? 'text-danger' : e.level === 'WARNING' ? 'text-warning' : 'text-text-muted'}>
                 [{e.level}]
