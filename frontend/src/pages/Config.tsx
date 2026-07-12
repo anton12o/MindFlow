@@ -206,7 +206,7 @@ export default function Config() {
                     : !Object.keys(customTheme).length
                   return (
                     <button key={p.name} onClick={() => p.colors['--color-accent'] ? setCustomTheme(p.colors) : resetCustomTheme()}
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${isActive ? 'border-accent scale-110 shadow-lg' : 'border-border hover:border-text-muted'}`}
+                      className={`min-w-[44px] min-h-[44px] rounded-full border-2 transition-all ${isActive ? 'border-accent scale-110 shadow-lg' : 'border-border hover:border-text-muted'}`}
                       style={{ backgroundColor: p.colors['--color-accent'] || 'var(--color-accent)' }}
                       title={p.name} />
                   )
@@ -217,7 +217,7 @@ export default function Config() {
                     const hover = darkenColor(hex, 15)
                     setCustomTheme({ '--color-accent': hex, '--color-accent-hover': hover })
                   }}
-                  className="w-8 h-8 rounded-full border-2 border-border cursor-pointer overflow-hidden"
+                  className="min-w-[44px] min-h-[44px] rounded-full border-2 border-border cursor-pointer overflow-hidden"
                   title="Cor personalizada" />
               </div>
             </div>
@@ -351,7 +351,7 @@ export default function Config() {
                     {rebindingAction === action ? '...' : 'Alterar'}
                   </button>
                   <button onClick={() => rebind(action, { key: '', ctrl: false, shift: false, alt: false })}
-                    className="text-xs text-danger/70 hover:text-danger">×</button>
+                    className="text-xs text-danger/70 hover:text-danger min-w-[44px] min-h-[44px]">×</button>
                 </div>
               </div>
             ))}

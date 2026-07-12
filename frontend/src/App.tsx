@@ -203,12 +203,12 @@ function Layout() {
       </div>
       <main className="flex-1 overflow-y-auto animate-fade-in relative">
           <button onClick={() => window.dispatchEvent(new CustomEvent('toggle-zen'))}
-            className={`fixed top-3 right-3 z-50 w-7 h-7 rounded-lg flex items-center justify-center text-xs transition-colors ${zenMode ? 'bg-accent/20 text-accent hover:bg-accent/30' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
+                className={`fixed top-3 right-3 z-50 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center text-xs transition-colors ${zenMode ? 'bg-accent/20 text-accent hover:bg-accent/30' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
             title={zenMode ? 'Sair do Modo Foco (Ctrl+Shift+F)' : 'Modo Foco (Ctrl+Shift+F)'} aria-label="Alternar Modo Foco">
             {zenMode ? '✕' : '⛶'}
           </button>
           {!online && (
-            <div className="sticky top-0 z-40 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
+            <div className="sticky top-0 z-45 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
               Servidor offline ⚠️ alguns dados podem não estar disponíveis
             </div>
           )}

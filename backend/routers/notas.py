@@ -207,7 +207,7 @@ def nao_acessadas(
     limite = hoje - timedelta(days=dias)
     notas = session.exec(
         select(Nota).where(
-            Nota.ultimo_acesso.is_(None) | (Nota.ultimo_acesso < limite.isoformat())
+            Nota.ultimo_acesso.is_(None) | (Nota.ultimo_acesso < limite.isoformat() + "~")
         ).order_by(Nota.ultimo_acesso.asc().nullsfirst()).limit(limit)
     ).all()
     return notas
@@ -461,7 +461,11 @@ def get_nota(nota_id: int, session: Session = Depends(get_session)):
         text("UPDATE notas SET acessos = COALESCE(acessos, 0) + 1, ultimo_acesso = :now WHERE id = :id"),
         {"now": datetime.now().isoformat(), "id": nota_id}
     )
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise HTTPException(status_code=500, detail="Erro ao registrar acesso")
     session.refresh(nota)
     formula_props = _compute_formulas(nota, session)
     if formula_props:
@@ -640,7 +644,11 @@ def limpar_versoes_antigas(nota_id: int, manter: int = Query(default=50, ge=1, l
     result = session.execute(
         delete(VersaoNota).where(VersaoNota.nota_id == nota_id, VersaoNota.versao <= limite)
     )
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise HTTPException(status_code=500, detail="Erro ao limpar versões")
     return {"deletadas": result.rowcount}
 
 
@@ -675,7 +683,11 @@ def favoritar_nota(nota_id: int, session: Session = Depends(get_session)):
         text("UPDATE notas SET favoritado = NOT COALESCE(favoritado, 0), atualizado_em = :now WHERE id = :id"),
         {"now": datetime.now().isoformat(), "id": nota_id}
     )
-    session.commit()
+    try:
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise HTTPException(status_code=500, detail="Erro ao favoritar nota")
     session.refresh(nota)
     return nota
 

@@ -138,7 +138,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
   return (
     <>
       <button onClick={() => setCollapsed(p => !p)}
-        className="fixed top-2 left-1 z-50 w-9 h-9 flex items-center justify-center rounded-lg bg-bg-secondary border border-border text-text-muted hover:text-text-primary transition-all active:scale-95 md:hidden"
+        className="fixed top-2 left-1 z-50 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-bg-secondary border border-border text-text-muted hover:text-text-primary transition-all active:scale-95 md:hidden"
         title={collapsed ? 'Abrir menu' : 'Fechar menu'}>
         {collapsed ? <Menu size={16} /> : <XIcon size={16} />}
       </button>
@@ -151,11 +151,11 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
           <div className={`flex items-center w-full ${desktopCollapsed ? 'justify-center px-0.5 flex-col gap-1' : 'px-2 justify-between'}`}>
             {desktopCollapsed ? (
               <>
-                <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base" title="MindFlow">
+                <div className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base" title="MindFlow">
                   🧠
                 </div>
                 <button onClick={() => { setDesktopCollapsed(false); try { localStorage.setItem('mindflow_sidebar_collapsed', 'false') } catch { /* silent */ } }}
-                  className="w-6 h-6 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Expandir sidebar">
                   <PanelLeft size={14} />
                 </button>
@@ -163,11 +163,11 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-1 justify-center">
-                  <div className="w-8 h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base">🧠</div>
+                  <div className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base">🧠</div>
                   {sidebarWidth > 90 && <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>}
                 </div>
                 <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch { /* silent */ }; return v }) }}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
+                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Recolher sidebar">
                   <PanelLeftClose size={16} />
                 </button>

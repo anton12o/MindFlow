@@ -53,7 +53,9 @@ def get_logs(n: int = 50, level: str | None = None):
 @router.post("")
 def post_log(entry: FrontendLogEntry):
     tag = f"[FRONTEND] [{entry.context or '?'}]"
-    logger.error("%s %s\n%s", tag, entry.message, entry.stack or "")
+    safe_msg = (entry.message or "").replace("\n", "␤").replace("\r", "␤")[:500]
+    safe_stack = (entry.stack or "").replace("\n", "␤").replace("\r", "␤")[:2000]
+    logger.error("%s %s | stack: %s", tag, safe_msg, safe_stack)
     return {"ok": True}
 
 

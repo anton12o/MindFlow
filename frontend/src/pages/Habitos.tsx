@@ -244,7 +244,7 @@ export default function Habitos() {
                 ) : (
                   <div className="relative">
                     <button onClick={() => setKebabOpenId(kebabOpenId === h.id ? null : h.id)}
-                      className="px-1 text-text-muted hover:text-text-primary transition-colors text-lg leading-none">⋮</button>
+                      className="px-2 min-w-[44px] min-h-[44px] text-text-muted hover:text-text-primary transition-colors text-lg leading-none">⋮</button>
                     {kebabOpenId === h.id && (
                       <>
                         <div className="fixed inset-0 z-40" onClick={() => setKebabOpenId(null)} />

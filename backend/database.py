@@ -23,7 +23,11 @@ engine = create_engine(
 def set_sqlite_pragma(dbapi_conn, connection_record):
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    JOURNAL_MODES = frozenset({"WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"})
     journal = os.environ.get("MFLOW_JOURNAL_MODE", "WAL")
+    if journal not in JOURNAL_MODES:
+        logger.warning("MFLOW_JOURNAL_MODE inválido: '%s', usando WAL", journal)
+        journal = "WAL"
     cursor.execute(f"PRAGMA journal_mode={journal}")
     cursor.execute("PRAGMA synchronous=NORMAL")
     cursor.execute("PRAGMA cache_size=-40000")

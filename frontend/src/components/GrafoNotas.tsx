@@ -169,7 +169,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
           const target = nodeMap.get(l.target)
           if (!source || !target) return null
           return (
-            <line key={`link-${i}`}
+            <line key={`link-${l.source}-${l.target}`}
               x1={source.x} y1={source.y} x2={target.x} y2={target.y}
               stroke="var(--color-border)" strokeWidth={1.5} />
           )
