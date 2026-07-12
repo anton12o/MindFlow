@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse
 from sqlmodel import Session, text
 
 from database import engine
-from rate_limiter import shutdown_limiter
+from rate_limiter import backup_limiter, shutdown_limiter
 from services.backup import cold_backup as _cold_backup
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,7 @@ atexit.register(_wal_checkpoint)
 
 
 @router.post("/db/backup")
-def db_backup():
+def db_backup(_rl: None = Depends(backup_limiter)):
     threading.Thread(target=_backup_async, daemon=True).start()
     return {"ok": True, "mensagem": "Backup iniciado"}
 

@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse
@@ -18,7 +18,7 @@ from _version import VERSION
 from database import check_db_integrity, get_session, run_migrations, setup_fts
 from exceptions import AppException, BadRequestException, ConflictException, NotFoundException
 from logging_config import setup_logging
-from rate_limiter import crud_limiter
+from rate_limiter import attachments_limiter, crud_limiter
 from routers import (
     export,
     flashcards,
@@ -102,7 +102,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request, call_next):
         if request.method in ("POST", "PATCH", "DELETE") and request.url.path.startswith("/api/"):
             path = request.url.path
-            if not any(p in path for p in ("/search", "/import", "/shutdown", "/export", "/attachments", "/auth", "/backup")):
+            skip_prefixes = ("/api/search", "/api/import", "/api/shutdown", "/api/export", "/api/attachments", "/api/auth", "/api/db/backup")
+            if not any(path.startswith(p) for p in skip_prefixes):
                 client_key = request.client.host if request.client else "unknown"
                 crud_limiter.check(client_key)
         return await call_next(request)
@@ -164,7 +165,7 @@ def health():
 ALLOWED_EXTENSIONS = frozenset({'png', 'jpg', 'jpeg', 'gif', 'svg', 'pdf'})
 
 @app.post("/api/attachments/upload")
-async def upload_attachment(file: UploadFile = File(...)):
+async def upload_attachment(file: UploadFile = File(...), _rl: None = Depends(attachments_limiter)):
     ext = (file.filename or '').rsplit('.', 1)[-1].lower() if file.filename else ''
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(status_code=400, detail=f"Tipo de arquivo não permitido. Permitidos: {', '.join(sorted(ALLOWED_EXTENSIONS))}")

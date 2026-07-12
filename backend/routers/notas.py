@@ -315,7 +315,7 @@ def get_grafo(session: Session = Depends(get_session)):
             or_(ConexaoNota.nota_origem_id.in_(nota_ids), ConexaoNota.nota_destino_id.in_(nota_ids))
         ).limit(2000)
     ).all()
-    tipos = {t.id: t for t in session.exec(select(TipoObjeto)).all()}
+    tipos = {t.id: t for t in session.exec(select(TipoObjeto).limit(100)).all()}
 
     nodes = [{"id": f"n{n.id}", "label": n.titulo, "tipo_nome": tipos[n.tipo_id].nome if n.tipo_id and n.tipo_id in tipos else None} for n in notas]
     for t in tarefas:
@@ -337,7 +337,7 @@ def get_grafo(session: Session = Depends(get_session)):
 
 @router.get("/templates", response_model=list[TemplateRead])
 def list_templates(session: Session = Depends(get_session)):
-    return session.exec(select(TemplateNota)).all()
+    return session.exec(select(TemplateNota).limit(200)).all()
 
 @router.post("/templates", response_model=TemplateRead)
 def create_template(t: TemplateBase, session: Session = Depends(get_session)):
@@ -867,7 +867,7 @@ def sugerir_tags(nota_id: int, session: Session = Depends(get_session)):
     total = session.exec(select(func.count(Nota.id))).one()
     if not total:
         return []
-    stmt = select(NotaTag.tag_id, Nota.conteudo).join(Nota, Nota.id == NotaTag.nota_id)
+    stmt = select(NotaTag.tag_id, Nota.conteudo).join(Nota, Nota.id == NotaTag.nota_id).limit(500)
     rows = session.execute(stmt).all()
     tag_texts: dict[int, list[str]] = {}
     for tag_id, conteudo in rows:

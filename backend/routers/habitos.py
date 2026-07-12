@@ -68,7 +68,7 @@ def delete_habito(habito_id: int, session: Session = Depends(get_session)):
     h = session.get(Habito, habito_id)
     if not h:
         raise HTTPException(status_code=404, detail="Hábito não encontrado")
-    registros = session.exec(select(RegistroHabito).where(RegistroHabito.habito_id == habito_id)).all()
+    registros = session.exec(select(RegistroHabito).where(RegistroHabito.habito_id == habito_id).limit(365)).all()
     for r in registros:
         session.delete(r)
     session.delete(h)
