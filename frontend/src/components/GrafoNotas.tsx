@@ -164,7 +164,7 @@ export default function GrafoNotas({ onSelectNota }: Props) {
   return (
     <div>
       <svg ref={svgRef} viewBox="0 0 800 500" className="w-full h-auto max-h-[500px]">
-        {validLinks.map((l, i) => {
+        {validLinks.map((l) => {
           const source = nodeMap.get(l.source)
           const target = nodeMap.get(l.target)
           if (!source || !target) return null
