@@ -179,13 +179,13 @@ export default function Dashboard() {
         <Card titulo="✅ Tarefas de hoje" linkTo="/rotina" loading={isLoading} erro={isError} onRetry={refetch} vazio={pending.length === 0 && !isLoading && !isError}
           vazioChildren={<p className="text-sm text-text-muted text-center py-3">✅ Nenhuma tarefa hoje</p>}>
           {dash?.tarefas?.map(t => (
-            <div key={t.id} onClick={() => navigate('/rotina')} className="flex items-center gap-2 py-2 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded-lg px-2 -mx-2 cursor-pointer">
+            <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 rounded-lg px-2 -mx-2">
               <button onClick={(e) => { e.stopPropagation(); handleToggleTarefa(t) }}
                 className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
                   ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
                 {t.status === 'feito' ? '✓' : ''}
               </button>
-              <span className={`text-sm flex-1 ${t.status === 'feito' ? 'line-through text-text-muted' : ''}`}>{t.titulo}</span>
+              <button type="button" onClick={() => navigate('/rotina')} className="text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}">{t.titulo}</button>
               <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
                 {labelPrioridade(t.prioridade)}
               </span>

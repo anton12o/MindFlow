@@ -1,5 +1,12 @@
 from models import Flashcard, Nota, NotaTag, SessaoPomodoro, Tag
-from services.notes import cleanup_nota_relations, criar_nota_resumo, extrair_cover_url, yaml_quote
+from services.notes import cleanup_nota_relations, criar_nota_resumo, extrair_cover_url
+
+
+def yaml_quote(value: str) -> str:
+    if any(c in value for c in ':#{}[]&*!|>%@`"\''):
+        escaped = value.replace("'", "''")
+        return f"'{escaped}'"
+    return value
 
 
 def test_extrair_cover_url_de_propriedades():
