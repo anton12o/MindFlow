@@ -36,7 +36,6 @@ export default defineConfig({
         assetFileNames: 'assets/[name]-[hash].[ext]',
         manualChunks(id: string) {
           if (id.includes('@codemirror')) return 'codemirror'
-          if (id.includes('d3-force')) return 'd3'
         },
       },
     },

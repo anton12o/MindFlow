@@ -12,7 +12,7 @@ export const deleteQuery = (id: number) =>
 
 export type QueryResultItem = Record<string, unknown> & { id: number; titulo: string }
 export const executarQuery = (id: number, mes?: string, gantt?: boolean) =>
-  request<{ tipo: string; dados: QueryResultItem[]; total?: number }>(`/queries/${id}/executar${mes || gantt ? `?${[mes && `mes=${mes}`, gantt && 'gantt=true'].filter(Boolean).join('&')}` : ''}`, { method: 'POST' })
+  request<{ tipo: string; dados: QueryResultItem[]; total?: number; truncated?: boolean }>(`/queries/${id}/executar${mes || gantt ? `?${[mes && `mes=${mes}`, gantt && 'gantt=true'].filter(Boolean).join('&')}` : ''}`, { method: 'POST' })
 
 export const batchEdit = (queryId: number, ids: number[], alteracoes: object) =>
   request<{ ok: boolean }>(`/queries/${queryId}/batch`, {

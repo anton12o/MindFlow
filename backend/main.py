@@ -1,5 +1,6 @@
 import logging
 import os
+import threading
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -51,6 +52,15 @@ ATTACHMENTS_DIR = Path.home() / '.mindflow' / 'attachments'
 MAX_ATTACHMENT_SIZE = int(os.getenv('MAX_ATTACHMENT_SIZE_MB', '5')) * 1024 * 1024
 ALLOWED_MIME_PREFIXES = ('image/', 'application/pdf')
 
+def _build_index():
+    try:
+        db = next(get_session())
+        metadata_index.build(db)
+        db.close()
+    except Exception as e:
+        logger.warning("metadata_index nao carregado (fallback para cache): %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     setup_logging()
@@ -63,12 +73,7 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Seed não executado (banco já existente?): %s", e)
     ATTACHMENTS_DIR.mkdir(parents=True, exist_ok=True)
-    try:
-        db = next(get_session())
-        metadata_index.build(db)
-        db.close()
-    except Exception as e:
-        logger.warning("metadata_index não carregado (fallback para cache): %s", e)
+    threading.Thread(target=_build_index, daemon=True).start()
     logger.info("MindFlow API pronta")
     yield
 
