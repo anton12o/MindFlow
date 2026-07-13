@@ -55,7 +55,7 @@ def cleanup_nota_relations(nota_id: int, session: Session) -> None:
 def extrair_wikilinks(conteudo: str) -> list[str]:
     seen: set[str] = set()
     result: list[str] = []
-    for match in re.findall(r'\[\[([^\]]+)\]\]', conteudo):
+    for match in re.findall(r'\[\[([^\[\]]+)\]\]', conteudo):
         title = match.split('|')[0].strip()
         if title and title not in seen:
             seen.add(title)

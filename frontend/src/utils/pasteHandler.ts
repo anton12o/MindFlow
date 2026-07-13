@@ -1,5 +1,7 @@
+import DOMPurify from 'dompurify'
+
 export function htmlToMarkdown(html: string): string {
-  let md = html
+  let md = DOMPurify.sanitize(html, { ALLOWED_TAGS: [] })
   md = md.replace(/<b>(.*?)<\/b>/gi, '**$1**')
   md = md.replace(/<i>(.*?)<\/i>/gi, '*$1*')
   md = md.replace(/<a\s+href="([^"]+)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)')
