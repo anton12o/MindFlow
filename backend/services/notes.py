@@ -33,11 +33,7 @@ def extrair_cover_url(conteudo: str, propriedades: dict | None = None) -> str | 
             return url
     return None
 
-def yaml_quote(value: str) -> str:
-    if any(c in value for c in ':#{}[]&*!|>%@`"\''):
-        escaped = value.replace("'", "''")
-        return f"'{escaped}'"
-    return value
+
 
 def cleanup_nota_relations(nota_id: int, session: Session) -> None:
     for tag in session.exec(select(NotaTag).where(NotaTag.nota_id == nota_id)).all():

@@ -118,6 +118,7 @@ class MetadataIndex:
     def get_notas_by_tag(self, tag: str) -> set[int]:
         return set(self.tag_to_ids.get(tag, set()))
 
+    # TODO: usar em painel de backlinks (planejado)
     def get_links_to(self, nota_id: int) -> set[int]:
         return set(self.link_to_ids.get(nota_id, set()))
 
