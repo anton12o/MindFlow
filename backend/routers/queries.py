@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+QUERY_RESULT_LIMIT = 500
+
 CAMPOS_AGRUPAMENTO = frozenset({
     "status", "prioridade", "titulo", "data", "criado_em", "atualizado_em",
     "autor", "fonte", "lido_em", "avaliacao", "paginas",
@@ -81,8 +83,11 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             stmt = stmt.where(Tarefa.status == filtros["status"])
         if filtros.get("prioridade"):
             stmt = stmt.where(Tarefa.prioridade == filtros["prioridade"])
-        dados = session.exec(stmt).all()
-        return {"tipo": "tarefa", "dados": [{"id": d.id, "titulo": d.titulo, "status": d.status, "prioridade": d.prioridade, "data": d.data} for d in dados]}
+        dados = session.exec(stmt.limit(QUERY_RESULT_LIMIT + 1)).all()
+        truncated = len(dados) > QUERY_RESULT_LIMIT
+        dados = dados[:QUERY_RESULT_LIMIT]
+        serialized = [{"id": d.id, "titulo": d.titulo, "status": d.status, "prioridade": d.prioridade, "data": d.data} for d in dados]
+        return {"tipo": "tarefa", "dados": serialized, "total": len(dados), "truncated": truncated}
     else:
         stmt = select(Nota)
         filtros = q.filtros or {}
@@ -130,11 +135,13 @@ def executar_query(query_id: int, mes: str | None = None, gantt: bool = False, s
             stmt = stmt.where(
                 text("propriedades->>'data_inicio' IS NOT NULL AND propriedades->>'data_fim' IS NOT NULL")
             )
-        dados = session.exec(stmt).all()
-        total = len(dados)
+        dados = session.exec(stmt.limit(QUERY_RESULT_LIMIT + 1)).all()
+        truncated = len(dados) > QUERY_RESULT_LIMIT
+        dados = dados[:QUERY_RESULT_LIMIT]
         if gantt:
-            dados = dados[:100]  # hard limit 100
-        return {"tipo": "nota", "dados": [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id, "cover_url": d.cover_url} for d in dados], "total": total}
+            dados = dados[:100]
+        serialized = [{"id": d.id, "titulo": d.titulo, "conteudo": d.conteudo[:100], "tipo_id": d.tipo_id, "cover_url": d.cover_url} for d in dados]
+        return {"tipo": "nota", "dados": serialized, "total": len(dados), "truncated": truncated}
 class BatchInput(SQLModel):
     ids: list[int]
     alteracoes: dict[str, Any]

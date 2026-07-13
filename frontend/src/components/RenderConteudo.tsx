@@ -95,6 +95,7 @@ function parseMdTable(text: string): string | null {
 }
 
 function applyKatexOutsideCode(html: string): string {
+  if (!html.includes('$')) return html
   const parts = html.split(/(<code[^>]*>.*?<\/code>)/gs)
   return parts.map((part, i) => {
     if (i % 2 === 1) return part

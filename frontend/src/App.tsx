@@ -8,7 +8,6 @@ import { NotificationProvider, useNotify } from './store/notification'
 import { KeybindingsProvider, useKeybindings, comboLabel, KEYBINDING_LABELS } from './store/keybindings'
 import { useBackendOnline } from './hooks/useBackendOnline'
 import Sidebar from './components/Sidebar'
-import CommandPalette from './components/CommandPalette'
 import ErrorBoundary from './components/ErrorBoundary'
 import InboxModal from './components/InboxModal'
 import ImportModal from './components/ImportModal'
@@ -23,6 +22,7 @@ import { useFocusTrap } from './hooks/useFocusTrap'
 import { useConfig } from './hooks/useConfig'
 import { hojeLocal } from './utils/date'
 
+const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Rotina = lazy(() => import('./pages/Rotina'))
 const Habitos = lazy(() => import('./pages/Habitos'))

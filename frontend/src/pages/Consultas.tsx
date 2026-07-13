@@ -334,6 +334,11 @@ export default function Consultas() {
               ) : (
                 <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
                 <SortableContext items={result.dados.map(d => d.id)} strategy={verticalListSortingStrategy}>
+                  {result.truncated && (
+                    <p className="text-xs text-text-muted text-center py-1.5 bg-bg-tertiary/50 rounded-t-xl border-b border-border">
+                      Mostrando {result.dados.length}. Use filtros para refinar.
+                    </p>
+                  )}
                   <ul className="divide-y divide-border bg-bg-secondary rounded-xl border border-border max-h-[60vh] overflow-y-auto">
                     {result.dados.map((item) => (
                       <SortableItem key={item.id} item={item as CardItem} tipos={tipos} selectedIds={selectedIds} toggleSelect={toggleSelect} />
