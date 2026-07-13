@@ -1,6 +1,7 @@
 import atexit
 import logging
 import os
+import re
 import threading
 from pathlib import Path
 
@@ -65,6 +66,8 @@ def list_backups():
 def download_backup(filename: str):
     from urllib.parse import unquote
     safe = Path(unquote(filename)).name
+    if not re.match(r'^mindflow-[\w.-]+\.db$', safe):
+        raise HTTPException(status_code=400, detail="Nome de backup inválido")
     path = BACKUP_DIR / safe
     if not path.exists() or not path.is_file():
         raise HTTPException(status_code=404, detail="Backup não encontrado")
