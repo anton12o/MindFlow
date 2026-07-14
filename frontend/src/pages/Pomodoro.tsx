@@ -6,12 +6,16 @@ import { getPomodoroStats } from '../api/stats'
 import { getHabitos } from '../api/habitos'
 import { getTarefas } from '../api/rotina'
 import PomodoroTimer from '../components/PomodoroTimer'
+import SimpleTimer from '../components/SimpleTimer'
+import Stopwatch from '../components/Stopwatch'
 import ConfirmModal from '../components/ConfirmModal'
 import { usePomodoroContext } from '../store/pomodoro'
 import { useNotify } from '../store/notification'
 import { hojeLocal } from '../utils/date'
+import EmptyState from '../components/EmptyState'
 export default function PomodoroPage() {
   const [searchParams] = useSearchParams()
+  const [aba, setAba] = useState<'pomodoro' | 'timer' | 'cronometro'>('pomodoro')
   const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | undefined>()
   useEffect(() => {
     const tipo = searchParams.get('contexto_tipo')
@@ -67,8 +71,18 @@ export default function PomodoroPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Pomodoro + Foco</h1>
+      <div className="flex gap-1 mb-4">
+        {(['pomodoro', 'timer', 'cronometro'] as const).map(t => (
+          <button key={t} onClick={() => setAba(t)}
+            className={`px-4 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${aba === t ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+            {t === 'pomodoro' ? 'Pomodoro' : t === 'timer' ? 'Timer' : 'Cronômetro'}
+          </button>
+        ))}
+      </div>
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6 text-center">
-        <PomodoroTimer contexto={contexto} onFinalizar={() => setContexto(undefined)} />
+        {aba === 'pomodoro' && <PomodoroTimer contexto={contexto} onFinalizar={() => setContexto(undefined)} />}
+        {aba === 'timer' && <SimpleTimer />}
+        {aba === 'cronometro' && <Stopwatch />}
       </div>
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
@@ -103,28 +117,36 @@ export default function PomodoroPage() {
             {hLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
             {hErr && <p className="text-sm text-danger py-4">Erro ao carregar hábitos</p>}
             {!hLoad && !hErr && (!habitos || habitos.filter(h => h.ativo).length === 0) && (
-              <p className="text-sm text-text-muted py-4">Nenhum hábito ativo</p>
+              <EmptyState mensagem="Nenhum hábito ativo" />
             )}
-            {!hLoad && !hErr && habitos?.filter(h => h.ativo).map(h => (
-              <button key={h.id} onClick={() => setContexto({ tipo: 'habito', id: h.id, nome: h.nome })}
-                className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
-                {h.nome}
-              </button>
-            ))}
+            {!hLoad && !hErr && (
+              <div className="max-h-[260px] overflow-y-auto">
+                {habitos?.filter(h => h.ativo).map(h => (
+                  <button key={h.id} onClick={() => setContexto({ tipo: 'habito', id: h.id, nome: h.nome })}
+                    className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
+                    {h.nome}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de uma tarefa</h2>
             {tLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
             {tErr && <p className="text-sm text-danger py-4">Erro ao carregar tarefas</p>}
             {!tLoad && !tErr && (!tarefas || tarefas.filter(t => t.status !== 'feito').length === 0) && (
-              <p className="text-sm text-text-muted py-4">Nenhuma tarefa pendente</p>
+              <EmptyState mensagem="Nenhuma tarefa pendente" />
             )}
-            {!tLoad && !tErr && tarefas?.filter(t => t.status !== 'feito').map(t => (
-              <button key={t.id} onClick={() => setContexto({ tipo: 'tarefa', id: t.id, nome: t.titulo })}
-                className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
-                {t.titulo}
-              </button>
-            ))}
+            {!tLoad && !tErr && (
+              <div className="max-h-[260px] overflow-y-auto">
+                {tarefas?.filter(t => t.status !== 'feito').map(t => (
+                  <button key={t.id} onClick={() => setContexto({ tipo: 'tarefa', id: t.id, nome: t.titulo })}
+                    className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
+                    {t.titulo}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -142,7 +164,7 @@ export default function PomodoroPage() {
         ) : sErr ? (
           <p className="text-sm text-danger text-center py-4">Erro ao carregar sessões</p>
         ) : !sessoes || sessoes.length === 0 ? (
-          <p className="text-sm text-text-muted text-center py-4">Nenhuma sessão registrada</p>
+          <EmptyState mensagem="Nenhuma sessão registrada" />
         ) : (
         <div className="space-y-2">
           {sessoes.slice(0, 20).map(s => (

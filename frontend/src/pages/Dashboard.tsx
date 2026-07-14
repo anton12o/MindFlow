@@ -178,22 +178,24 @@ export default function Dashboard() {
         {/* Tarefas de hoje */}
         <Card titulo="✅ Tarefas de hoje" linkTo="/rotina" loading={isLoading} erro={isError} onRetry={refetch} vazio={pending.length === 0 && !isLoading && !isError}
           vazioChildren={<p className="text-sm text-text-muted text-center py-3">✅ Nenhuma tarefa hoje</p>}>
-          {dash?.tarefas?.map(t => (
-            <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 rounded-lg px-2 -mx-2">
-              <button onClick={(e) => { e.stopPropagation(); handleToggleTarefa(t) }}
-                className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
-                  ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
-                {t.status === 'feito' ? '✓' : ''}
-              </button>
-              <button type="button" onClick={() => navigate('/rotina')} className="text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}">{t.titulo}</button>
-              <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
-                {labelPrioridade(t.prioridade)}
-              </span>
-            </div>
-          ))}
-          {dash?.tarefas && dash?.tarefas.length > 0 && pending.length === 0 && (
-            <p className="text-xs text-success mt-2">Todas as tarefas concluídas ✅</p>
-          )}
+          <div className="max-h-[220px] overflow-y-auto">
+            {dash?.tarefas?.map(t => (
+              <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 rounded-lg px-2 -mx-2">
+                <button onClick={(e) => { e.stopPropagation(); handleToggleTarefa(t) }}
+                  className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
+                    ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
+                  {t.status === 'feito' ? '✓' : ''}
+                </button>
+                <button type="button" onClick={() => navigate('/rotina')} className="text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}">{t.titulo}</button>
+                <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
+                  {labelPrioridade(t.prioridade)}
+                </span>
+              </div>
+            ))}
+            {dash?.tarefas && dash?.tarefas.length > 0 && pending.length === 0 && (
+              <p className="text-xs text-success mt-2">Todas as tarefas concluídas ✅</p>
+            )}
+          </div>
         </Card>
 
         {/* Leitura */}
@@ -214,13 +216,15 @@ export default function Dashboard() {
               <p className="text-xs text-text-muted">Dias lendo</p>
             </div>
           </div>
-          {leitura?.top_notas?.slice(0, 3)?.map(n => (
-            <button key={n.id} onClick={() => navigate(`/ideias?nota_id=${n.id}`)}
-              className="w-full flex items-center justify-between py-1.5 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded px-1">
-              <span className="text-sm truncate flex-1 text-left">{n.titulo}</span>
-              <span className="text-xs text-text-muted ml-2 shrink-0">{n.acessos}×</span>
-            </button>
-          ))}
+          <div className="max-h-[150px] overflow-y-auto">
+            {leitura?.top_notas?.slice(0, 5)?.map(n => (
+              <button key={n.id} onClick={() => navigate(`/ideias?nota_id=${n.id}`)}
+                className="w-full flex items-center justify-between py-1.5 border-b border-border last:border-0 hover:bg-bg-hover transition-colors rounded px-1">
+                <span className="text-sm truncate flex-1 text-left">{n.titulo}</span>
+                <span className="text-xs text-text-muted ml-2 shrink-0">{n.acessos}×</span>
+              </button>
+            ))}
+          </div>
         </Card>
 
         {/* Foco */}
