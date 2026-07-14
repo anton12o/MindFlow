@@ -10,7 +10,8 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import func, text
+from sqlalchemy import cast, func, text
+from sqlalchemy.types import String
 from sqlmodel import Session, SQLModel, delete, or_, select
 
 from cache import cache_clear, cache_get, cache_set
@@ -211,6 +212,15 @@ def nao_acessadas(
         ).order_by(Nota.ultimo_acesso.asc().nullsfirst()).limit(limit)
     ).all()
     return notas
+
+
+@router.get("/reflexoes", response_model=list[NotaRead])
+def list_reflexoes(session: Session = Depends(get_session)):
+    return session.exec(
+        select(Nota).where(
+            cast(Nota.propriedades['tipo'], String) == 'reflexao_semanal'
+        ).order_by(Nota.criado_em.desc())
+    ).all()
 
 
 @router.get("", response_model=list[NotaRead])
@@ -457,7 +467,7 @@ def get_nota(nota_id: int, session: Session = Depends(get_session)):
     nota = session.get(Nota, nota_id)
     if not nota:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
-    session.execute(
+    result = session.execute(
         text("UPDATE notas SET acessos = COALESCE(acessos, 0) + 1, ultimo_acesso = :now WHERE id = :id"),
         {"now": datetime.now().isoformat(), "id": nota_id}
     )
@@ -466,6 +476,9 @@ def get_nota(nota_id: int, session: Session = Depends(get_session)):
     except Exception:
         session.rollback()
         raise HTTPException(status_code=500, detail="Erro ao registrar acesso")
+    if result.rowcount == 0:
+        session.close()
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
     session.refresh(nota)
     formula_props = _compute_formulas(nota, session)
     if formula_props:
@@ -679,7 +692,7 @@ def favoritar_nota(nota_id: int, session: Session = Depends(get_session)):
     nota = session.get(Nota, nota_id)
     if not nota:
         raise HTTPException(status_code=404, detail="Nota não encontrada")
-    session.execute(
+    result = session.execute(
         text("UPDATE notas SET favoritado = NOT COALESCE(favoritado, 0), atualizado_em = :now WHERE id = :id"),
         {"now": datetime.now().isoformat(), "id": nota_id}
     )
@@ -688,6 +701,9 @@ def favoritar_nota(nota_id: int, session: Session = Depends(get_session)):
     except Exception:
         session.rollback()
         raise HTTPException(status_code=500, detail="Erro ao favoritar nota")
+    if result.rowcount == 0:
+        session.close()
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
     session.refresh(nota)
     return nota
 
@@ -854,6 +870,33 @@ def notas_relacionadas(nota_id: int, limit: int = Query(default=5, ge=1, le=20),
         })
     resultados.sort(key=lambda x: (-x["tags_compartilhadas"], -x["similaridade"]))
     return resultados
+
+class BacklinkItem(BaseModel):
+    id: int
+    titulo: str
+    trecho: str
+    atualizado_em: str
+
+@router.get("/{nota_id}/backlinks", response_model=list[BacklinkItem])
+def list_backlinks(nota_id: int, session: Session = Depends(get_session)):
+    nota = session.get(Nota, nota_id)
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota não encontrada")
+    pattern = f'%{nota.titulo}%'
+    rows = session.execute(
+        text("SELECT id, titulo, conteudo, atualizado_em FROM notas WHERE conteudo LIKE :p AND id != :id ORDER BY atualizado_em DESC LIMIT 50"),
+        {"p": pattern, "id": nota_id}
+    ).all()
+    result = []
+    titulo_lower = nota.titulo.lower()
+    for row in rows:
+        conteudo = row.conteudo or ''
+        idx = conteudo.lower().find(titulo_lower)
+        start = max(0, idx - 60)
+        end = min(len(conteudo), idx + len(titulo_lower) + 60)
+        trecho = ('...' if start > 0 else '') + conteudo[start:end] + ('...' if end < len(conteudo) else '')
+        result.append(BacklinkItem(id=row.id, titulo=row.titulo, trecho=trecho, atualizado_em=row.atualizado_em))
+    return result
 
 @router.post("/{nota_id}/sugerir-tags")
 def sugerir_tags(nota_id: int, session: Session = Depends(get_session)):
