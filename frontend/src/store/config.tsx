@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useRef, useEffect, type ReactNode } from 'react'
 import type { Config } from '../types'
 
 const CONFIG_KEY = 'mindflow_config'
@@ -36,13 +36,16 @@ const ConfigContext = createContext<{
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfigState] = useState<Config>(loadConfig)
+  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const configRef = useRef(config)
+
+  useEffect(() => { configRef.current = config }, [config])
+  useEffect(() => () => clearTimeout(saveTimer.current), [])
 
   const setConfig = useCallback((patch: Partial<Config>) => {
-    setConfigState(prev => {
-      const next = { ...prev, ...patch }
-      saveConfig(next)
-      return next
-    })
+    setConfigState(prev => ({ ...prev, ...patch }))
+    clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => saveConfig(configRef.current), 200)
   }, [])
 
   return (
