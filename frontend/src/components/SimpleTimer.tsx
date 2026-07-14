@@ -3,6 +3,8 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { useNotify } from '../store/notification'
 
+function agora() { return agora() }
+
 export default function SimpleTimer() {
   const notify = useNotify()
   const queryClient = useQueryClient()
@@ -31,11 +33,12 @@ export default function SimpleTimer() {
     if (ativo) return
     const total = minutos * 60
     setTempo(total)
-    fimRef.current = Date.now() + total * 1000
+    const ts = agora()
+    fimRef.current = ts + total * 1000
     setAtivo(true)
     createMut.mutate(total)
     intervalRef.current = setInterval(() => {
-      const restante = Math.max(0, Math.round((fimRef.current - Date.now()) / 1000))
+      const restante = Math.max(0, Math.round((fimRef.current - agora()) / 1000))
       setTempo(restante)
       if (restante <= 0) {
         limparTimer()
@@ -49,7 +52,7 @@ export default function SimpleTimer() {
     if (!ativo) return
     limparTimer()
     setAtivo(false)
-    fimRef.current = Date.now() + tempo * 1000
+    fimRef.current = agora() + tempo * 1000
   }
 
   function resetar() {

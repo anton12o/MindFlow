@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo, startTransition } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { searchUnified } from '../api/search'
@@ -19,11 +19,28 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
 
   useEffect(() => {
     if (isOpen) {
-      setQ('')
-      setSelectedIndex(0)
+      startTransition(() => { setQ(''); setSelectedIndex(0) })
       setTimeout(() => inputRef.current?.focus(), 50)
     }
   }, [isOpen])
+
+  const { data, isFetching } = useQuery({
+    queryKey: ['search', q],
+    queryFn: () => searchUnified(q),
+    enabled: q.trim().length >= 1,
+    staleTime: 30_000,
+  })
+
+  const flatResults = useMemo(() => {
+    const items: { id: string; label: string; snippet?: string; type: string; navigate: () => void }[] = []
+    if (data) {
+      data.notas.forEach(n => items.push({ id: `n-${n.id}`, label: n.titulo, snippet: n.snippet, type: 'Nota', navigate: () => navigate(`/ideias?nota_id=${n.id}`) }))
+      data.tarefas.forEach(t => items.push({ id: `t-${t.id}`, label: t.titulo, type: 'Tarefa', navigate: () => navigate(`/rotina?tarefa_id=${t.id}`) }))
+      data.flashcards.forEach(f => items.push({ id: `fc-${f.id}`, label: f.pergunta, type: 'Flashcard', navigate: () => navigate(`/flashcards?flash_id=${f.id}`) }))
+      data.habitos.forEach(h => items.push({ id: `hb-${h.id}`, label: h.nome, type: 'Hábito', navigate: () => navigate(`/habitos?habito_id=${h.id}`) }))
+    }
+    return items
+  }, [data, navigate])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -39,29 +56,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [isOpen, selectedIndex, q])
-
-  const { data, isFetching } = useQuery({
-    queryKey: ['search', q],
-    queryFn: () => searchUnified(q),
-    enabled: q.trim().length >= 1,
-    staleTime: 30_000,
-  })
-
-  interface FlatItem {
-    id: string
-    label: string
-    snippet?: string
-    type: string
-    navigate: () => void
-  }
-  const flatResults: FlatItem[] = []
-  if (data) {
-    data.notas.forEach(n => flatResults.push({ id: `n-${n.id}`, label: n.titulo, snippet: n.snippet, type: 'Nota', navigate: () => navigate(`/ideias?nota_id=${n.id}`) }))
-    data.tarefas.forEach(t => flatResults.push({ id: `t-${t.id}`, label: t.titulo, type: 'Tarefa', navigate: () => navigate(`/rotina?tarefa_id=${t.id}`) }))
-    data.flashcards.forEach(f => flatResults.push({ id: `fc-${f.id}`, label: f.pergunta, type: 'Flashcard', navigate: () => navigate(`/flashcards?flash_id=${f.id}`) }))
-    data.habitos.forEach(h => flatResults.push({ id: `hb-${h.id}`, label: h.nome, type: 'Hábito', navigate: () => navigate(`/habitos?habito_id=${h.id}`) }))
-  }
+  }, [isOpen, selectedIndex, q, flatResults, onClose])
 
   if (!isOpen) return null
 

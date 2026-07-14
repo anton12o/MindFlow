@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
+
+function agora() { return agora() }
+
 interface Lap {
   index: number
   elapsed: number
@@ -24,12 +27,13 @@ export default function Stopwatch() {
 
   function iniciar() {
     if (ativo) return
-    inicioRef.current = Date.now()
-    if (lapStartRef.current === 0) lapStartRef.current = Date.now()
+    const agora = agora()
+    inicioRef.current = agora
+    if (lapStartRef.current === 0) lapStartRef.current = agora
     setAtivo(true)
     createMut.mutate()
     intervalRef.current = setInterval(() => {
-      setElapsed(elapsedPreRef.current + (Date.now() - inicioRef.current))
+      setElapsed(elapsedPreRef.current + (agora() - inicioRef.current))
     }, 50)
   }
 
@@ -37,7 +41,7 @@ export default function Stopwatch() {
     if (!ativo) return
     clearInterval(intervalRef.current!)
     intervalRef.current = null
-    elapsedPreRef.current += Date.now() - inicioRef.current
+    elapsedPreRef.current += agora() - inicioRef.current
     setAtivo(false)
   }
 
@@ -57,7 +61,7 @@ export default function Stopwatch() {
 
   function registrarVolta() {
     if (!ativo) return
-    const now = Date.now()
+    const now = agora()
     const totalElapsed = elapsedPreRef.current + (now - inicioRef.current)
     const split = lapStartRef.current === 0 ? totalElapsed : totalElapsed - (elapsedPreRef.current + (lapStartRef.current - inicioRef.current))
     setLaps(p => [...p, { index: p.length + 1, elapsed: totalElapsed, split: Math.max(0, split) }])
