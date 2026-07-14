@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, startTransition } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getReflexoes, createNota } from '../api/notas'
 import { getWeeklyStats } from '../api/stats'
@@ -86,7 +86,7 @@ export default function ReflexaoTab() {
         const trecho = linhas.slice(idx + 1, fim === -1 ? undefined : idx + 1 + fim)
         return trecho.filter(l => l && !l.startsWith('> ')).join('\n').trim()
       })
-      setRespostas(r)
+      startTransition(() => setRespostas(r))
     }
   }, [reflexaoAtual])
 
