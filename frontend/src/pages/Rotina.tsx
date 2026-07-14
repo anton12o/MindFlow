@@ -1,6 +1,7 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa, reorderTarefas } from '../api/rotina'
+import { getBlocos, createBloco, updateBloco, deleteBloco, getTarefas, createTarefa, updateTarefa, deleteTarefa, reorderTarefas, gerarRecorrentes } from '../api/rotina'
 import { getPomodoroStats } from '../api/stats'
 import { usePomodoroContext } from '../store/pomodoro'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
@@ -10,6 +11,7 @@ import { hojeLocal, agoraLocal } from '../utils/date'
 import { labelPrioridade, badgePrioridade } from '../utils/prioridade'
 import { useNotify } from '../store/notification'
 import type { BlocoRotina, Tarefa } from '../types'
+import EmptyState from '../components/EmptyState'
 function statusBloco(horaInicio: string, horaFim: string): { label: string; cor: string } | null {
   const agora = new Date()
   const h = String(agora.getHours()).padStart(2, '0')
@@ -33,11 +35,12 @@ function formatarData(dataStr: string): string {
 }
 const INTENCAO_KEY = 'mindflow_intencao_diaria'
 export default function Rotina() {
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notify = useNotify()
   const { config } = usePomodoroContext()
   const optCounterRef = useRef(0)
-  const [view, setView] = useState<'lista' | 'semana'>('lista')
+  const [view, setView] = useState<'lista' | 'semana' | 'kanban'>('lista')
   const [novaTarefa, setNovaTarefa] = useState('')
   const [novaTarefaRec, setNovaTarefaRec] = useState(false)
   const [novaTarefaRecTipo, setNovaTarefaRecTipo] = useState<string>('daily')
@@ -75,6 +78,16 @@ export default function Rotina() {
     queryFn: getPomodoroStats,
     staleTime: 15_000,
   })
+  const gerarRecMut = useMutation({
+    mutationFn: gerarRecorrentes,
+    onSuccess: (data) => {
+      if (data.geradas > 0) {
+        queryClient.invalidateQueries({ queryKey: ['rotina', 'tarefas'] })
+      }
+    },
+    onError: (e) => console.error('[Rotina] gerarRecorrentes', e),
+  })
+  useEffect(() => { gerarRecMut.mutate() }, [])
   const createTarefaMut = useMutation({
     mutationFn: (payload: { titulo: string; recorrente: boolean; recorrencia_tipo: string | null; recorrencia_intervalo: number }) =>
       createTarefa({ titulo: payload.titulo, data: hoje, recorrente: payload.recorrente, recorrencia_tipo: payload.recorrencia_tipo, recorrencia_intervalo: payload.recorrencia_intervalo }),
@@ -86,6 +99,7 @@ export default function Rotina() {
         titulo: payload.titulo,
         data: hoje,
         prioridade: 'normal',
+        quadrante: 'agendar',
         status: 'pendente',
         tempo_estimado: null,
         bloco_id: null,
@@ -186,6 +200,26 @@ export default function Rotina() {
       queryClient.invalidateQueries({ queryKey: ['tarefas'] })
     },
     onError: (e) => { console.error('[Rotina] reorderTarefas', e); notify('Erro ao reordenar tarefas') },
+  })
+  const updateStatusMut = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: string }) => updateTarefa(id, { status }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey })
+      const previous = queryClient.getQueryData<Tarefa[]>(queryKey)
+      queryClient.setQueryData<Tarefa[]>(queryKey, old => old?.map(t => t.id === id ? { ...t, status } : t))
+      return { previous }
+    },
+    onError: (err, _payload, context) => {
+      console.error('[Rotina] updateStatus', err)
+      notify('Erro ao mover tarefa')
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous)
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: ['tarefas'] })
+      queryClient.invalidateQueries({ queryKey: ['estatisticas'] })
+      queryClient.invalidateQueries({ queryKey: ['stats-weekly'] })
+    },
   })
   function handleAddTarefa(e: React.FormEvent) {
     e.preventDefault()
@@ -302,7 +336,7 @@ export default function Rotina() {
               <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
                 {labelPrioridade(t.prioridade)}
               </span>
-              <button onClick={() => window.location.href = `/pomodoro?contexto_tipo=tarefa&contexto_id=${t.id}&contexto_nome=${encodeURIComponent(t.titulo)}`}
+              <button onClick={() => navigate(`/pomodoro?contexto_tipo=tarefa&contexto_id=${t.id}&nome=${encodeURIComponent(t.titulo)}`)}
                 className="text-xs text-accent hover:text-accent-hover opacity-0 group-hover:opacity-100 transition-opacity" title="Focar nesta tarefa">▶️</button>
               <button onClick={() => setEditTarefa({ id: t.id, titulo: t.titulo, recorrente: t.recorrente, recorrencia_tipo: t.recorrencia_tipo, recorrencia_intervalo: t.recorrencia_intervalo ?? undefined })}
                 className="text-xs text-text-muted hover:text-accent opacity-0 group-hover:opacity-100 transition-opacity" aria-label="Editar tarefa">✏️</button>
@@ -335,9 +369,69 @@ export default function Rotina() {
             className={`px-3 py-1 text-sm transition-all active:scale-95 ${view === 'semana' ? 'bg-accent text-white' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
             Semana
           </button>
+          <button onClick={() => setView('kanban')}
+            className={`px-3 py-1 text-sm transition-all active:scale-95 ${view === 'kanban' ? 'bg-accent text-white' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
+            Kanban
+          </button>
         </div>
       </div>
-      {view === 'semana' ? (
+      {view === 'kanban' ? (
+        <div className="grid grid-cols-3 gap-4">
+          {['pendente', 'em_andamento', 'feito'].map(status => {
+            const statusLabel = status === 'pendente' ? 'A Fazer' : status === 'em_andamento' ? 'Em Andamento' : 'Feito'
+            const colTarefas = (tarefas || [])
+              .filter(t => t.status === status)
+              .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
+            return (
+              <div key={status} className="bg-bg-secondary rounded-xl border border-border p-3 flex flex-col"
+                onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
+                onDrop={e => {
+                  e.preventDefault()
+                  const tarefaId = Number(e.dataTransfer.getData('text/tarefa-id'))
+                  if (!tarefaId) return
+                  const tarefa = tarefas?.find(t => t.id === tarefaId)
+                  if (!tarefa || tarefa.status === status) return
+                  updateStatusMut.mutate({ id: tarefaId, status })
+                  setDragItem(null)
+                }}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider">{statusLabel}</h3>
+                  <span className="text-xs text-text-muted">{colTarefas.length}</span>
+                </div>
+                <div className="flex-1 space-y-2 min-h-[60px] max-h-[calc(100vh-280px)] overflow-y-auto">
+                  {(tarefasLoad) ? (
+                    [1,2,3].map(i => <div key={i} className="h-10 bg-bg-tertiary rounded-lg animate-pulse" />)
+                  ) : (tarefasErr) ? (
+                    <p className="text-xs text-danger">Erro</p>
+                  ) : (
+                    colTarefas.map(t => (
+                      <div key={t.id} data-tarefa-id={t.id}
+                        draggable
+                        onDragStart={e => { setDragItem(t.id); e.dataTransfer.setData('text/tarefa-id', String(t.id)); e.dataTransfer.effectAllowed = 'move' }}
+                        onDragEnd={() => setDragItem(null)}
+                        className={`bg-bg-primary rounded-lg border border-border p-2.5 cursor-grab active:cursor-grabbing transition-opacity ${dragItem === t.id ? 'opacity-40' : 'hover:border-accent/30'}`}>
+                        <p className="text-sm font-medium truncate">{t.titulo}</p>
+                        {t.descricao && <p className="text-xs text-text-muted truncate mt-0.5">{t.descricao}</p>}
+                        <div className="flex items-center gap-2 mt-1.5">
+                          <span className={`text-[10px] px-1 py-0.5 rounded ${{
+                            'urgente': 'bg-danger/10 text-danger',
+                            'alta': 'bg-orange-500/10 text-orange-500',
+                            'normal': 'bg-accent/10 text-accent',
+                            'baixa': 'bg-text-muted/10 text-text-muted',
+                          }[t.prioridade] || 'bg-text-muted/10 text-text-muted'}`}>
+                            {t.prioridade}
+                          </span>
+                          {t.recorrente && <span className="text-[10px] text-accent">🔁</span>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : view === 'semana' ? (
         <CalendarioSemanal />
       ) : (
         <div className="flex flex-col gap-6">
@@ -519,7 +613,7 @@ export default function Rotina() {
             )}
             {!blocosLoad && !blocosErr && blocosOrdenados.length === 0 && (
               <div className="ml-5 py-8 text-center">
-                <p className="text-sm text-text-muted mb-3">Nenhum bloco definido para hoje</p>
+                <EmptyState icon="📋" mensagem="Nenhum bloco definido para hoje" />
                 <button onClick={() => setShowBlocoForm(true)} className="text-sm text-accent hover:underline">+ Criar primeiro bloco</button>
               </div>
             )}
@@ -557,7 +651,7 @@ export default function Rotina() {
                 </>
               )}
             </div>
-            <div className="space-y-0.5"
+            <div className="space-y-0.5 max-h-[280px] overflow-y-auto"
               onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move' }}
               onDrop={e => {
                 e.preventDefault()
@@ -596,7 +690,7 @@ export default function Rotina() {
                 </div>
               ))}
               {!tarefasLoad && !tarefasErr && tarefasSemBloco.length === 0 && (
-                <p className="text-sm text-text-muted py-4 text-center">Nenhuma tarefa sem horário</p>
+                <EmptyState mensagem="Nenhuma tarefa sem horário" />
               )}
             </div>
           </div>

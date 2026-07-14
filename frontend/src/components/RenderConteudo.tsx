@@ -147,11 +147,26 @@ function renderMarkdown(text: string): string {
     if (isCustom) return trimmed
     const isTable = /^\|.+\|\n\|[-: |]+\|/.test(trimmed)
     if (isTable) { const th = parseMdTable(trimmed); if (th) return th }
+    const isBlockquote = /^>\s/.test(trimmed)
     const isHeading = /^#{1,6}\s/.test(trimmed)
     const isList = /^[-*]\s/.test(trimmed) || /^\d+\.\s/.test(trimmed)
     const isHr = /^---+\s*$/.test(trimmed)
     if (isHr) return '<hr class="my-4 border-border" />'
     paraIdx++
+
+    if (isBlockquote) {
+      const lines = trimmed.split('\n').map(l => l.replace(/^>\s?/, '').trim()).filter(Boolean)
+      const inner = lines.map(l => {
+        let line = esc(l)
+        line = line
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\*(.+?)\*/g, '<em>$1</em>')
+          .replace(/`(.+?)`/g, '<code class="bg-bg-tertiary px-1 rounded text-xs">$1</code>')
+        return line
+      }).join('<br>')
+      return `<blockquote class="border-l-4 border-accent/50 pl-4 my-2 text-text-secondary italic">${inner}</blockquote>`
+    }
+
     let p = trimmed.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     if (isHeading) {
       const level = p.match(/^(#+)\s/)?.[1]?.length || 1
@@ -159,16 +174,30 @@ function renderMarkdown(text: string): string {
       return `<h${level} id="p${paraIdx}" class="font-semibold mt-4 mb-2 text-text-primary">${text}</h${level}>`
     }
     if (isList) {
-      const items = p.split('\n').map(line => {
-        if (/^\d+\.\s/.test(line)) return `<li>${line.replace(/^\d+\.\s/, '')}</li>`
-        if (/^[-*]\s/.test(line)) return `<li>${line.replace(/^[-*]\s/, '')}</li>`
-        return `<li>${line}</li>`
-      }).join('')
-      return `<ul id="p${paraIdx}" class="list-disc pl-5 my-2">${items}</ul>`
+      const lines = p.split('\n').filter(Boolean)
+      let out = ''
+      const stack: number[] = []
+      lines.forEach(line => {
+        const sp = line.search(/\S/)
+        const indent = sp === -1 ? 0 : Math.floor(sp / 2)
+        const text = line.trim().replace(/^(?:\d+\.|[-*])\s*/, '')
+        while (stack.length > 0 && stack[stack.length - 1] >= indent) {
+          out += '</ul>'
+          stack.pop()
+        }
+        if (stack.length === 0 || stack[stack.length - 1] < indent) {
+          out += '<ul class="list-disc pl-5">'
+          stack.push(indent)
+        }
+        out += `<li>${text}</li>`
+      })
+      while (stack.length > 0) { out += '</ul>'; stack.pop() }
+      return out
     }
     p = p
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full my-1 rounded" />')
       .replace(/`(.+?)`/g, '<code class="bg-bg-tertiary px-1 rounded text-xs">$1</code>')
       .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-accent hover:underline">$1</a>')
       .replace(/==(.+?)==/g, '<mark class="bg-accent-light/40 text-text-primary rounded-sm px-0.5">$1</mark>')
@@ -223,13 +252,15 @@ const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect,
   }, [])
   useEffect(() => () => clearTimeout(hoverTimeout.current), [])
   useEffect(() => {
+    let mounted = true
     if (containerRef.current) {
       containerRef.current.querySelectorAll('.mermaid').forEach(el => {
         import('mermaid').then(m => {
-          m.default.run({ nodes: [el as HTMLElement] })
+          if (mounted) m.default.run({ nodes: [el as HTMLElement] })
         })
       })
     }
+    return () => { mounted = false }
   }, [conteudo])
   return (
     <div ref={containerRef}>
@@ -237,7 +268,7 @@ const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect,
         const m = part.match(/^\[\[([^\]]+?)(?:#p(\d+))?(?:\|([^\]]+))?\]\]$/)
         if (!m) return <span key={i} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(part), {
           ALLOWED_TAGS: [
-            'b','strong','em','i','a','code','span','div','br','img','pre','p','hr','mark',
+            'b','strong','em','i','a','code','span','div','br','img','pre','p','hr','mark','blockquote',
             'h1','h2','h3','h4','h5','h6','ul','ol','li',
             'table','thead','tbody','tr','td','th',
             'svg','g','rect','line','circle','path','polyline',
