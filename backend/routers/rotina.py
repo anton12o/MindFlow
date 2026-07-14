@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.exc import DataError, IntegrityError, OperationalError
+from sqlalchemy.orm.exc import StaleDataError
 from sqlmodel import Session, and_, select
 
 from database import get_session
@@ -144,15 +145,33 @@ def list_tarefas(
     dir: str = Query(default='desc', pattern='^(asc|desc)$'),
     limit: int = Query(default=200, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
+    quadrante: str | None = None,
     session: Session = Depends(get_session),
 ):
     stmt = select(Tarefa)
     if data:
         stmt = stmt.where(Tarefa.data == data)
+    if quadrante:
+        stmt = stmt.where(Tarefa.quadrante == quadrante)
     sort_map = {'criado_em': Tarefa.criado_em, 'titulo': Tarefa.titulo, 'data': Tarefa.data, 'status': Tarefa.status, 'ordem': Tarefa.ordem}
     order = sort_map.get(sort, Tarefa.ordem)
     stmt = stmt.order_by(order.desc() if dir == 'desc' else order.asc())
     return session.exec(stmt.offset(offset).limit(limit)).all()
+
+@router.get("/tarefas/eisenhower")
+def list_tarefas_eisenhower(
+    data_inicio: str, data_fim: str,
+    session: Session = Depends(get_session),
+) -> dict[str, list[TarefaRead]]:
+    stmt = select(Tarefa).where(
+        Tarefa.data >= data_inicio,
+        Tarefa.data <= data_fim,
+    ).order_by(Tarefa.ordem)
+    tarefas = session.exec(stmt).all()
+    grouped: dict[str, list[TarefaRead]] = {"fazer": [], "agendar": [], "delegar": [], "eliminar": []}
+    for t in tarefas:
+        grouped.setdefault(t.quadrante, []).append(t)
+    return grouped
 
 @router.post("/tarefas", response_model=TarefaRead)
 def create_tarefa(t: TarefaCreate, session: Session = Depends(get_session)):
@@ -195,11 +214,50 @@ def update_tarefa(tarefa_id: int, t: TarefaUpdate, session: Session = Depends(ge
 
         session.commit()
         session.refresh(db)
-    except (DataError, IntegrityError, OperationalError) as e:
+    except (DataError, IntegrityError, OperationalError, StaleDataError) as e:
         session.rollback()
         logger.error("[rotina.update_tarefa] %s", e)
         raise HTTPException(status_code=500, detail="Erro ao atualizar tarefa")
     return db
+
+@router.post("/tarefas/gerar-recorrentes")
+def gerar_tarefas_recorrentes(session: Session = Depends(get_session)):
+    hoje = date.today().isoformat()
+    tasks = session.exec(
+        select(Tarefa).where(
+            Tarefa.recorrente,
+            Tarefa.data < hoje,
+            Tarefa.status != "feito",
+        )
+    ).all()
+    count = 0
+    for t in tasks:
+        nova_data = t.data
+        for _ in range(10):
+            prox = _proxima_data(nova_data, t.recorrencia_tipo, t.recorrencia_intervalo)
+            if prox >= hoje:
+                nova_data = prox
+                break
+            nova_data = prox
+        if nova_data >= hoje:
+            nova = Tarefa(
+                titulo=t.titulo,
+                prioridade=t.prioridade,
+                quadrante=t.quadrante,
+                data=nova_data,
+                descricao=t.descricao,
+                bloco_id=t.bloco_id,
+                tipo_id=t.tipo_id,
+                ordem=t.ordem,
+                recorrente=True,
+                recorrencia_tipo=t.recorrencia_tipo,
+                recorrencia_intervalo=t.recorrencia_intervalo,
+            )
+            session.add(nova)
+            count += 1
+    if count:
+        commit_with_handle(session, context="gerar recorrentes")
+    return {"ok": True, "geradas": count}
 
 @router.delete("/tarefas/{tarefa_id}")
 def delete_tarefa(tarefa_id: int, session: Session = Depends(get_session)):

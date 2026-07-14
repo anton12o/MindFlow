@@ -27,3 +27,6 @@ export const deleteTarefa = (id: number) =>
 
 export const reorderTarefas = (items: { id: number; ordem: number }[]) =>
   request<{ ok: boolean }>('/rotina/tarefas/reorder', { method: 'PATCH', body: JSON.stringify(items) })
+
+export const gerarRecorrentes = () =>
+  request<{ ok: boolean }>('/rotina/tarefas/gerar-recorrentes', { method: 'POST' })
