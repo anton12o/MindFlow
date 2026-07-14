@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, lazy, Suspense, memo, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, lazy, Suspense, memo, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider, useQueryClient, useQuery } from '@tanstack/react-query'
 import { ThemeProvider } from './store/theme'
@@ -75,7 +75,7 @@ function Layout() {
 
   const { config: appConfig } = useConfig()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement
     root.style.setProperty('--font-sans', `"${appConfig.fonteFamilia}", system-ui, -apple-system, sans-serif`)
     const baseZoom = Math.round(appConfig.fonteTamanho * appConfig.zoom / 100)
