@@ -39,7 +39,7 @@ VENV_DIR = DATA_ROOT / "venv"
 DB_PATH = DATA_ROOT / "backend" / "mindflow.db"
 BACKUP_DIR = DATA_ROOT / "backend" / "data" / "backups"
 LOGS_DIR = DATA_ROOT / "logs"
-MIGRATIONS_DIR = CODE_ROOT / "migrations" if is_bundled() else BACKEND / "migrations"
+MIGRATIONS_DIR = BACKEND / "migrations"
 
 _USE_COLOR = sys.stdout.isatty()
 if _USE_COLOR and sys.platform == "win32":
