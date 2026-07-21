@@ -1,4 +1,4 @@
-import { useState, useEffect, startTransition } from 'react'
+import { useState, useEffect, startTransition, memo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'react-router-dom'
 import { getSessoes, deleteSessoes } from '../api/pomodoro'
@@ -13,7 +13,7 @@ import { usePomodoroContext } from '../store/pomodoro'
 import { useNotify } from '../store/notification'
 import { hojeLocal } from '../utils/date'
 import EmptyState from '../components/EmptyState'
-export default function PomodoroPage() {
+const PomodoroPage = memo(function PomodoroPage() {
   const [searchParams] = useSearchParams()
   const [aba, setAba] = useState<'pomodoro' | 'timer' | 'cronometro'>('pomodoro')
   const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | undefined>()
@@ -70,11 +70,11 @@ export default function PomodoroPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6">Pomodoro + Foco</h1>
+      <h1 className="text-xl font-bold mb-6">Pomodoro + Foco</h1>
       <div className="flex gap-1 mb-4">
         {(['pomodoro', 'timer', 'cronometro'] as const).map(t => (
           <button key={t} onClick={() => setAba(t)}
-            className={`px-4 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${aba === t ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+            className={`px-4 py-2 text-sm rounded-lg transition-all active:scale-95 ${aba === t ? 'bg-accent text-accent-foreground' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
             {t === 'pomodoro' ? 'Pomodoro' : t === 'timer' ? 'Timer' : 'Cronômetro'}
           </button>
         ))}
@@ -87,21 +87,21 @@ export default function PomodoroPage() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
           <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.total_min_hoje ?? 0}</p>
-          <p className="text-xs text-text-muted uppercase tracking-wider">Min hoje</p>
+          <p className="text-[10px] font-normal text-text-muted uppercase tracking-wide">Min hoje</p>
         </div>
         <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
           <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.total_sessoes_hoje ?? 0}</p>
-          <p className="text-xs text-text-muted uppercase tracking-wider">Sessões</p>
+          <p className="text-[10px] font-normal text-text-muted uppercase tracking-wide">Sessões</p>
         </div>
         <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 text-center">
           <p className="text-xl font-bold text-text-primary">{pLoad ? '-' : pStats?.streak_dias ?? 0}</p>
-          <p className="text-xs text-text-muted uppercase tracking-wider">Dias 🔥</p>
+          <p className="text-[10px] font-normal text-text-muted uppercase tracking-wide">Dias 🔥</p>
         </div>
       </div>
 
       <div className="bg-bg-secondary rounded-xl border border-border px-4 py-3 mb-6">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs text-text-muted uppercase tracking-wider">Meta diária</span>
+          <span className="text-[10px] font-normal text-text-muted uppercase tracking-wide">Meta diária</span>
           <span className="text-xs text-text-muted">{pStats?.total_min_hoje ?? 0} / {config.dailyFocusMin} min ({metaPct}%)</span>
         </div>
         <div className="w-full h-2 bg-bg-tertiary rounded-full overflow-hidden">
@@ -113,14 +113,14 @@ export default function PomodoroPage() {
       {!contexto && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de um hábito</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Iniciar de um hábito</h2>
             {hLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
             {hErr && <p className="text-sm text-danger py-4">Erro ao carregar hábitos</p>}
             {!hLoad && !hErr && (!habitos || habitos.filter(h => h.ativo).length === 0) && (
               <EmptyState mensagem="Nenhum hábito ativo" />
             )}
             {!hLoad && !hErr && (
-              <div className="max-h-[260px] overflow-y-auto">
+              <div className="max-h-[400px] overflow-y-auto">
                 {habitos?.filter(h => h.ativo).map(h => (
                   <button key={h.id} onClick={() => setContexto({ tipo: 'habito', id: h.id, nome: h.nome })}
                     className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
@@ -131,14 +131,14 @@ export default function PomodoroPage() {
             )}
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Iniciar de uma tarefa</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Iniciar de uma tarefa</h2>
             {tLoad && <p className="text-sm text-text-muted py-4 animate-pulse">Carregando...</p>}
             {tErr && <p className="text-sm text-danger py-4">Erro ao carregar tarefas</p>}
             {!tLoad && !tErr && (!tarefas || tarefas.filter(t => t.status !== 'feito').length === 0) && (
               <EmptyState mensagem="Nenhuma tarefa pendente" />
             )}
             {!tLoad && !tErr && (
-              <div className="max-h-[260px] overflow-y-auto">
+              <div className="max-h-[400px] overflow-y-auto">
                 {tarefas?.filter(t => t.status !== 'feito').map(t => (
                   <button key={t.id} onClick={() => setContexto({ tipo: 'tarefa', id: t.id, nome: t.titulo })}
                     className="w-full text-left py-2 px-3 rounded-lg hover:bg-bg-hover transition-colors text-sm">
@@ -156,7 +156,7 @@ export default function PomodoroPage() {
         </button>
       )}
       <div className="mt-8">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
           Sessões anteriores ({sessoes?.length || 0})
         </h2>
         {sLoad ? (
@@ -166,7 +166,7 @@ export default function PomodoroPage() {
         ) : !sessoes || sessoes.length === 0 ? (
           <EmptyState mensagem="Nenhuma sessão registrada" />
         ) : (
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-96 overflow-y-auto">
           {sessoes.slice(0, 20).map(s => (
             <div key={s.id} className="bg-bg-secondary rounded-lg border border-border px-4 py-2 flex items-center justify-between text-sm">
               <div className="flex items-center gap-3">
@@ -192,14 +192,14 @@ export default function PomodoroPage() {
               Deletar sessões antes de: <span className="text-text-muted/60">(deixe em branco para TODAS)</span>
             </label>
             <input type="date" value={cleanupDate} onChange={e => setCleanupDate(e.target.value)}
-              className="w-full bg-bg-primary rounded px-3 py-1.5 text-sm outline-none mb-3" />
+              className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none mb-3" />
             <div className="flex justify-end gap-2">
               <button onClick={() => { setShowCleanup(false); setCleanupDate('') }}
-                className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
+                className="px-4 py-2 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
                 Cancelar
               </button>
               <button onClick={() => setConfirmCleanup(true)}
-                className="px-4 py-1.5 text-sm rounded-lg bg-danger text-white transition-colors hover:bg-danger/80">
+                className="px-4 py-2 text-sm rounded-lg bg-danger text-white transition-colors hover:bg-danger/80">
                 {cleanupDate ? 'Limpar anteriores' : 'Limpar tudo'}
               </button>
             </div>
@@ -221,4 +221,6 @@ export default function PomodoroPage() {
       )}
     </div>
   )
-}
+})
+
+export default PomodoroPage

@@ -1,0 +1,86 @@
+
+============================================================
+AUDITORIA DE DESIGN — MATRIZES
+------------------------------------------------------------
+  Data:
+  Viewport: 1440x900
+
+============================================================
+1. CORES DO TEMA (CSS Variables)
+------------------------------------------------------------
+  --color-bg-primary: #0D1117
+  --color-bg-secondary: #161B22
+  --color-text-primary: #E6EDF3
+  --color-text-muted: #87919B
+  --color-accent: #58A6FF
+  --color-border: #30363D
+  --color-danger: #F85149
+  --color-success: #3FB950
+
+============================================================
+2. PALETA CORES RENDERIZADA
+------------------------------------------------------------
+  Eisenhower: 
+    bg: rgba(0, 0, 0, 0)  (ex: <DIV>)
+    text: rgb(230, 237, 243)  (ex: <DIV>)
+    bg: rgb(22, 27, 34)  (ex: <BUTTON.fixed.top-2.left-1>)
+    text: rgb(135, 145, 155)  (ex: <BUTTON.fixed.top-2.left-1>)
+    border: rgb(48, 54, 61)  (ex: <BUTTON.fixed.top-2.left-1>)
+    text: rgb(88, 166, 255)  (ex: <DIV.min-w-[44px].min-h-[44px].flex>)
+    text: rgb(0, 0, 0)  (ex: <BUTTON.w-full.px-2.py-2>)
+    bg: rgb(33, 38, 45)  (ex: <BUTTON.fixed.top-3.right-3>)
+    text: rgb(248, 81, 73)  (ex: <DIV.sticky.top-0.z-45>)
+    border: oklab(0.665125 0.182383 0.0927701 / 0.2)  (ex: <DIV.sticky.top-0.z-45>)
+    bg: rgb(13, 17, 23)  (ex: <SELECT.bg-bg-primary.rounded.px-2>)
+  Esforço x Impacto: 
+    bg: rgba(0, 0, 0, 0)  (ex: <DIV>)
+    text: rgb(230, 237, 243)  (ex: <DIV>)
+    bg: rgb(22, 27, 34)  (ex: <BUTTON.fixed.top-2.left-1>)
+    text: rgb(135, 145, 155)  (ex: <BUTTON.fixed.top-2.left-1>)
+    border: rgb(48, 54, 61)  (ex: <BUTTON.fixed.top-2.left-1>)
+    text: rgb(88, 166, 255)  (ex: <DIV.min-w-[44px].min-h-[44px].flex>)
+    text: rgb(0, 0, 0)  (ex: <BUTTON.w-full.px-2.py-2>)
+    bg: rgb(33, 38, 45)  (ex: <BUTTON.fixed.top-3.right-3>)
+    text: rgb(248, 81, 73)  (ex: <DIV.sticky.top-0.z-45>)
+    border: oklab(0.665125 0.182383 0.0927701 / 0.2)  (ex: <DIV.sticky.top-0.z-45>)
+    bg: rgb(13, 17, 23)  (ex: <SELECT.bg-bg-primary.rounded.px-2>)
+
+============================================================
+3. TIPOGRAFIA
+------------------------------------------------------------
+  Eisenhower: 
+    "🌙": 14px 400 Inter cor:rgb(135, 145, 155)
+    "🌙": 12.25px 400 Inter cor:rgb(135, 145, 155)
+    "⛶": 10.5px 400 Inter cor:rgb(135, 145, 155)
+  Esforço x Impacto: 
+    "🌙": 14px 400 Inter cor:rgb(135, 145, 155)
+    "🌙": 12.25px 400 Inter cor:rgb(135, 145, 155)
+    "⛶": 10.5px 400 Inter cor:rgb(135, 145, 155)
+
+============================================================
+4. LAYOUT E DIMENSOES
+------------------------------------------------------------
+  Eisenhower: 
+    card 1376x336: pad:0px 0px radius:10.5px bg:rgb(22, 27, 34) shadow:none
+  Esforço x Impacto: 
+    card 1376x336: pad:0px 0px radius:10.5px bg:rgb(22, 27, 34) shadow:none
+
+============================================================
+5. BADGES DE SCORE
+------------------------------------------------------------
+  Eisenhower: nenhum (sem dados)
+  Esforço x Impacto: nenhum (sem dados)
+
+============================================================
+6. SLIDERS
+------------------------------------------------------------
+
+============================================================
+7. CONTRASTE WCAG AA
+------------------------------------------------------------
+  Eisenhower: Nenhuma falha
+  Esforço x Impacto: Nenhuma falha
+
+============================================================
+8. BOTOES COLAPSAR
+------------------------------------------------------------

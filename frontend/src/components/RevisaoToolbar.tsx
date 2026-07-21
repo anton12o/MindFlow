@@ -18,13 +18,13 @@ export default function RevisaoToolbar({ periodo, onChangePeriodo, onCreateNota,
     <div className="flex items-center gap-2">
       {PERIODOS.map(p => (
         <button key={p.value} onClick={() => onChangePeriodo(p.value)}
-          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${periodo === p.value ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+          className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${periodo === p.value ? 'bg-accent text-accent-foreground' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
           {p.label}
         </button>
       ))}
       <div className="flex-1" />
       <button onClick={onCreateNota} disabled={criando}
-        className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95 disabled:opacity-50 inline-flex items-center gap-1.5">
+        className="px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95 disabled:opacity-disabled inline-flex items-center gap-1.5">
         <FileText size={14} /> {criando ? 'Criando...' : 'Criar nota de revisão'}
       </button>
     </div>

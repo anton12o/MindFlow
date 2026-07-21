@@ -279,7 +279,7 @@ export default function Flashcards() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Flashcards</h1>
+          <h1 className="text-xl font-bold">Flashcards</h1>
           <p className="text-sm text-text-muted">{total} cards para revisar hoje</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
@@ -292,19 +292,19 @@ export default function Flashcards() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
             <p className="text-2xl font-bold">{stats.total_cards}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wider">Total</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide">Total</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
             <p className="text-2xl font-bold">{stats.cards_hoje}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wider">Pendentes</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide">Pendentes</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
             <p className="text-2xl font-bold">{stats.cards_revisados_hoje}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wider">Revisados</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide">Revisados</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
             <p className="text-2xl font-bold">{stats.taxa_acerto_7d !== null ? `${Math.round(stats.taxa_acerto_7d * 100)}%` : '—'}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wider">Acerto (7d)</p>
+            <p className="text-xs text-text-muted uppercase tracking-wide">Acerto (7d)</p>
           </div>
         </div>
       )}
@@ -322,7 +322,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
 
       {simuladoAtivo && simuladoCards.length === 0 && !simuladoDone && (
         <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Selecionar categorias</h2>
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Selecionar categorias</h2>
           <div className="flex flex-wrap gap-2 mb-4">
             {categorias.map(c => (
               <button key={c} onClick={() => setSimuladoCats(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c])}
@@ -519,7 +519,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
 
       <div>
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Todos os flashcards</h2>
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Todos os flashcards</h2>
           <div className="flex gap-2">
             <div className="relative">
               <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-text-muted" />

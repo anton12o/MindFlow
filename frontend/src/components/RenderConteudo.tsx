@@ -122,7 +122,7 @@ function renderMarkdown(text: string): string {
       return `\x00MC${i}\x00`
     }
     const langLabel = lang
-      ? `<div class="flex items-center px-3 py-0.5 bg-bg-tertiary/60 text-[11px] text-text-muted font-mono border-b border-border rounded-t-lg">${lang}</div>`
+      ? `<div class="flex items-center px-3 py-0.5 bg-bg-tertiary/60 text-xs text-text-muted font-mono border-b border-border rounded-t-lg">${lang}</div>`
       : ''
     codeBlocks.push(`<div class="my-3 rounded-lg overflow-hidden border border-border">${langLabel}<pre class="p-3 overflow-x-auto text-sm leading-relaxed bg-bg-secondary/40"><code>${code.trim()}</code></pre></div>`)
     return `\x00CB${i}\x00`
@@ -309,7 +309,7 @@ const RenderConteudo = memo(function RenderConteudo({ conteudo, notas, onSelect,
       {tooltipVisible && (
         <div
           style={{ left: tooltipPos.x + 12, top: tooltipPos.y + 12 }}
-          className="fixed z-50 bg-bg-secondary border border-border rounded-lg shadow-lg p-3 text-sm max-w-xs text-text-primary pointer-events-none"
+          className="fixed z-50 bg-bg-secondary border border-border rounded-lg shadow-elevation-4 p-3 text-sm max-w-xs text-text-primary pointer-events-none"
         >
           {tooltipContent || 'Carregando...'}
         </div>

@@ -50,7 +50,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose} role="dialog" aria-modal="true" aria-label="Galeria de templates">
       <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
-          <span className="text-sm font-semibold text-text-muted uppercase tracking-wider">Galeria de templates</span>
+          <span className="text-sm font-semibold text-text-muted uppercase tracking-wide">Galeria de templates</span>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary transition-colors" aria-label="Fechar"><X size={16} /></button>
         </div>
         <div className="p-4 pb-2 shrink-0">

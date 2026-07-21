@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 
-function agora() { return agora() }
+function agora() { return Date.now() }
 
 interface Lap {
   index: number
@@ -27,9 +27,9 @@ export default function Stopwatch() {
 
   function iniciar() {
     if (ativo) return
-    const agora = agora()
-    inicioRef.current = agora
-    if (lapStartRef.current === 0) lapStartRef.current = agora
+    const ts = agora()
+    inicioRef.current = ts
+    if (lapStartRef.current === 0) lapStartRef.current = ts
     setAtivo(true)
     createMut.mutate()
     intervalRef.current = setInterval(() => {
@@ -102,11 +102,11 @@ export default function Stopwatch() {
         {!ativo ? (
           sessaoId === null ? (
             <button onClick={iniciar}
-              className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all active:scale-95">Iniciar</button>
+              className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Iniciar</button>
           ) : (
             <>
               <button onClick={iniciar}
-                className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
+                className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
               <button onClick={resetar}
                 className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger/80 transition-all active:scale-95">Resetar</button>
             </>

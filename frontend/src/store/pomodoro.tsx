@@ -1,11 +1,11 @@
-import { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback, startTransition, type ReactNode, type Dispatch, type SetStateAction } from 'react'
+import { createContext, useContext, useState, useReducer, useEffect, useRef, useMemo, useCallback, startTransition, type ReactNode, type Dispatch } from 'react'
 import { useBroadcastSync } from '../hooks/useBroadcastSync'
 import { usePushNotifications } from '../hooks/usePushNotifications'
 
 export type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
 export type PomodoroScreen = 'idle' | 'running' | 'pausado' | 'foco_end' | 'pausa_end' | 'livre'
 
-interface PomodoroConfig {
+export interface PomodoroConfig {
   focoMin: number
   pausaCurtaMin: number
   pausaLongaMin: number
@@ -36,7 +36,7 @@ function loadConfig(): PomodoroConfig {
       const parsed = JSON.parse(stored)
       return { ...DEFAULT_CONFIG, ...parsed }
     }
-    } catch (e) { console.error('[pomodoro.loadConfig]', e) }
+  } catch (e) { console.error('[pomodoro.loadConfig]', e) }
   return DEFAULT_CONFIG
 }
 
@@ -66,42 +66,130 @@ function playAlarm(ctx: AudioContext) {
   }
 }
 
-interface PomodoroContextType {
-  // Timer state
+// --- State ---
+export interface PomodoroState {
   minutos: number
   segundos: number
-  setMinutos: Dispatch<SetStateAction<number>>
-  setSegundos: Dispatch<SetStateAction<number>>
   ativo: boolean
-  setAtivo: Dispatch<SetStateAction<boolean>>
   sessaoId: number | null
-  setSessaoId: Dispatch<SetStateAction<number | null>>
   resumo: string
-  setResumo: Dispatch<SetStateAction<string>>
   mostrarResumo: boolean
-  setMostrarResumo: Dispatch<SetStateAction<boolean>>
-  // Config
-  config: PomodoroConfig
-  setConfig: Dispatch<SetStateAction<PomodoroConfig>>
-  // Cycle state
   cicloAtual: number
-  setCicloAtual: Dispatch<SetStateAction<number>>
   fase: Fase
-  setFase: Dispatch<SetStateAction<Fase>>
-  // Actions
+  screen: PomodoroScreen
+  interrupcoes: string[]
+  distracoes: number
+  contexto: { tipo: string; id: number; nome: string } | null
+}
+
+const initialConfig = loadConfig()
+const initialState: PomodoroState = {
+  minutos: initialConfig.focoMin,
+  segundos: 0,
+  ativo: false,
+  sessaoId: null,
+  resumo: '',
+  mostrarResumo: false,
+  cicloAtual: 0,
+  fase: 'foco',
+  screen: 'idle',
+  interrupcoes: [],
+  distracoes: 0,
+  contexto: null,
+}
+
+// --- Actions ---
+export type PomodoroAction =
+  | { type: 'SET_TIMER'; minutos: number; segundos: number }
+  | { type: 'SET_ATIVO'; ativo: boolean }
+  | { type: 'SET_SESSAO_ID'; sessaoId: number | null }
+  | { type: 'SET_RESUMO'; resumo: string }
+  | { type: 'SET_MOSTRAR_RESUMO'; mostrar: boolean }
+  | { type: 'SET_CICLO'; ciclo: number }
+  | { type: 'SET_FASE'; fase: Fase }
+  | { type: 'SET_SCREEN'; screen: PomodoroScreen }
+  | { type: 'SET_INTERRUPCOES'; interrupcoes: string[] }
+  | { type: 'ADD_INTERRUPCAO'; texto: string }
+  | { type: 'SET_DISTRACOES'; distracoes: number }
+  | { type: 'INCREMENT_DISTRACAO' }
+  | { type: 'RESET_DISTRACOES' }
+  | { type: 'SET_CONTEXTO'; contexto: { tipo: string; id: number; nome: string } | null }
+  | { type: 'ADVANCE_PHASE'; ciclosAtePausaLonga: number }
+  | { type: 'RESET_TIMER'; durations: Record<Fase, number> }
+  | { type: 'OVERWRITE_STATE'; state: Partial<PomodoroState> }
+
+function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
+  const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
+    idle: ['running', 'livre'],
+    running: ['idle', 'pausado', 'foco_end', 'pausa_end'],
+    pausado: ['idle', 'running'],
+    livre: ['idle'],
+    foco_end: ['idle', 'running'],
+    pausa_end: ['idle', 'running'],
+  }
+  return valid[de].includes(para)
+}
+
+function pomodoroReducer(state: PomodoroState, action: PomodoroAction): PomodoroState {
+  switch (action.type) {
+    case 'SET_TIMER':
+      return { ...state, minutos: action.minutos, segundos: action.segundos }
+    case 'SET_ATIVO':
+      return { ...state, ativo: action.ativo }
+    case 'SET_SESSAO_ID':
+      return { ...state, sessaoId: action.sessaoId }
+    case 'SET_RESUMO':
+      return { ...state, resumo: action.resumo }
+    case 'SET_MOSTRAR_RESUMO':
+      return { ...state, mostrarResumo: action.mostrar }
+    case 'SET_CICLO':
+      return { ...state, cicloAtual: action.ciclo }
+    case 'SET_FASE':
+      return { ...state, fase: action.fase }
+    case 'SET_SCREEN': {
+      if (!canTransition(state.screen, action.screen)) return state
+      return { ...state, screen: action.screen }
+    }
+    case 'SET_INTERRUPCOES':
+      return { ...state, interrupcoes: action.interrupcoes }
+    case 'ADD_INTERRUPCAO':
+      return { ...state, interrupcoes: [...state.interrupcoes, action.texto] }
+    case 'SET_DISTRACOES':
+      return { ...state, distracoes: action.distracoes }
+    case 'INCREMENT_DISTRACAO':
+      return { ...state, distracoes: state.distracoes + 1 }
+    case 'RESET_DISTRACOES':
+      return { ...state, distracoes: 0 }
+    case 'SET_CONTEXTO':
+      return { ...state, contexto: action.contexto }
+    case 'ADVANCE_PHASE': {
+      if (state.fase === 'foco') {
+        const nextCiclo = state.cicloAtual + 1
+        const isPausaLonga = nextCiclo % action.ciclosAtePausaLonga === 0
+        return {
+          ...state,
+          cicloAtual: nextCiclo,
+          fase: isPausaLonga ? 'pausa_longa' : 'pausa_curta',
+        }
+      }
+      return { ...state, fase: 'foco' }
+    }
+    case 'RESET_TIMER':
+      return { ...state, minutos: action.durations[state.fase], segundos: 0 }
+    case 'OVERWRITE_STATE':
+      return { ...state, ...action.state }
+  }
+}
+
+// --- Context ---
+interface PomodoroContextType {
+  state: PomodoroState
+  dispatch: Dispatch<PomodoroAction>
+  config: PomodoroConfig
+  setConfig: React.Dispatch<React.SetStateAction<PomodoroConfig>>
   resetTimer: () => void
   advancePhase: () => void
-  // Timestamp ref for smooth resume
   startedAtRef: React.MutableRefObject<number>
-  // Global Pomodoro screen/state
-  screen: PomodoroScreen
-  setScreen: Dispatch<SetStateAction<PomodoroScreen>>
-  interrupcoes: string[]
-  setInterrupcoes: Dispatch<SetStateAction<string[]>>
-  distracoes: number
-  setDistracoes: Dispatch<SetStateAction<number>>
-  contexto: { tipo: string; id: number; nome: string } | null
-  setContexto: Dispatch<SetStateAction<{ tipo: string; id: number; nome: string } | null>>
   audioCtxRef: React.MutableRefObject<AudioContext | null>
   saveHeartbeat: () => void
   clearHeartbeat: () => void
@@ -111,19 +199,8 @@ const PomodoroContext = createContext<PomodoroContextType | null>(null)
 
 export function PomodoroProvider({ children }: { children: ReactNode }) {
   const [config, setConfig] = useState<PomodoroConfig>(() => loadConfig())
-  const [minutos, setMinutos] = useState(config.focoMin)
-  const [segundos, setSegundos] = useState(0)
-  const [ativo, setAtivo] = useState(false)
-  const [sessaoId, setSessaoId] = useState<number | null>(null)
-  const [resumo, setResumo] = useState('')
-  const [mostrarResumo, setMostrarResumo] = useState(false)
-  const [cicloAtual, setCicloAtual] = useState(0)
-  const [fase, setFase] = useState<Fase>('foco')
-  const [screen, setScreen] = useState<PomodoroScreen>('idle')
-  const [interrupcoes, setInterrupcoes] = useState<string[]>([])
-  const [distracoes, setDistracoes] = useState(0)
-  const [contexto, setContexto] = useState<{ tipo: string; id: number; nome: string } | null>(null)
-  
+  const [state, dispatch] = useReducer(pomodoroReducer, initialState)
+
   const startedAtRef = useRef(0)
   const lastDisplaySecRef = useRef(-1)
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -144,100 +221,86 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handler)
   }, [])
 
-  // Track distractions (window blur events) during active session
   useEffect(() => {
-    if (screen === 'running' || screen === 'livre') {
-      startTransition(() => setDistracoes(0))
+    if (state.screen === 'running' || state.screen === 'livre') {
+      startTransition(() => dispatch({ type: 'RESET_DISTRACOES' }))
     }
-  }, [screen])
+  }, [state.screen])
 
   useEffect(() => {
-    if (screen !== 'running' && screen !== 'livre') return
-    const handler = () => setDistracoes(d => d + 1)
+    if (state.screen !== 'running' && state.screen !== 'livre') return
+    const handler = () => dispatch({ type: 'INCREMENT_DISTRACAO' })
     window.addEventListener('blur', handler)
     return () => window.removeEventListener('blur', handler)
-  }, [screen])
+  }, [state.screen])
 
-  // Persist config
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(config))
     } catch (e) { console.error('[pomodoro.persist]', e) }
   }, [config])
 
-  // Reset timer to current phase duration
   const resetTimer = useCallback(() => {
     const durations: Record<Fase, number> = {
       foco: config.focoMin,
       pausa_curta: config.pausaCurtaMin,
       pausa_longa: config.pausaLongaMin,
     }
-    setMinutos(durations[fase])
-    setSegundos(0)
-  }, [config, fase])
+    dispatch({ type: 'RESET_TIMER', durations })
+  }, [config])
 
-  // Advance to next phase
   const advancePhase = useCallback(() => {
-    if (fase === 'foco') {
-      const nextCiclo = cicloAtual + 1
-      setCicloAtual(nextCiclo)
-      const isPausaLonga = nextCiclo % config.ciclosAtePausaLonga === 0
-      setFase(isPausaLonga ? 'pausa_longa' : 'pausa_curta')
-    } else {
-      setFase('foco')
-    }
-  }, [cicloAtual, config, fase])
+    dispatch({ type: 'ADVANCE_PHASE', ciclosAtePausaLonga: config.ciclosAtePausaLonga })
+  }, [config.ciclosAtePausaLonga])
 
-  // Reset timer when phase changes
   useEffect(() => {
     startTransition(() => resetTimer())
-  }, [fase, config])
+  }, [state.fase, config])
 
-  // Heartbeat
   const HB_KEY = 'mindflow_pomodoro_heartbeat'
-  const clearHeartbeat = () => { try { localStorage.removeItem(HB_KEY) } catch (e) { console.error('[pomodoro.clearHeartbeat]', e) } }
-  const saveHeartbeat = () => {
-    if (screen !== 'running' && screen !== 'pausado' && screen !== 'livre') return
+  const clearHeartbeat = useCallback(() => {
+    try { localStorage.removeItem(HB_KEY) } catch (e) { console.error('[pomodoro.clearHeartbeat]', e) }
+  }, [])
+  const saveHeartbeat = useCallback(() => {
+    if (state.screen !== 'running' && state.screen !== 'pausado' && state.screen !== 'livre') return
     const elapsed = Date.now() - startedAtRef.current
-    const remainingMs = screen === 'livre' ? 0 : Math.max(0, (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000 - elapsed)
+    const remainingMs = state.screen === 'livre' ? 0 : Math.max(0, (state.fase === 'foco' ? config.focoMin : state.fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000 - elapsed)
     try {
       localStorage.setItem(HB_KEY, JSON.stringify({
-        savedAt: Date.now(), screen, fase, cicloAtual, sessaoId,
-        interrupcoes, distracoes, remainingMs, minutos, segundos,
-        contextoTipo: contexto?.tipo || null,
-        contextoId: contexto?.id || null,
-        contextoNome: contexto?.nome || null,
+        savedAt: Date.now(), screen: state.screen, fase: state.fase, cicloAtual: state.cicloAtual, sessaoId: state.sessaoId,
+        interrupcoes: state.interrupcoes, distracoes: state.distracoes, remainingMs, minutos: state.minutos, segundos: state.segundos,
+        contextoTipo: state.contexto?.tipo || null,
+        contextoId: state.contexto?.id || null,
+        contextoNome: state.contexto?.nome || null,
       }))
     } catch (e) { console.error('[pomodoro.saveHeartbeat]', e) }
-  }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.screen, state.fase, state.cicloAtual, state.sessaoId, state.distracoes, state.minutos, state.segundos, state.contexto, config])
 
-  // Auto-start next phase
   useEffect(() => {
     if (!config.autoStart) return
-    if (screen === 'foco_end' || screen === 'pausa_end') {
+    if (state.screen === 'foco_end' || state.screen === 'pausa_end') {
       const timer = setTimeout(() => {
         advancePhase()
-        setScreen('running')
-        setAtivo(true)
+        dispatch({ type: 'SET_SCREEN', screen: 'running' })
+        dispatch({ type: 'SET_ATIVO', ativo: true })
         startedAtRef.current = Date.now()
         clearHeartbeat()
       }, 3000)
       return () => clearTimeout(timer)
     }
-  }, [screen, config.autoStart, advancePhase, clearHeartbeat])
+  }, [state.screen, config.autoStart, advancePhase, clearHeartbeat])
 
-  // Tick loop
   useEffect(() => {
-    if (!ativo || (screen !== 'running' && screen !== 'livre')) return
+    if (!state.ativo || (state.screen !== 'running' && state.screen !== 'livre')) return
 
-    if (screen === 'livre') {
+    if (state.screen === 'livre') {
       const checkTimer = () => {
         const elapsed = Date.now() - startedAtRef.current
         const totalSec = Math.floor(elapsed / 1000)
         if (totalSec !== lastDisplaySecRef.current) {
           lastDisplaySecRef.current = totalSec
-          setMinutos(Math.floor(totalSec / 60))
-          setSegundos(totalSec % 60)
+          dispatch({ type: 'SET_TIMER', minutos: Math.floor(totalSec / 60), segundos: totalSec % 60 })
           saveHeartbeat()
         }
       }
@@ -246,7 +309,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       return () => clearInterval(interval)
     }
 
-    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+    const phaseMs = (state.fase === 'foco' ? config.focoMin : state.fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
 
     const checkTimer = () => {
       const elapsed = Date.now() - startedAtRef.current
@@ -255,73 +318,59 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
 
       if (totalSec !== lastDisplaySecRef.current) {
         lastDisplaySecRef.current = totalSec
-        setMinutos(Math.max(0, Math.floor(totalSec / 60)))
-        setSegundos(Math.max(0, totalSec % 60))
+        dispatch({ type: 'SET_TIMER', minutos: Math.max(0, Math.floor(totalSec / 60)), segundos: Math.max(0, totalSec % 60) })
         saveHeartbeat()
       }
 
       if (elapsed >= phaseMs) {
         clearHeartbeat()
-        setAtivo(false)
-        setScreen(fase === 'foco' ? 'foco_end' : 'pausa_end')
-        
+        dispatch({ type: 'SET_ATIVO', ativo: false })
+        dispatch({ type: 'SET_SCREEN', screen: state.fase === 'foco' ? 'foco_end' : 'pausa_end' })
+
         if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
           playAlarm(audioCtxRef.current)
         }
-        notify(fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!')
+        notify(state.fase === 'foco' ? 'Foco finalizado!' : 'Pausa finalizada!')
       }
     }
 
     checkTimer()
-
     const interval = setInterval(checkTimer, 200)
     return () => clearInterval(interval)
-  }, [ativo, screen, fase, config, interrupcoes, contexto])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.ativo, state.screen, state.fase, config, state.interrupcoes, state.contexto])
 
   // eslint-disable-next-line react-hooks/refs
-  const startedAt = startedAtRef.current
   const broadcastState = useMemo(() => ({
-    sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes, startedAt,
-  }), [sessaoId, minutos, segundos, ativo, fase, cicloAtual, screen, interrupcoes, distracoes, startedAt])
+    sessaoId: state.sessaoId, minutos: state.minutos, segundos: state.segundos,
+    ativo: state.ativo, fase: state.fase, cicloAtual: state.cicloAtual,
+    screen: state.screen, interrupcoes: state.interrupcoes,
+    distracoes: state.distracoes, startedAt: startedAtRef.current,
+  }), [state.sessaoId, state.minutos, state.segundos, state.ativo, state.fase, state.cicloAtual, state.screen, state.interrupcoes, state.distracoes])
 
   useBroadcastSync('sync:pomodoro', broadcastState, (data) => {
-    setSessaoId(data.sessaoId ?? null)
-    setMinutos(data.minutos)
-    setSegundos(data.segundos)
-    setAtivo(data.ativo)
-    setFase(data.fase as Fase)
-    setCicloAtual(data.cicloAtual)
-    setScreen(data.screen as PomodoroScreen)
-    setInterrupcoes(data.interrupcoes || [])
+    dispatch({ type: 'OVERWRITE_STATE', state: {
+      sessaoId: data.sessaoId ?? null,
+      minutos: data.minutos,
+      segundos: data.segundos,
+      ativo: data.ativo,
+      fase: data.fase as Fase,
+      cicloAtual: data.cicloAtual,
+      screen: data.screen as PomodoroScreen,
+      interrupcoes: data.interrupcoes || [],
+    }})
     if (data.startedAt && typeof data.startedAt === 'number') {
       startedAtRef.current = data.startedAt
     }
-  }, !!sessaoId || ativo)
+  }, !!state.sessaoId || state.ativo)
 
   const contextValue = useMemo(() => ({
-    minutos, setMinutos, segundos, setSegundos,
-    ativo, setAtivo,
-    sessaoId, setSessaoId,
-    resumo, setResumo,
-    mostrarResumo, setMostrarResumo,
+    state, dispatch,
     config, setConfig,
-    cicloAtual, setCicloAtual,
-    fase, setFase,
-    resetTimer,
-    advancePhase,
-    startedAtRef,
-    screen, setScreen,
-    interrupcoes, setInterrupcoes,
-    distracoes, setDistracoes,
-    contexto, setContexto,
-    audioCtxRef,
-    saveHeartbeat,
-    clearHeartbeat,
-  }), [
-    minutos, segundos, ativo, sessaoId, resumo, mostrarResumo,
-    config, cicloAtual, fase, screen, interrupcoes, distracoes, contexto,
-    resetTimer, advancePhase, saveHeartbeat, clearHeartbeat,
-  ])
+    resetTimer, advancePhase,
+    startedAtRef, audioCtxRef,
+    saveHeartbeat, clearHeartbeat,
+  }), [state, config, resetTimer, advancePhase, saveHeartbeat, clearHeartbeat])
 
   return (
     <PomodoroContext.Provider value={contextValue}>

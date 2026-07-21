@@ -8,10 +8,15 @@
   --color-bg-hover: #2A2A36;
   --color-text-primary: #E6EDF3;
   --color-text-secondary: #8B949E;
-  --color-text-muted: #6E7681;
+  --color-text-muted: #87919B;
   --color-accent: #58A6FF;
   --color-accent-hover: #79C0FF;
   --color-accent-light: #3A5A8A;
+  --color-accent-foreground: #000000;
+  --color-quadrant-2: #2DD4BF;
+  --color-quadrant-2-foreground: #000000;
+  --color-quadrant-4: #F87171;
+  --color-quadrant-4-foreground: #000000;
   --color-success: #3FB950;
   --color-warning: #D29922;
   --color-danger: #F85149;
@@ -34,6 +39,20 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
   --shadow-md: 0 4px 8px rgba(0,0,0,0.4);
   --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-xl: 0 12px 28px rgba(0,0,0,0.5);
+  --shadow-2xl: 0 16px 48px rgba(0,0,0,0.5);
+  --elevation-0: none;
+  --elevation-1: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  --elevation-2: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+  --elevation-4: 0 8px 16px rgba(0,0,0,0.12), 0 8px 16px rgba(0,0,0,0.24);
+  --elevation-6: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-4: var(--elevation-4);
+  --shadow-elevation-6: var(--elevation-6);
+
+  --opacity-disabled: 0.5;
+  --opacity-disabled-heavy: 0.3;
 }
 
 [data-theme="light"] {
@@ -47,6 +66,11 @@
   --color-accent: #3B82F6;
   --color-accent-hover: #2563EB;
   --color-accent-light: #DBEAFE;
+  --color-accent-foreground: #000000;
+  --color-quadrant-2: #0D9488;
+  --color-quadrant-2-foreground: #FFFFFF;
+  --color-quadrant-4: #DC2626;
+  --color-quadrant-4-foreground: #FFFFFF;
   --color-success: #22C55E;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;

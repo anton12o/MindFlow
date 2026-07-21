@@ -403,7 +403,7 @@ export default function Ideias() {
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-x-hidden">
         <div className="flex items-center justify-between mb-2 shrink-0">
-          <h1 className="text-2xl font-bold text-text-primary">Notas</h1>
+          <h1 className="text-xl font-bold text-text-primary">Notas</h1>
         </div>
         <div className="flex items-center gap-1 w-full mb-1 shrink-0">
           <input

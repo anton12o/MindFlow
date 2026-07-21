@@ -38,10 +38,10 @@ export default function Tipos({ compact }: { compact?: boolean }) {
   })
   return (
     <div className={compact ? '' : 'p-6 max-w-4xl mx-auto animate-fade-in'}>
-      <h1 className="text-2xl font-bold mb-6">Tipos de Objeto</h1>
+      <h1 className="text-xl font-bold mb-6">Tipos de Objeto</h1>
       {!editing && (
       <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">Novo tipo</h2>
+        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Novo tipo</h2>
         <div className="flex items-center gap-2">
           <select value={form.icone} onChange={e => setForm(f => ({ ...f, icone: e.target.value }))}
             className="bg-bg-primary rounded px-2 py-1.5 text-lg outline-none focus-visible:ring-2 focus-visible:ring-accent">

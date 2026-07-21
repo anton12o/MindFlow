@@ -560,7 +560,7 @@ export default function IdeiasEditor({
           )}
           {(Object.keys(propriedades).length > 0 || Object.keys(formulaValues).length > 0 || editando) && (
             <div className="w-56 shrink-0">
-              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Propriedades</h3>
+              <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide mb-2">Propriedades</h3>
               <div className="space-y-2">
                 {Object.entries(propriedades).filter(([k]) => !(k in formulaFields)).map(([k, v]) => (
                   <div key={k} className="bg-bg-tertiary rounded-lg p-2">
@@ -603,7 +603,7 @@ export default function IdeiasEditor({
           <div className="mt-8 pt-4 border-t border-border">
             {saida.length > 0 && (
               <div className="mb-3">
-                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Aponta para</h2>
+                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Aponta para</h2>
                 <div className="flex flex-wrap gap-2">
                   {saida.map(n => (
                     <button key={n.id} onClick={() => onSelectNota(n)}
@@ -616,7 +616,7 @@ export default function IdeiasEditor({
             )}
             {entrada.length > 0 && (
               <div>
-                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Apontam para esta</h2>
+                <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Apontam para esta</h2>
                 <div className="flex flex-wrap gap-2">
                   {entrada.map(n => (
                     <button key={n.id} onClick={() => onSelectNota(n)}

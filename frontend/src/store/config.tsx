@@ -36,7 +36,7 @@ const ConfigContext = createContext<{
 
 export function ConfigProvider({ children }: { children: ReactNode }) {
   const [config, setConfigState] = useState<Config>(loadConfig)
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const configRef = useRef(config)
 
   useEffect(() => { configRef.current = config }, [config])

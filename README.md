@@ -1,8 +1,8 @@
-# MindFlow 🧠
+# MindFlow 🧠 v1.6.0
 
 [![CI](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml)
 
-**Seu segundo cérebro local-first.** Notas, tarefas, hábitos, pomodoro, flashcards — tudo offline, tudo seu.
+**Seu segundo cérebro local-first.** Notas, tarefas, hábitos, pomodoro, flashcards, matriz de decisão — tudo offline, tudo seu.
 
 > Inspirado por Anytype, Obsidian e TickTick.
 
@@ -14,6 +14,8 @@
 - **Keyboard-driven:** Ctrl+K (paleta), Ctrl+I (captura), `/` (comandos no editor), atalhos customizáveis
 - **Wikilinks + Grafo:** `[[links]]` conectam notas automaticamente + grafo interativo Fruchterman–Reingold
 - **PWA:** instalável como app nativo com service worker + cache offline
+- **Matriz de Decisão:** Eisenhower + Esforço/Impacto com sliders e classificação automática
+- **Rotina completa:** Timeline com blocos, Kanban, drag-and-drop, prioridade editável
 - **Tudo em um:** Dashboard, Rotina, Pomodoro, Notas, Flashcards, Hábitos, Insights, Consultas — integrados
 
 ---
@@ -35,9 +37,10 @@
 | Módulo | Descrição |
 |--------|-----------|
 | **Dashboard** | Métricas principais (notas, tarefas, flashcards, sessões), cards de bloco/tarefas/inbox/leitura, diário automático |
-| **Rotina** | Blocos de tempo + tarefas diárias + calendário semanal com drag-and-drop + intenção diária |
-| **Pomodoro** | Timer personalizável (foco/pausa curta/pausa longa), ciclo automático, modo livre, alarme sonoro 3-beep, nota de resumo, sync entre abas |
+| **Rotina** | Timeline com blocos de horário, tarefas com prioridade (simples→difícil), Kanban drag-and-drop, calendário semanal, intenção diária |
+| **Pomodoro** | Timer com máquina de estados (foco/pausa/pausado), heartbeat localStorage, interrupções com envio ao Inbox, alarme 3-beep, modo livre, resumo automático |
 | **Hábitos** | Rastreamento binário ou quantitativo com streaks + calendário mensal + registro em lote |
+| **Matriz de Decisão** | Eisenhower (urgente vs importante) + Esforço/Impacto com sliders visuais, classificação automática em 4 quadrantes |
 
 ### 🧠 Revisão & Aprendizado
 
@@ -69,7 +72,7 @@
 | Camada | Tecnologia |
 |--------|-----------|
 | **Frontend** | Vite 8 + React 19 + TypeScript + Tailwind v4 (`@theme`) |
-| **Backend** | Python 3.12+ + FastAPI + SQLModel + Alembic |
+| **Backend** | Python 3.10+ + FastAPI + SQLModel + Alembic |
 | **Banco** | SQLite (WAL + FTS5 full-text search) |
 | **Editor** | CodeMirror 6 (Markdown + Python + JavaScript + SQL) |
 | **Grafo** | Algoritmo custom Fruchterman–Reingold (120 iterações) |
@@ -84,14 +87,13 @@
 
 ## 📦 Pré-requisitos
 
-- **Python** 3.12+ (`pip` incluso)
+- **Python** 3.10+ (`pip` incluso)
 - **Git** 2.x+ (recomendado para auto-update, opcional se baixar o ZIP)
 - **Node.js** 18+ e npm (apenas no primeiro build; depois o frontend é servido como estático)
 
-> No Windows, use o **Python Launcher** (`py`) se `python` não estiver no PATH:
-> ```powershell
-> py -3.12 start.py
-> ```
+> **Linux:** `./start.sh` — detecta distro, instala Python/Node se faltar
+> **Windows:** `python start.py` ou `py start.py`
+> **Make:** `make run` (Linux), `make build`, `make setup`
 
 ---
 
@@ -109,10 +111,17 @@ cd MindFlow
 ### 2. Inicie com um comando (modo produção)
 
 ```bash
+# Linux (auto-instala dependências se necessário)
+./start.sh
+
+# Windows / qualquer SO
 python start.py
+
+# Linux com Make
+make run
 ```
 
-O `start.py` faz tudo automaticamente:
+O script faz tudo automaticamente:
 1. Cria um ambiente virtual Python isolado (`venv/`)
 2. Instala as dependências do backend (`pip install -r requirements.txt`)
 3. Builda o frontend (apenas na primeira execução)
@@ -172,22 +181,22 @@ python build_exe.py    # compila MindFlow.exe (~40 MB) em dist/
 ## 🧪 Testes
 
 ```bash
-# Backend — pytest (~200 testes, 15 arquivos)
+# Backend — pytest (123 testes, 9 arquivos)
 cd backend && python -m pytest -q
 
 # Lint — ruff
 cd backend && ruff check .
 
-# Frontend — vitest (356 testes, 35 arquivos)
+# Frontend — vitest (416 testes, 39 arquivos)
 cd frontend && npx vitest run
 
 # TypeScript
 cd frontend && node node_modules/typescript/bin/tsc --noEmit
 
 # Build produção
-cd frontend && node node_modules/typescript/bin/tsc -b && npx vite build
+cd frontend && npm run build
 
-# E2E — Playwright (29 testes, 4 specs)
+# E2E — Playwright (3 specs)
 cd frontend && npx playwright test
 ```
 
@@ -231,33 +240,40 @@ mindflow/
 │   └── tests/               # 15 test files
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/           # 12 páginas
+│   │   ├── pages/           # 14 páginas
 │   │   │   ├── Dashboard.tsx
-│   │   │   ├── Rotina.tsx   # Blocos + tarefas + intenção
+│   │   │   ├── Rotina.tsx   # Timeline + Kanban + tarefas + intenção
 │   │   │   ├── Pomodoro.tsx
+│   │   │   ├── Matriz.tsx   # Eisenhower + Esforço/Impacto
 │   │   │   ├── Ideias.tsx   # Lista virtual + abas + toolbar
 │   │   │   ├── Flashcards.tsx
 │   │   │   ├── Habitos.tsx
 │   │   │   ├── Revisao.tsx  # Revisão periódica
 │   │   │   ├── Insights.tsx # Heatmap + evolução
-│   │   │   ├── Consultas.tsx# Grid/kanban/gantt/calendário
+│   │   │   ├── Consultas.tsx# Grid/kanban/gantt/calendário/tabela
 │   │   │   ├── Tipos.tsx
+│   │   │   ├── TagsPage.tsx
 │   │   │   ├── Config.tsx   # Fonte, zoom, auto-save, atalhos
 │   │   │   └── RevisaoSemanal.tsx
-│   │   ├── components/      # 25 componentes
+│   │   ├── components/      # 30+ componentes
+│   │   │   ├── rotina/      # BlocoCard, TarefaItem, TarefaForm, KanbanView, BannerResumo
+│   │   │   ├── matriz/      # EisenhowerView, EsforcoImpactoView, MatrixSelector, TaskCard
 │   │   │   ├── Sidebar.tsx  # Navegação + tema + inbox + redimensionável
 │   │   │   ├── IdeiasEditor.tsx  # CodeMirror + auto-save + wikilinks
 │   │   │   ├── RenderConteudo.tsx# Markdown + Mermaid + KaTeX + gráficos
 │   │   │   ├── GrafoNotas.tsx    # Fruchterman–Reingold custom
-│   │   │   ├── PomodoroTimer.tsx # Timer + alarme + estados
+│   │   │   ├── PomodoroTimer.tsx # Timer + máquina de estados
+│   │   │   ├── PomodoroConfigPanel.tsx
+│   │   │   ├── PomodoroResumoForm.tsx
 │   │   │   ├── CommandPalette.tsx# Ctrl+K
 │   │   │   ├── InboxModal.tsx
 │   │   │   └── ... (TabBar, TourModal, ConfirmModal, etc.)
 │   │   ├── api/             # 17 clientes HTTP
 │   │   ├── store/           # 5 stores (tema, pomodoro, notificação, config, atalhos)
 │   │   ├── hooks/           # 12 hooks (useDebounce, useFocusTrap, useTabState...)
+│   │   ├── utils/           # scoring.ts, prioridade.ts, date.ts
 │   │   └── types/           # Interfaces TypeScript
-│   ├── e2e/                 # 4 specs Playwright (29 testes)
+│   ├── e2e/                 # 3 specs Playwright
 │   └── package.json
 ├── docs/
 │   ├── adr/                 # Decisões arquiteturais (SQLModel, local-first, monolito)
@@ -341,11 +357,11 @@ python start.py                                # sobe o app completo
 Antes de enviar um PR, certifique-se de que:
 
 1. `ruff check .` — zero erros no backend
-2. `python -m pytest -q` — ~200 testes passando
-3. `npx vitest run` — 356 testes passando no frontend
+2. `python -m pytest -q` — 123 testes passando
+3. `npx vitest run` — 416 testes passando no frontend
 4. `node node_modules/typescript/bin/tsc --noEmit` — zero erros
-5. `node node_modules/typescript/bin/tsc -b && npx vite build` — build limpo
-6. `npx playwright test` — 29 testes E2E passando
+5. `npm run build` — build limpo
+6. `npx playwright test` — 3 specs E2E passando
 
 ---
 

@@ -32,7 +32,7 @@ export default function InboxReminder() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 bg-bg-secondary border border-border rounded-xl shadow-lg p-4 max-w-xs animate-slide-up">
+    <div className="fixed bottom-4 right-4 z-50 bg-bg-secondary border border-border rounded-xl shadow-elevation-4 p-4 max-w-xs animate-slide-up">
       <div className="flex items-start gap-3">
         <span className="text-lg shrink-0 mt-0.5">📥</span>
         <div className="flex-1 min-w-0">
@@ -43,7 +43,7 @@ export default function InboxReminder() {
           <div className="flex items-center gap-2 mt-2">
             <button
               onClick={() => window.dispatchEvent(new Event('open-inbox'))}
-              className="text-xs px-3 py-1 bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors"
+              className="text-xs px-3 py-1 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors"
             >
               Revisar agora
             </button>

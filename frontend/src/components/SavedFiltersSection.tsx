@@ -61,7 +61,7 @@ export default function SavedFiltersSection({
             className="flex-1 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
           <button onClick={save} disabled={!nome.trim() || isDuplicate}
-            className="text-xs text-accent hover:text-accent/80 disabled:opacity-30">OK</button>
+            className="text-xs text-accent hover:text-accent/80 disabled:opacity-disabled-heavy">OK</button>
         </div>
       )}
       {saved.length > 0 && (

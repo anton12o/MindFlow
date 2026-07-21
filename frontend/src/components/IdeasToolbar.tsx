@@ -66,7 +66,7 @@ export default function IdeasToolbar({
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <div className="absolute left-0 mt-1 w-48 origin-top-left rounded-md bg-bg-secondary border border-border shadow-lg focus:outline-none z-50">
+            <div className="absolute left-0 mt-1 w-48 origin-top-left rounded-md bg-bg-secondary border border-border shadow-elevation-4 focus:outline-none z-50">
               <div className="py-1">
                 <Menu.Item>
                   {({ active }) => (
@@ -131,7 +131,7 @@ export default function IdeasToolbar({
           <button
             onClick={onDeleteSelected}
             disabled={!selectedCount}
-            className="w-8 h-8 flex items-center justify-center rounded-lg bg-bg-tertiary hover:bg-danger/10 hover:text-danger text-text-secondary disabled:opacity-50 disabled:hover:bg-bg-tertiary disabled:hover:text-text-secondary transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-lg bg-bg-tertiary hover:bg-danger/10 hover:text-danger text-text-secondary disabled:opacity-disabled disabled:hover:bg-bg-tertiary disabled:hover:text-text-secondary transition-colors"
             title={`Excluir ${selectedCount} nota${selectedCount > 1 ? 's' : ''}`}
           >
             <Trash2 size={16} />
@@ -160,7 +160,7 @@ export default function IdeasToolbar({
           }`} title={tagFilter.length > 0 ? `Filtro: ${tagFilter.length} tag(s)` : 'Filtrar por tags'}>
             <Tag size={16} />
             {tagFilter.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-accent text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-accent text-accent-foreground text-xs font-bold rounded-full flex items-center justify-center">
                 {tagFilter.length}
               </span>
             )}
@@ -174,7 +174,7 @@ export default function IdeasToolbar({
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <div className="absolute left-0 mt-1 w-56 rounded-md bg-bg-secondary border border-border shadow-lg focus:outline-none z-50 p-3">
+            <div className="absolute left-0 mt-1 w-56 rounded-md bg-bg-secondary border border-border shadow-elevation-4 focus:outline-none z-50 p-3">
               {tagFilter.length > 0 && (
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-text-muted">{tagFilter.length} tag{tagFilter.length > 1 ? 's' : ''} ativa{tagFilter.length > 1 ? 's' : ''}</span>
@@ -227,7 +227,7 @@ export default function IdeasToolbar({
             leaveFrom="transform opacity-100 scale-100"
             leaveTo="transform opacity-0 scale-95"
           >
-            <div className="absolute left-0 mt-1 w-48 rounded-md bg-bg-secondary border border-border shadow-lg focus:outline-none z-50 p-1">
+            <div className="absolute left-0 mt-1 w-48 rounded-md bg-bg-secondary border border-border shadow-elevation-4 focus:outline-none z-50 p-1">
               <button onClick={() => onSelectPasta(null)}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
                   pastaFilter === null
@@ -270,7 +270,7 @@ export default function IdeasToolbar({
           leaveFrom="transform opacity-100 scale-100"
           leaveTo="transform opacity-0 scale-95"
         >
-          <div className="absolute right-0 mt-1 w-48 origin-top-right rounded-md bg-bg-secondary border border-border shadow-lg focus:outline-none z-50">
+          <div className="absolute right-0 mt-1 w-48 origin-top-right rounded-md bg-bg-secondary border border-border shadow-elevation-4 focus:outline-none z-50">
             <div className="py-1">
               <Menu.Item>
                 {({ active }) => (

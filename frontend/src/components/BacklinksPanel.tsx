@@ -20,7 +20,7 @@ export default function BacklinksPanel({ notaId, onSelectNota }: BacklinksPanelP
 
   return (
     <div className="mt-8 pt-4 border-t border-border">
-      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3">
+      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">
         Mencionado em ({backlinks.length})
       </h2>
       <div className="space-y-2">

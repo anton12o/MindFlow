@@ -298,7 +298,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         <div className="relative" ref={headingRef}>
           <button onClick={() => setShowHeading(p => !p)} className={`${btn} text-xs font-semibold w-6`} title="Cabeçalho" aria-label="Cabeçalho">H</button>
           {showHeading && (
-            <div className="absolute left-0 top-full mt-1 bg-bg-secondary border border-border rounded-lg shadow-lg z-50 p-1 w-24 animate-fade-in">
+            <div className="absolute left-0 top-full mt-1 bg-bg-secondary border border-border rounded-lg shadow-elevation-4 z-50 p-1 w-24 animate-fade-in">
               {[['Texto', 0], ['H1', 1], ['H2', 2], ['H3', 3], ['H4', 4], ['H5', 5], ['H6', 6]].map(([label, level]) => (
                 <button key={String(level)} onClick={() => { handleHeading(level as number); setShowHeading(false) }}
                   className="w-full text-left px-2 py-1 text-sm rounded hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors">

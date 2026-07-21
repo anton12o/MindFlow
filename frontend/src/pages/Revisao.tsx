@@ -176,7 +176,7 @@ export default function Revisao() {
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Revisão</h1>
+        <h1 className="text-xl font-bold">Revisão</h1>
         <RevisaoToolbar periodo={periodo} onChangePeriodo={setPeriodo} onCreateNota={handleCreateNota} criando={createMut.isPending} />
       </div>
 
@@ -192,7 +192,7 @@ export default function Revisao() {
             <p className="text-sm text-text-muted">Streak atual: {weekly.streak_atual} dias</p>
           )}
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Dias</h3>
+            <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Dias</h3>
             {weekly.semana.dias.map(dia => (
               <div key={dia.data} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${dia.notas || dia.tarefas || dia.pomodoros ? 'bg-bg-secondary' : ''}`}>
                 <span className="w-20 shrink-0 text-text-muted">{formatData(dia.data)}</span>
@@ -220,7 +220,7 @@ export default function Revisao() {
           )}
           {weekly && weekly.semana.dias.length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Dias da semana</h3>
+              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Dias da semana</h3>
               {weekly.semana.dias.map(dia => (
                 <div key={dia.data} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${dia.data === hojeLocal() ? 'bg-accent/10' : dia.notas || dia.tarefas || dia.pomodoros ? 'bg-bg-secondary' : ''}`}>
                   <span className="w-20 shrink-0 text-text-muted">{formatData(dia.data)}</span>
@@ -248,7 +248,7 @@ export default function Revisao() {
           </div>
           {heatmap.por_dia && Object.keys(heatmap.por_dia).length > 0 && (
             <div>
-              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-2">Dias</h3>
+              <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Dias</h3>
               <div className="space-y-1">
                 {Object.entries(heatmap.por_dia).map(([data, stats]) => (
                   <div key={data} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs bg-bg-secondary">

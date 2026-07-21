@@ -44,11 +44,11 @@ const SortableItem = React.memo(function SortableItem({ item, tipos, selectedIds
         <span className="text-sm font-medium truncate flex-1">{item.titulo}</span>
         {secondaryProp && <span className="text-xs text-text-muted">{secondaryProp[0]}: {String(secondaryProp[1]).slice(0, 30)}</span>}
         {item.status && (
-          <span className={`text-xs px-1.5 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
+          <span className={`text-xs px-2 py-0.5 rounded ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
             {item.status}
           </span>
         )}
-        {item.prioridade && <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>}
+        {item.prioridade && <span className={`text-xs px-2 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>}
       </div>
     </li>
   )
@@ -131,12 +131,12 @@ export default function Consultas() {
           <span className="text-sm font-medium truncate">{item.titulo}</span>
         </div>
         {item.status && (
-          <span className={`text-xs px-1.5 py-0.5 rounded mt-1 inline-block ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
+          <span className={`text-xs px-2 py-0.5 rounded mt-1 inline-block ${item.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary text-text-muted'}`}>
             {item.status}
           </span>
         )}
         {item.prioridade && (
-          <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>
+          <span className={`text-xs px-2 py-0.5 rounded ${badgePrioridade(item.prioridade)}`}>{labelPrioridade(item.prioridade)}</span>
         )}
       </div>
     )
@@ -174,7 +174,7 @@ export default function Consultas() {
   return (
     <div className="flex h-full">
       <div className="w-72 border-r border-border p-4 shrink-0 flex flex-col h-full overflow-y-auto">
-        <h1 className="text-2xl font-bold mb-6">Consultas</h1>
+        <h1 className="text-xl font-bold mb-6">Consultas</h1>
         <form onSubmit={e => { e.preventDefault(); setQueryFormError(''); setQueryGroupError('')
           if (!newName.trim()) { setQueryFormError('Informe o nome'); return }
           if (newView === 'calendario' && !newGroup) { setQueryGroupError('Selecione um campo de data'); return }
@@ -382,11 +382,11 @@ export default function Consultas() {
                           </div>
                           <div className="flex items-center gap-2 text-xs text-text-muted">
                             {card.status && (
-                              <span className={`px-1.5 py-0.5 rounded ${card.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary'}`}>
+                              <span className={`px-2 py-0.5 rounded ${card.status === 'feito' ? 'bg-accent/20 text-accent' : 'bg-bg-tertiary'}`}>
                                 {card.status}
                               </span>
                             )}
-                            {card.prioridade && <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(card.prioridade)}`}>{labelPrioridade(card.prioridade)}</span>}
+                            {card.prioridade && <span className={`text-xs px-2 py-0.5 rounded ${badgePrioridade(card.prioridade)}`}>{labelPrioridade(card.prioridade)}</span>}
                           </div>
                         </div>
                       </div>

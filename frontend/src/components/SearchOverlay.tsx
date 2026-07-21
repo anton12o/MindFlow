@@ -83,7 +83,7 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
               onMouseEnter={() => setSelectedIndex(i)}
               className={`flex items-start gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${i === selectedIndex ? 'bg-bg-hover' : 'hover:bg-bg-hover'}`}
             >
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-accent/10 text-accent font-medium shrink-0 mt-0.5">{r.type}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent font-medium shrink-0 mt-0.5">{r.type}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm truncate">{r.label}</p>
                 {r.snippet && <p className="text-xs text-text-muted truncate mt-0.5">{r.snippet}</p>}

@@ -87,10 +87,19 @@ describe('themeStore', () => {
   it('setCustomTheme faz merge no customTheme', () => {
     const { result } = renderTheme()
     act(() => result.current.setCustomTheme({ '--color-accent': '#ff0000' }))
-    expect(result.current.customTheme).toEqual({ '--color-accent': '#ff0000' })
+    expect(result.current.customTheme).toEqual({
+      '--color-accent': '#ff0000',
+      '--color-accent-foreground': '#FFFFFF',
+      '--color-accent-hover': '#ff4d4d',
+    })
 
     act(() => result.current.setCustomTheme({ '--bg': '#000' }))
-    expect(result.current.customTheme).toEqual({ '--color-accent': '#ff0000', '--bg': '#000' })
+    expect(result.current.customTheme).toEqual({
+      '--color-accent': '#ff0000',
+      '--color-accent-foreground': '#FFFFFF',
+      '--color-accent-hover': '#ff4d4d',
+      '--bg': '#000',
+    })
   })
 
   it('resetCustomTheme limpa customTheme', () => {
@@ -117,13 +126,20 @@ describe('themeStore', () => {
     const { result } = renderTheme()
     act(() => result.current.setCustomTheme({ '--color-accent': '#ff0000' }))
     const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY)!)
-    expect(saved).toEqual({ '--color-accent': '#ff0000' })
+    expect(saved).toEqual({
+      '--color-accent': '#ff0000',
+      '--color-accent-foreground': '#FFFFFF',
+      '--color-accent-hover': '#ff4d4d',
+    })
   })
 
-  it('carrega customTheme do localStorage no mount', () => {
+  it('carrega customTheme do localStorage no mount e migra foreground', () => {
     localStorage.setItem(CUSTOM_KEY, JSON.stringify({ '--color-accent': '#00ff00' }))
     const { result } = renderTheme()
-    expect(result.current.customTheme).toEqual({ '--color-accent': '#00ff00' })
+    expect(result.current.customTheme).toEqual({
+      '--color-accent': '#00ff00',
+      '--color-accent-foreground': '#000000',
+    })
   })
 
   it('useTheme retorna valores corretos', () => {

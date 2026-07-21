@@ -140,7 +140,7 @@ export default function Config() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in space-y-8">
-      <h1 className="text-2xl font-bold">Config</h1>
+      <h1 className="text-xl font-bold">Config</h1>
 
       <div className="flex gap-1 border-b border-border">
         <button onClick={() => setAba('tipos')}
@@ -161,7 +161,7 @@ export default function Config() {
 
       {aba === 'exportar' && (
         <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Exportar dados</h2>
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Exportar dados</h2>
           <div className="flex gap-2">
             <button onClick={handleExportJSON} disabled={exporting}
               className="px-4 py-2 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50 hover:bg-accent-hover">
@@ -176,7 +176,7 @@ export default function Config() {
               Tarefas concluídas
             </button>
           </div>
-          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider pt-2">Importar dados</h2>
+          <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide pt-2">Importar dados</h2>
           <input ref={fileRef} type="file" accept=".json" onChange={handleFileChange} className="hidden" />
           <button onClick={handleImport} disabled={importing}
             className="px-4 py-2 bg-bg-hover text-text-primary text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50 hover:bg-bg-secondary">
@@ -188,7 +188,7 @@ export default function Config() {
       {aba === 'config' && (
         <div className="space-y-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Aparência</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Aparência</h2>
             <div className="flex items-center justify-between">
               <span className="text-sm text-text-primary">Tema</span>
               <button onClick={cycleTheme}
@@ -265,7 +265,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Temporizador</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Temporizador</h2>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm text-text-primary">Timer contínuo</span>
@@ -276,7 +276,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Pomodoro</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Pomodoro</h2>
             <div className="grid grid-cols-2 gap-4">
               {([
                 { label: 'Foco (min)', key: 'focoMin' as const, min: 1, max: 120 },
@@ -315,7 +315,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Bloqueio</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Bloqueio</h2>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm text-text-primary">PIN de acesso</span>
@@ -338,7 +338,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Atalhos</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Atalhos</h2>
             {Object.entries(bindings).map(([action, combo]) => (
               <div key={action} className="flex items-center justify-between">
                 <span className="text-sm text-text-primary">{KEYBINDING_LABELS[action] || action}</span>
@@ -360,7 +360,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Backup</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Backup</h2>
             <p className="text-xs text-text-muted">Backups são salvos automaticamente ao encerrar (máx. 6).</p>
             <div className="flex gap-2">
               <button onClick={async () => { await backupDB(); notify('Backup iniciado', 'success') }}
@@ -372,7 +372,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Tutoriais</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Tutoriais</h2>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm text-text-primary">Reexibir tutoriais</span>
@@ -391,7 +391,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Sidebar</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Sidebar</h2>
             <div className="space-y-2">
               {[
                 { id: 'hide-dashboard', page: '/', label: 'Dashboard', desc: 'Página inicial' },
@@ -423,7 +423,7 @@ export default function Config() {
           </div>
 
           <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-4">
-            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider">Banco de dados</h2>
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Banco de dados</h2>
             <div className="flex items-center justify-between">
               <div>
                 <span className="text-sm text-text-primary">Compactar banco</span>

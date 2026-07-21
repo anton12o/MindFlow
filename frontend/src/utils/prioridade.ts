@@ -10,6 +10,8 @@ export function labelPrioridade(p: string): string {
   return LABELS[p] || p
 }
 
+const VALID_PRIORIDADES = new Set(Object.keys(CORES))
+
 export function badgePrioridade(p: string): string {
-  return CORES[p] || 'bg-text-muted/20 text-text-muted'
+  return VALID_PRIORIDADES.has(p) ? CORES[p] : 'bg-text-muted/20 text-text-muted'
 }

@@ -29,7 +29,7 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={onCancel} role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title">
       <div ref={modalRef}
-        className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-sm mx-4 animate-fade-in"
+        className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 w-full max-w-sm mx-4 animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
         <div className="p-4">
@@ -43,7 +43,7 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
           </button>
           <button ref={confirmRef} onClick={onConfirm}
             disabled={disabled}
-            className={`px-4 py-1.5 text-sm rounded-lg text-white transition-colors disabled:opacity-50 ${destructive ? 'bg-danger hover:bg-danger/80' : 'bg-accent hover:bg-accent-hover'}`}>
+            className={`px-4 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-disabled ${destructive ? 'bg-danger text-white hover:bg-danger/80' : 'bg-accent text-accent-foreground hover:bg-accent-hover'}`}>
             {disabled ? 'Aguarde...' : confirmLabel}
           </button>
         </div>

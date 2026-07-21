@@ -214,7 +214,7 @@ const SortableItem = React.memo(function SortableItem({ bloco }: { bloco: BlocoR
       style={style}
       {...attributes}
       {...listeners}
-      className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-lg ring-2 ring-accent' : ''}`}
+      className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-elevation-4 ring-2 ring-accent' : ''}`}
     >
       <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">⠿</div>
       {bloco.titulo}
