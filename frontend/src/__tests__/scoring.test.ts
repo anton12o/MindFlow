@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { QUADRANTES, QUADRANTES_EISENHOWER, getEI, classificar } from '../utils/scoring'
+import type { Tarefa } from '../types'
 
 describe('classificar', () => {
   it('quickwin: esforco < 3 e impacto >= 3', () => {
@@ -32,27 +33,27 @@ describe('getEI', () => {
   })
 
   it('retorna null quando matriz_ei nao existe', () => {
-    expect(getEI(base as any)).toBeNull()
+    expect(getEI(base as unknown as Tarefa)).toBeNull()
   })
 
   it('retorna null quando matriz_ei nao e objeto', () => {
     const t = { ...base, propriedades: { matriz_ei: 'invalido' } }
-    expect(getEI(t as any)).toBeNull()
+    expect(getEI(t as unknown as Tarefa)).toBeNull()
   })
 
   it('retorna null quando esforco nao e number', () => {
     const t = { ...base, propriedades: { matriz_ei: { esforco: 'alto', impacto: 2 } } }
-    expect(getEI(t as any)).toBeNull()
+    expect(getEI(t as unknown as Tarefa)).toBeNull()
   })
 
   it('retorna null quando impacto nao e number', () => {
     const t = { ...base, propriedades: { matriz_ei: { esforco: 4, impacto: 'baixo' } } }
-    expect(getEI(t as any)).toBeNull()
+    expect(getEI(t as unknown as Tarefa)).toBeNull()
   })
 
   it('retorna null quando faltam campos', () => {
     const t = { ...base, propriedades: { matriz_ei: { esforco: 4 } } }
-    expect(getEI(t as any)).toBeNull()
+    expect(getEI(t as unknown as Tarefa)).toBeNull()
   })
 })
 

@@ -128,9 +128,11 @@ function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onL
   const [expanded, setExpanded] = useState(false)
   const [saved, setSaved] = useState(false)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setExpanded(false) }, [collapseVersion])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setEsforco(existing?.esforco ?? 1)
     setImpacto(existing?.impacto ?? 1)
   }, [existing?.esforco, existing?.impacto])
@@ -196,7 +198,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
   const salvarEI = useMutation({
     mutationFn: ({ id, score }: { id: number; score: EIScore }) => {
       const all = queryClient.getQueriesData<TarefasMatrizResponse>({ queryKey: ['tarefas-matriz', dataInicio, dataFim] })
-      const t = all.flatMap(([_, data]) => data?.items || []).find(t => t.id === id)
+      const t = all.flatMap((pair) => (pair[1] as TarefasMatrizResponse | undefined)?.items || []).find(t => t.id === id)
       const existingProps = t?.propriedades || {}
       return updateTarefa(id, { propriedades: { ...existingProps, matriz_ei: score } })
     },
@@ -235,9 +237,12 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
   const limparScore = useMutation({
     mutationFn: (id: number) => {
       const all = queryClient.getQueriesData<TarefasMatrizResponse>({ queryKey: ['tarefas-matriz', dataInicio, dataFim] })
-      const t = all.flatMap(([_, data]) => data?.items || []).find(t => t.id === id)
+      const t = all.flatMap((pair) => (pair[1] as TarefasMatrizResponse | undefined)?.items || []).find(t => t.id === id)
       const existingProps = t?.propriedades || {}
-      const { matriz_ei: _, ...rest } = existingProps
+      const rest: Record<string, unknown> = {}
+      for (const [k, v] of Object.entries(existingProps)) {
+        if (k !== 'matriz_ei') rest[k] = v
+      }
       return updateTarefa(id, { propriedades: Object.keys(rest).length > 0 ? rest : {} })
     },
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] }) },

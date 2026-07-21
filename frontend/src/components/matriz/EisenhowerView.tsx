@@ -10,21 +10,8 @@ import { deleteTarefa as apiDelete } from '../../api/rotina'
 import TaskCard from './TaskCard'
 import KebabMenu from './KebabMenu'
 import { formatDataRange, type MatrizViewProps } from './types'
-import { QUADRANTES_EISENHOWER, getEI, classificar } from '../../utils/scoring'
+import { QUADRANTES_EISENHOWER, getExternalScore, agruparPorQuadrante } from '../../utils/scoring'
 import type { Tarefa } from '../../types'
-
-export function getExternalScore(tarefa: Tarefa): { value: number | string; label: string; color: string } | undefined {
-  const ei = getEI(tarefa)
-  if (!ei) return undefined
-  const key = classificar(ei.esforco, ei.impacto)
-  const map: Record<string, { value: string; label: string; color: string }> = {
-    quickwin: { value: '\u26A1', label: 'Quick Win', color: 'bg-accent' },
-    grandeprojeto: { value: '\uD83D\uDCD0', label: 'Grande Projeto', color: 'bg-quadrant-2' },
-    preenchimento: { value: '\u2197', label: 'Preenchimento', color: 'bg-text-muted' },
-    ingrata: { value: '\u2715', label: 'Ingrata', color: 'bg-quadrant-4' },
-  }
-  return map[key]
-}
 
 function DraggableTaskCard({ tarefa, quadranteKey, onToggleStatus, onDelete, onLimparQuadrante, onCriarNota, onIniciarPomodoro, onMoverQuadrante }: {
   tarefa: Tarefa; quadranteKey: string; onToggleStatus: (id: number) => void; onDelete: (id: number) => void;
@@ -82,27 +69,6 @@ function Quadrante({ quadrante, tarefas, onToggleStatus, onDelete, onLimparQuadr
       </div>
     </div>
   )
-}
-
-export function sortEisenhower(lista: Tarefa[], dir: 'desc' | 'asc' = 'desc'): Tarefa[] {
-  const d = dir === 'desc' ? -1 : 1
-  return [...lista].sort((a, b) => a.titulo.localeCompare(b.titulo) * d)
-}
-
-export function agruparPorQuadrante(tarefas: Tarefa[], dir: 'desc' | 'asc' = 'desc'): Record<string, Tarefa[]> {
-  const grupos: Record<string, Tarefa[]> = { fazer: [], agendar: [], delegar: [], eliminar: [] }
-  for (const t of tarefas) {
-    let chave = t.quadrante
-    if (!chave || !grupos[chave]) {
-      if (chave && !grupos[chave]) console.warn('[agruparPorQuadrante] quadrante invalido:', chave, 'para tarefa', t.id)
-      chave = 'agendar'
-    }
-    grupos[chave].push(t)
-  }
-  for (const chave of Object.keys(grupos)) {
-    grupos[chave] = sortEisenhower(grupos[chave], dir)
-  }
-  return grupos
 }
 
 export default function EisenhowerView({ tarefas, isLoading, dataInicio, dataFim, offset, onOffsetChange }: MatrizViewProps) {

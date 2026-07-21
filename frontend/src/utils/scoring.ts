@@ -63,3 +63,37 @@ export function classificar(esforco: number, impacto: number): string {
   if (esforco < 3 && impacto < 3) return 'preenchimento'
   return 'ingrata'
 }
+
+export function getExternalScore(tarefa: Tarefa): { value: number | string; label: string; color: string } | undefined {
+  const ei = getEI(tarefa)
+  if (!ei) return undefined
+  const key = classificar(ei.esforco, ei.impacto)
+  const map: Record<string, { value: string; label: string; color: string }> = {
+    quickwin: { value: '\u26A1', label: 'Quick Win', color: 'bg-accent' },
+    grandeprojeto: { value: '\uD83D\uDCD0', label: 'Grande Projeto', color: 'bg-quadrant-2' },
+    preenchimento: { value: '\u2197', label: 'Preenchimento', color: 'bg-text-muted' },
+    ingrata: { value: '\u2715', label: 'Ingrata', color: 'bg-quadrant-4' },
+  }
+  return map[key]
+}
+
+export function sortEisenhower(lista: Tarefa[], dir: 'desc' | 'asc' = 'desc'): Tarefa[] {
+  const d = dir === 'desc' ? -1 : 1
+  return [...lista].sort((a, b) => a.titulo.localeCompare(b.titulo) * d)
+}
+
+export function agruparPorQuadrante(tarefas: Tarefa[], dir: 'desc' | 'asc' = 'desc'): Record<string, Tarefa[]> {
+  const grupos: Record<string, Tarefa[]> = { fazer: [], agendar: [], delegar: [], eliminar: [] }
+  for (const t of tarefas) {
+    let chave = t.quadrante
+    if (!chave || !grupos[chave]) {
+      if (chave && !grupos[chave]) console.warn('[agruparPorQuadrante] quadrante invalido:', chave, 'para tarefa', t.id)
+      chave = 'agendar'
+    }
+    grupos[chave].push(t)
+  }
+  for (const chave of Object.keys(grupos)) {
+    grupos[chave] = sortEisenhower(grupos[chave], dir)
+  }
+  return grupos
+}
