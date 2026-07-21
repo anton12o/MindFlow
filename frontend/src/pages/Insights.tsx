@@ -5,6 +5,7 @@ import { getEstatisticas, getNotas } from '../api/notas'
 import { getHeatmapStats } from '../api/stats'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import RevisaoSemanal from './RevisaoSemanal'
+import ReflexaoTab from './ReflexaoTab'
 
 const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 
@@ -168,7 +169,7 @@ function VisaoMensal() {
 export default function Insights() {
   const [searchParams] = useSearchParams()
   const tabFromUrl = searchParams.get('tab')
-  const [aba, setAba] = useState<'mensal' | 'semanal'>(tabFromUrl === 'semanal' ? 'semanal' : 'mensal')
+  const [aba, setAba] = useState<'mensal' | 'semanal' | 'reflexao'>(tabFromUrl === 'semanal' ? 'semanal' : tabFromUrl === 'reflexao' ? 'reflexao' : 'mensal')
 
   return (
     <div className="p-6 max-w-4xl mx-auto animate-fade-in space-y-8">
@@ -185,9 +186,13 @@ export default function Insights() {
           className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${aba === 'semanal' ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
           Semanal
         </button>
+        <button onClick={() => setAba('reflexao')}
+          className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${aba === 'reflexao' ? 'border-accent text-accent' : 'border-transparent text-text-muted hover:text-text-primary'}`}>
+          Reflexão
+        </button>
       </div>
 
-      {aba === 'mensal' ? <VisaoMensal /> : <RevisaoSemanal />}
+      {aba === 'mensal' ? <VisaoMensal /> : aba === 'reflexao' ? <ReflexaoTab /> : <RevisaoSemanal />}
     </div>
   )
 }

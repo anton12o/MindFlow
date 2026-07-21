@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, memo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useTheme, MODE_ICON } from '../store/theme'
+
 import { usePomodoroContext } from '../store/pomodoro'
 import { useConfig } from '../store/config'
 import ConfirmModal from './ConfirmModal'
@@ -30,7 +30,6 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
 }) {
   const navigate = useNavigate()
   const location = useLocation()
-  const { mode, cycleTheme } = useTheme()
   const { state: { ativo: pomodoroAtivo } } = usePomodoroContext()
   const { config } = useConfig()
   const hiddenSet = new Set(config.hiddenSections)
@@ -152,7 +151,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
           <div className={`flex items-center w-full ${desktopCollapsed ? 'justify-center px-0.5 flex-col gap-1' : 'px-2 justify-between'}`}>
             {desktopCollapsed ? (
               <>
-                <div className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base" title="MindFlow">
+                <div className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm" title="MindFlow">
                   🧠
                 </div>
                 <button onClick={() => { setDesktopCollapsed(false); try { localStorage.setItem('mindflow_sidebar_collapsed', 'false') } catch { /* silent */ } }}
@@ -164,7 +163,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-1 justify-center">
-                  <div className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-base">🧠</div>
+                  <div className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm">🧠</div>
                   {sidebarWidth > 90 && <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>}
                 </div>
                 <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch { /* silent */ }; return v }) }}
@@ -194,14 +193,6 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
           </button>
         ))}
         <div className="flex-1" />
-        <button
-          onClick={cycleTheme}
-          className="w-full px-2 py-2 flex items-center gap-2 rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
-          title={`Tema: ${mode === 'dark' ? 'escuro' : mode === 'light' ? 'claro' : 'sistema'}`}
-        >
-          <span className="text-sm shrink-0">{MODE_ICON[mode]}</span>
-          {sidebarWidth > 90 && <span className="text-sm truncate">Tema</span>}
-        </button>
         {bottomItems.filter(item => !hiddenSet.has(item.page)).map(item => (
           <button
             key={item.page}
