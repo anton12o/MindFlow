@@ -273,7 +273,7 @@ export default function RevisaoSemanal() {
   if (isLoading) {
     return (
       <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <h1 className="text-2xl font-bold">Revisão Semanal</h1>
+        <h1 className="text-xl font-bold">Revisão Semanal</h1>
         <div className="animate-pulse space-y-4">
           <div className="h-24 bg-bg-secondary rounded-xl" />
           <div className="h-48 bg-bg-secondary rounded-xl" />
@@ -286,7 +286,7 @@ export default function RevisaoSemanal() {
   if (error || !data) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Revisão Semanal</h1>
+        <h1 className="text-xl font-bold mb-4">Revisão Semanal</h1>
         <p className="text-danger">Erro ao carregar dados da semana. <button onClick={() => refetch()} className="text-accent hover:underline ml-2">Tentar novamente</button></p>
       </div>
     )
@@ -320,7 +320,7 @@ export default function RevisaoSemanal() {
     <div className="p-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">Revisão Semanal</h1>
+          <h1 className="text-xl font-bold">Revisão Semanal</h1>
           <div className="flex items-center gap-1">
             <button
               onClick={() => setOffset(o => o - 1)}

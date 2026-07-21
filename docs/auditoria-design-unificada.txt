@@ -1,0 +1,135 @@
+RELATÓRIO UNIFICADO — AUDITORIA DE DESIGN (Matrizes)
+====================================================
+Data: 18/jul/2026
+Método: Runtime (Playwright) + Análise estática (classes CSS)
+
+================================================================================
+PARTE 1 — AUDITORIA RUNTIME (Playwright: estilos computados)
+================================================================================
+
+1. CORES DO TEMA (CSS Variables)
+   --color-bg-primary: #0D1117
+   --color-bg-secondary: #161B22
+   --color-text-primary: #E6EDF3
+   --color-text-muted: #87919B
+   --color-accent: #58A6FF
+   --color-border: #30363D
+   --color-danger: #F85149
+   --color-success: #3FB950
+   → Todas definidas corretamente ✔
+
+2. CONTRASTE WCAG AA
+   Eisenhower:      Nenhuma falha ✔
+   Esforço x Impacto: Nenhuma falha ✔
+
+3. PALETA RENDERIZADA (cores computadas consistentes entre as 2 views)
+   bg:  rgba(0,0,0,0) / rgb(13,17,23) / rgb(22,27,34) / rgb(33,38,45)
+   text: rgb(230,237,243) / rgb(135,145,155) / rgb(88,166,255) / rgb(248,81,73)
+   → Hierarquia visual consistente ✔
+
+4. TIPOGRAFIA
+   Inter 400, tamanhos: 14px / 12.25px / 10.5px
+   → Sem fontes <10px, hierarquia consistente ✔
+
+5. LAYOUT
+   Card 1376x336, padding 0px, radius 10.5px, bg #161B22, shadow none
+   → Padding 0px no container externo (OK — padding está nos cards filhos)
+
+================================================================================
+PARTE 2 — ANÁLISE ESTÁTICA (classes CSS vs design tokens)
+================================================================================
+
+RESUMO: 40 violações encontradas (2 ALTA, 38 MÉDIA)
+
+------------------------------------------------------------------------------
+ARQUIVO: EisenhowerView.tsx (6 violações)
+------------------------------------------------------------------------------
+
+LINHA 66  | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 66  | min-w-[18px] (arbitrário)     | MÉDIA | → w-4 (16px) + h-4
+LINHA 73  | max-h-[400px] (arbitrário)    | ALTA  | → max-h-96 (384px)
+LINHA 208 | p-0.5 (2px)                   | MÉDIA | → p-1 (4px)
+LINHA 215 | p-0.5 (2px)                   | MÉDIA | → p-1 (4px)
+
+------------------------------------------------------------------------------
+ARQUIVO: EsforcoImpactoView.tsx (11 violações)
+------------------------------------------------------------------------------
+
+LINHA 19  | space-y-0.5 (2px)             | MÉDIA | → space-y-1 (4px)
+LINHA 49  | border-white (hardcoded)      | MÉDIA | → border-bg-primary
+LINHA 51  | border-white (hardcoded)      | MÉDIA | → border-bg-primary
+LINHA 233 | p-0.5 (2px)                   | MÉDIA | → p-1 (4px)
+LINHA 238 | p-0.5 (2px)                   | MÉDIA | → p-1 (4px)
+LINHA 262 | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 262 | min-w-[18px] (arbitrário)     | MÉDIA | → w-4 (16px) + h-4
+LINHA 266 | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 269 | max-h-[400px] (arbitrário)    | ALTA  | → max-h-96 (384px)
+
+------------------------------------------------------------------------------
+ARQUIVO: TaskCard.tsx (10 violações)
+------------------------------------------------------------------------------
+
+LINHA 52  | text-white (hardcoded)        | MÉDIA | → text-bg-primary
+LINHA 57  | text-white (hardcoded)        | MÉDIA | → text-bg-primary
+LINHA 63  | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 70  | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 77  | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+LINHA 84  | py-0.5 (2px) + px-1.5 (6px)  | MÉDIA | → py-1 (4px) + px-2 (8px)
+
+------------------------------------------------------------------------------
+ARQUIVO: KebabMenu.tsx (9 violações)
+------------------------------------------------------------------------------
+
+LINHA 48  | min-w-[130px] (arbitrário)    | MÉDIA | → w-32 (128px)
+LINHA 51  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 58  | min-w-[120px] (arbitrário)    | MÉDIA | → w-28 (112px) ou w-32 (128px)
+LINHA 61  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 63  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 67  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 74  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 79  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+LINHA 84  | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+
+------------------------------------------------------------------------------
+ARQUIVO: MatrixSelector.tsx (2 violações)
+------------------------------------------------------------------------------
+
+LINHA 41  | px-1.5 (6px)                  | MÉDIA | → px-2 (8px)
+LINHA 45  | min-h-[16px] (arbitrário)     | MÉDIA | → min-h-4
+
+------------------------------------------------------------------------------
+ARQUIVO: Matriz.tsx (2 violações)
+------------------------------------------------------------------------------
+
+LINHA 101 | py-0.5 (2px)                  | MÉDIA | → py-1 (4px)
+LINHA 118 | py-1.5 (6px)                  | MÉDIA | → py-1 (4px) ou py-2 (8px)
+
+================================================================================
+PARTE 3 — PRIORIZAÇÃO
+================================================================================
+
+Corrigir agora (ALTA — valores arbitrários que afetam layout responsivo):
+  □ max-h-[400px] → max-h-96     (EisenhowerView.tsx:73, EsforcoImpactoView.tsx:269)
+
+Corrigir em seguida (MÉDIA ALTA — hardcoded colors):
+  □ text-white → text-bg-primary  (TaskCard.tsx:52,57)
+  □ border-white → border-bg-primary (EsforcoImpactoView.tsx:49,51)
+
+Corrigir depois (MÉDIA — fora da escala de espaçamento):
+  □ py-1.5 (6px) → py-2 (8px)    (13 ocorrências em KebabMenu + Matriz)
+  □ py-0.5 (2px) → py-1 (4px)    (8 ocorrências em badges/botoes)
+  □ px-1.5 (6px) → px-2 (8px)    (8 ocorrências em badges)
+  □ p-0.5 (2px) → p-1 (4px)      (4 ocorrências)
+  □ space-y-0.5 (2px) → space-y-1 (4px) (1 ocorrência)
+  □ min-w-[18px] → w-4 + h-4     (2 ocorrências)
+  □ min-w-[130px] → w-32         (1 ocorrência)
+  □ min-w-[120px] → w-28 ou w-32 (1 ocorrência)
+  □ min-h-[16px] → min-h-4       (1 ocorrência)
+
+================================================================================
+PARTE 4 — CONCLUSÃO
+================================================================================
+
+Runtime (browser):    ✔ 0 falhas de contraste, ✔ cores consistentes, ✔ tipografia OK
+Análise estática:     ✗ 40 violações de design tokens (2 ALTA, 38 MÉDIA)
+Cobertura de testes:  ✔ 374 unit tests passando, ✔ typecheck limpo

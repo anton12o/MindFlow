@@ -141,7 +141,7 @@ export default function Habitos() {
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Hábitos</h1>
+        <h1 className="text-xl font-bold">Hábitos</h1>
         <button onClick={() => setShowForm(!showForm)} className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
           {showForm ? 'Cancelar' : '+ Novo hábito'}
         </button>
@@ -215,7 +215,7 @@ export default function Habitos() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium truncate">{h.nome}</span>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-bg-tertiary text-text-muted font-medium">
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-bg-tertiary text-text-muted font-medium">
                         {TIPO_LABEL[h.tipo] || h.tipo}
                       </span>
                     </div>

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { useNotify } from '../store/notification'
 
-function agora() { return agora() }
+function agora() { return Date.now() }
 
 export default function SimpleTimer() {
   const notify = useNotify()
@@ -110,14 +110,14 @@ export default function SimpleTimer() {
       <div className="flex gap-3 justify-center">
         {!ativo && sessaoId === null ? (
           <button onClick={handleIniciar}
-            className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all active:scale-95">Iniciar</button>
+            className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Iniciar</button>
         ) : ativo ? (
           <button onClick={pausar}
             className="px-6 py-2 bg-warning text-white rounded-lg hover:bg-warning/80 transition-all active:scale-95">Pausar</button>
         ) : (
           <>
             <button onClick={iniciar}
-              className="px-6 py-2 bg-accent text-white rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
+              className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
             <button onClick={resetar}
               className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger/80 transition-all active:scale-95">Resetar</button>
           </>

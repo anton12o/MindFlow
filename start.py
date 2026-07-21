@@ -470,25 +470,24 @@ def main():
     if sys.platform == "win32" and hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
 
-    if sys.version_info < (3, 12):
+    if sys.version_info < (3, 10):
         if bundled:
-            fail(f"Python 3.12+ necessário (atual: {sys.version_info.major}.{sys.version_info.minor})")
+            fail(f"Python 3.10+ necessário (atual: {sys.version_info.major}.{sys.version_info.minor})")
             sys.exit(1)
-        # Try to find a suitable Python via py launcher
-        for candidate in [["py", "-3.14"], ["py", "-3.13"], ["py", "-3.12"], ["py", "-3"]]:
+        for candidate in [["py", "-3.14"], ["py", "-3.13"], ["py", "-3.12"], ["py", "-3.11"], ["py", "-3.10"], ["py", "-3"]]:
             try:
                 r = subprocess.run([*candidate, "-c", "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"],
                     capture_output=True, text=True, timeout=5)
                 if r.returncode == 0:
                     ver = r.stdout.strip()
                     major, minor = int(ver.split(".")[0]), int(ver.split(".")[1])
-                    if (major, minor) >= (3, 12):
+                    if (major, minor) >= (3, 10):
                         info(f"Redirecionando para Python {ver} ({candidate[0]} {candidate[1]})...")
                         result = subprocess.run([*candidate, str(Path(__file__).resolve())] + sys.argv[1:], cwd=str(DATA_ROOT), text=True)
                         sys.exit(result.returncode)
             except (subprocess.TimeoutExpired, OSError):
                 continue
-        fail(f"Python 3.12+ necessário (atual: {sys.version_info.major}.{sys.version_info.minor})")
+        fail(f"Python 3.10+ necessário (atual: {sys.version_info.major}.{sys.version_info.minor})")
         print("  Baixe em: https://python.org/downloads/")
         sys.exit(1)
 
@@ -572,4 +571,17 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    erro = False
+    try:
+        main()
+    except SystemExit as e:
+        erro = e.code != 0
+        if erro:
+            print(f"\n  ✗ Erro: código de saída {e.code}")
+    except Exception:
+        erro = True
+        import traceback
+        traceback.print_exc()
+    if erro and sys.stdin.isatty():
+        print("\n  Pressione Enter para fechar...")
+        input()

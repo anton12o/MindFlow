@@ -140,14 +140,14 @@ export default function GanttView({ query, result, resLoad, resErr, errorMsg }: 
                 }}
               >
                 <div
-                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-md"
+                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-elevation-2"
                   style={{ left, width, minWidth: 40 }}
                   draggable
                   onDragStart={() => {
                     dragRef.current = { itemId: item.id as number, type: 'move', inicio, fim, left, width }
                   }}
                 >
-                  <div className="px-2 py-1 text-xs text-white truncate" title={item.titulo}>{item.titulo}</div>
+                  <div className="px-2 py-1 text-xs text-accent-foreground truncate" title={item.titulo}>{item.titulo}</div>
                 </div>
                 <div className="absolute left-0 top-1 w-1 h-8 bg-transparent border-l-2 border-white/50 cursor-w-resize"
                   draggable

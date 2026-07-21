@@ -105,7 +105,7 @@ export default function CommandPalette({ commands, onClose, mode = 'comando', no
           ) : (
             groups.map(g => (
               <div key={g.group || '_'}>
-                {g.group && <div className="px-4 pt-2 pb-1 text-xs text-text-muted uppercase tracking-wider">{g.group}</div>}
+                {g.group && <div className="px-4 pt-2 pb-1 text-xs text-text-muted uppercase tracking-wide">{g.group}</div>}
                 {g.items.map((item) => {
                   const idx = flatItems.indexOf(item)
                   return (

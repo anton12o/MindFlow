@@ -83,7 +83,7 @@ export default function VersionHistoryModal({
                     {v.propriedades && Object.keys(v.propriedades).length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(v.propriedades).map(([k, val]) => (
-                          <span key={k} className="text-xs bg-bg-primary rounded px-1.5 py-0.5 text-text-muted">{k}: {String(val)}</span>
+                          <span key={k} className="text-xs bg-bg-primary rounded px-2 py-0.5 text-text-muted">{k}: {String(val)}</span>
                         ))}
                       </div>
                     )}

@@ -44,7 +44,7 @@ export default function FormularioView({ query, tipo, onClose, onCreate }: Formu
     return (
       <div className="flex flex-col items-center justify-center h-full text-text-muted">
         <p className="text-center">Este tipo não tem schema_campos definido.</p>
-        <button onClick={onClose} className="mt-4 px-4 py-2 bg-accent text-white rounded-lg transition-all active:scale-95 hover:bg-accent-hover">Fechar</button>
+        <button onClick={onClose} className="mt-4 px-4 py-2 bg-accent text-accent-foreground rounded-lg transition-all active:scale-95 hover:bg-accent-hover">Fechar</button>
       </div>
     )
   }
@@ -97,7 +97,7 @@ export default function FormularioView({ query, tipo, onClose, onCreate }: Formu
             Cancelar
           </button>
           <button type="submit" disabled={saving || !titulo.trim()}
-            className="flex-1 px-4 py-2 bg-accent text-white rounded-lg transition-all active:scale-95 hover:bg-accent-hover disabled:opacity-50">
+            className="flex-1 px-4 py-2 bg-accent text-accent-foreground rounded-lg transition-all active:scale-95 hover:bg-accent-hover disabled:opacity-disabled">
             {saving ? 'Criando...' : `Criar ${tipo?.nome || 'nota'}`}
           </button>
         </div>

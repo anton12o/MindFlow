@@ -158,20 +158,29 @@ def list_tarefas(
     stmt = stmt.order_by(order.desc() if dir == 'desc' else order.asc())
     return session.exec(stmt.offset(offset).limit(limit)).all()
 
-@router.get("/tarefas/eisenhower")
-def list_tarefas_eisenhower(
+class TarefasMatrizResponse(BaseModel):
+    items: list[TarefaRead]
+    has_more: bool
+
+@router.get("/tarefas/matriz", response_model=TarefasMatrizResponse)
+def list_tarefas_matriz(
     data_inicio: str, data_fim: str,
+    limit: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0),
     session: Session = Depends(get_session),
-) -> dict[str, list[TarefaRead]]:
+):
     stmt = select(Tarefa).where(
         Tarefa.data >= data_inicio,
         Tarefa.data <= data_fim,
-    ).order_by(Tarefa.ordem)
-    tarefas = session.exec(stmt).all()
-    grouped: dict[str, list[TarefaRead]] = {"fazer": [], "agendar": [], "delegar": [], "eliminar": []}
-    for t in tarefas:
-        grouped.setdefault(t.quadrante, []).append(t)
-    return grouped
+    ).order_by(Tarefa.data.desc(), Tarefa.ordem.asc(), Tarefa.id.asc())
+    if limit > 0:
+        items = session.exec(stmt.limit(limit + 1).offset(offset)).all()
+        has_more = len(items) > limit
+        if has_more:
+            items = items[:-1]
+        return TarefasMatrizResponse(items=items, has_more=has_more)
+    items = session.exec(stmt).all()
+    return TarefasMatrizResponse(items=items, has_more=False)
 
 @router.post("/tarefas", response_model=TarefaRead)
 def create_tarefa(t: TarefaCreate, session: Session = Depends(get_session)):
@@ -194,6 +203,10 @@ def update_tarefa(tarefa_id: int, t: TarefaUpdate, session: Session = Depends(ge
         raise HTTPException(status_code=404, detail="Bloco não encontrado")
     if "tipo_id" in data and data["tipo_id"] is not None and not session.get(TipoObjeto, data["tipo_id"]):
         raise HTTPException(status_code=404, detail="Tipo não encontrado")
+    if "propriedades" in data:
+        existing = dict(db.propriedades or {})
+        novos = data["propriedades"] or {}
+        data["propriedades"] = {**existing, **novos}
     for field, value in data.items():
         setattr(db, field, value)
     session.add(db)

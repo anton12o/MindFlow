@@ -1,7 +1,7 @@
 import request from './client'
 
 export interface SearchResultNota {
-  id: number; titulo: string
+  id: number; titulo: string; snippet?: string
 }
 
 export interface SearchResultTarefa {

@@ -145,7 +145,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
               {resultado && (
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-text-muted text-xs uppercase tracking-wider">
+                    <tr className="text-text-muted text-xs uppercase tracking-wide">
                       <th className="text-left py-1 pr-4">Tabela</th>
                       <th className="text-right py-1 pr-2">Inseridos</th>
                       <th className="text-right py-1">Atualizados</th>

@@ -33,6 +33,7 @@ const Config = lazy(() => import('./pages/Config'))
 const Consultas = lazy(() => import('./pages/Consultas'))
 const Insights = lazy(() => import('./pages/Insights'))
 const Revisao = lazy(() => import('./pages/Revisao'))
+const Matriz = lazy(() => import('./pages/Matriz'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -227,6 +228,7 @@ function Layout() {
               <Route path="/insights" element={<ErrorBoundary><Insights /></ErrorBoundary>} />
               <Route path="/analise" element={<Navigate to="/insights" replace />} />
               <Route path="/revisao" element={<ErrorBoundary><Revisao /></ErrorBoundary>} />
+              <Route path="/matriz" element={<ErrorBoundary><Matriz /></ErrorBoundary>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>
@@ -275,7 +277,7 @@ function KeybindingsEditor({ onClose }: { onClose: () => void }) {
   }, [listening, rebind])
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
-      <div ref={ref} className="bg-bg-secondary rounded-xl border border-border w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+      <div ref={ref} className="bg-bg-secondary rounded-xl border border-border w-full max-w-md shadow-elevation-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="text-sm font-semibold">Atalhos de teclado</h2>
           <button onClick={onClose} className="text-text-muted hover:text-text-primary p-1" aria-label="Fechar">&times;</button>
@@ -293,7 +295,7 @@ function KeybindingsEditor({ onClose }: { onClose: () => void }) {
         </div>
         <div className="flex justify-between p-4 border-t border-border">
           <button onClick={() => { reset(); setListening(null) }} className="text-xs text-text-muted hover:text-danger transition-colors">Restaurar padrões</button>
-          <button onClick={onClose} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">Fechar</button>
+          <button onClick={onClose} className="px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-colors">Fechar</button>
         </div>
       </div>
     </div>
@@ -301,11 +303,11 @@ function KeybindingsEditor({ onClose }: { onClose: () => void }) {
 }
 
 const PomodoroBadge = memo(function PomodoroBadge() {
-  const { screen, minutos, segundos } = usePomodoroContext()
+  const { state: { screen, minutos, segundos } } = usePomodoroContext()
   if (screen !== 'running' && screen !== 'pausado' && screen !== 'livre') return null
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
   return (
-    <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-accent/15 text-accent text-sm font-mono font-semibold px-3 py-1.5 rounded-full shadow-lg border border-accent/30 animate-fade-in">
+    <div className="fixed top-4 right-4 z-50 flex items-center gap-1.5 bg-accent/15 text-accent text-sm font-mono font-semibold px-3 py-1.5 rounded-full shadow-elevation-4 border border-accent/30 animate-fade-in">
       <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
       {display}
     </div>
@@ -319,7 +321,7 @@ function NotFound() {
       <div className="text-center">
         <h1 className="text-4xl font-bold text-text-muted mb-2">404</h1>
         <p className="text-text-muted mb-4">Página não encontrada</p>
-        <button onClick={() => navigate('/')} className="px-4 py-2 bg-accent text-white rounded-lg text-sm">
+        <button onClick={() => navigate('/')} className="px-4 py-2 bg-accent text-accent-foreground rounded-lg text-sm">
           Voltar ao Dashboard
         </button>
       </div>

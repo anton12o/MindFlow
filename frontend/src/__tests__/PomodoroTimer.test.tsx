@@ -24,30 +24,28 @@ vi.mock('../store/pomodoro', () => ({
   usePomodoroContext: () => mockContext,
 }))
 
+const defaultState = {
+  minutos: 25, segundos: 0, ativo: false,
+  sessaoId: null, resumo: '', mostrarResumo: false,
+  cicloAtual: 0, fase: 'foco' as Fase,
+  screen: 'idle' as PomodoroScreen,
+  interrupcoes: [], distracoes: 0, contexto: null,
+}
+
 function resetContext(overrides: Record<string, unknown> = {}) {
+  const hasStateKey = 'state' in overrides
   mockContext = {
-    minutos: 25, setMinutos: vi.fn(),
-    segundos: 0, setSegundos: vi.fn(),
-    ativo: false, setAtivo: vi.fn(),
-    sessaoId: null, setSessaoId: vi.fn(),
-    resumo: '', setResumo: vi.fn(),
-    mostrarResumo: false, setMostrarResumo: vi.fn(),
+    state: { ...defaultState, ...(hasStateKey ? (overrides.state as Record<string, unknown>) : overrides) } as typeof defaultState,
+    dispatch: vi.fn(),
     config: { ...defaultConfig },
     setConfig: vi.fn(),
-    fase: 'foco' as Fase, setFase: vi.fn(),
-    cicloAtual: 0, setCicloAtual: vi.fn(),
     advancePhase: vi.fn(),
     resetTimer: vi.fn(),
     startedAtRef: { current: 0 },
-    screen: 'idle' as PomodoroScreen, setScreen: vi.fn(),
-    interrupcoes: [], setInterrupcoes: vi.fn(),
-    distracoes: 0,
-    setContexto: vi.fn(),
     audioCtxRef: { current: null },
     saveHeartbeat: vi.fn(),
     clearHeartbeat: vi.fn(),
-    setTempoFinal: vi.fn(),
-    ...overrides,
+    ...(hasStateKey ? overrides : {}),
   }
 }
 

@@ -6,7 +6,7 @@ import { useConfig } from '../store/config'
 import ConfirmModal from './ConfirmModal'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { API_BASE } from '../api/client'
-import { LayoutDashboard, CalendarDays, CheckCheck, Timer, Lightbulb, Layers, Table2, BarChart3, Settings, Power, Inbox, Menu, X as XIcon, PanelLeftClose, PanelLeft } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, CheckCheck, Timer, Lightbulb, Layers, Table2, BarChart3, Settings, Power, Inbox, Menu, X as XIcon, PanelLeftClose, PanelLeft, Grid3x3 } from 'lucide-react'
 const SIDEBAR_WIDTH_KEY = 'mindflow_sidebar_width'
 
 const primaryItems = [
@@ -16,6 +16,7 @@ const primaryItems = [
   { icon: <Lightbulb size={18} />, label: 'Notas', page: '/ideias' },
   { icon: <Layers size={18} />, label: 'Flashcards', page: '/flashcards' },
   { icon: <CheckCheck size={18} />, label: 'Hábitos', page: '/habitos' },
+  { icon: <Grid3x3 size={18} />, label: 'Matriz', page: '/matriz' },
   { icon: <BarChart3 size={18} />, label: 'Insights', page: '/insights' },
   { icon: <Table2 size={18} />, label: 'Consultas', page: '/consultas' },
 ]
@@ -30,7 +31,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
   const navigate = useNavigate()
   const location = useLocation()
   const { mode, cycleTheme } = useTheme()
-  const { ativo: pomodoroAtivo } = usePomodoroContext()
+  const { state: { ativo: pomodoroAtivo } } = usePomodoroContext()
   const { config } = useConfig()
   const hiddenSet = new Set(config.hiddenSections)
   const [collapsed, setCollapsed] = useState(false)
@@ -223,7 +224,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
         </button>
         <button
           onClick={onToggleInbox}
-          className="w-full px-2 py-2 flex items-center gap-2 rounded-lg bg-accent text-white hover:bg-accent-hover transition-all active:scale-95"
+          className="w-full px-2 py-2 flex items-center gap-2 rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover transition-all active:scale-95"
           title="Captura rápida (Ctrl+I)"
         >
           <Inbox size={18} className="shrink-0" />
@@ -243,7 +244,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
       )}
       {shutdownCountdown !== null && shutdownCountdown > 0 && (
         <div ref={countdownRef} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4">
             <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
             <p className="text-sm text-text-muted">Encerrando servidor...</p>
             <button
@@ -257,7 +258,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
       )}
       {shutdownDone && (
         <div ref={doneRef} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-bg-secondary rounded-xl border border-border shadow-2xl p-6 text-center space-y-4 max-w-xs w-full mx-4">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4">
             <div className="text-4xl">✅</div>
             <p className="text-base font-medium text-text-primary">Servidor encerrado</p>
             <p className="text-sm text-text-muted">Você pode fechar esta aba.</p>

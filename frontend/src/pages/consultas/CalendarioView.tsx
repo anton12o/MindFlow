@@ -72,7 +72,7 @@ export default function CalendarioView({ query, result, resLoad, resErr, mesAtua
                   <div className="text-xs font-semibold text-text-muted mb-1">{dia}</div>
                   <div className="space-y-1 overflow-y-auto h-[calc(100%-18px)]">
                     {notas.slice(0, 3).map(n => (
-                      <div key={n.id} draggable className="text-xs bg-bg-tertiary rounded px-1.5 py-0.5 truncate cursor-grab hover:bg-bg-hover">
+                      <div key={n.id} draggable className="text-xs bg-bg-tertiary rounded px-2 py-0.5 truncate cursor-grab hover:bg-bg-hover">
                         {n.titulo}
                       </div>
                     ))}

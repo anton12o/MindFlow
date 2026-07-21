@@ -51,6 +51,7 @@ export interface Tarefa {
   tipo_id: number | null
   criado_em: string
   propriedades?: Record<string, unknown>
+  quadrante?: string
   recorrente?: boolean
   recorrencia_tipo?: string | null
   recorrencia_intervalo?: number | null

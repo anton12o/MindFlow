@@ -34,7 +34,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         {notifications.map(n => (
           <div
             key={n.id}
-            className={`px-4 py-3 rounded-lg shadow-lg text-sm text-white animate-slide-up flex items-center gap-3 ${
+            className={`px-4 py-3 rounded-lg shadow-elevation-4 text-sm text-white animate-slide-up flex items-center gap-3 ${
               n.type === 'error' ? 'bg-danger' : 'bg-success'
             }`}
           >

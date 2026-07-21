@@ -68,6 +68,11 @@ export const addTagToNota = (notaId: number, tagId: number) =>
 export const createFromWikilink = (titulo: string) =>
   request<Nota>('/notas/from-wikilink', { method: 'POST', body: JSON.stringify({ titulo }) })
 
+export const getBacklinks = (notaId: number) =>
+  request<{ id: number; titulo: string; trecho: string }[]>(`/notas/${notaId}/backlinks`)
+
+export const getReflexoes = () => request<Nota[]>('/notas/reflexoes')
+
 export const getVersoes = (nota_id: number) =>
   request<VersaoNota[]>(`/notas/${nota_id}/versoes`)
 

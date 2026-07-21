@@ -88,57 +88,57 @@ describe('PomodoroProvider', () => {
   describe('resetTimer', () => {
     it('reseta para duracao do foco quando fase=foco', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      expect(result.current.fase).toBe('foco')
+      expect(result.current.state.fase).toBe('foco')
       act(() => { result.current.resetTimer() })
-      expect(result.current.minutos).toBe(25)
-      expect(result.current.segundos).toBe(0)
+      expect(result.current.state.minutos).toBe(25)
+      expect(result.current.state.segundos).toBe(0)
     })
 
     it('reseta para duracao da pausa curta', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('pausa_curta') })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'pausa_curta' }) })
       act(() => { result.current.resetTimer() })
-      expect(result.current.minutos).toBe(5)
-      expect(result.current.segundos).toBe(0)
+      expect(result.current.state.minutos).toBe(5)
+      expect(result.current.state.segundos).toBe(0)
     })
 
     it('reseta para duracao da pausa longa', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('pausa_longa') })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'pausa_longa' }) })
       act(() => { result.current.resetTimer() })
-      expect(result.current.minutos).toBe(15)
-      expect(result.current.segundos).toBe(0)
+      expect(result.current.state.minutos).toBe(15)
+      expect(result.current.state.segundos).toBe(0)
     })
   })
 
   describe('advancePhase', () => {
     it('avanca de foco para pausa_curta e incrementa ciclo', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('foco'); result.current.setCicloAtual(0) })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'foco' }); result.current.dispatch({ type: 'SET_CICLO', ciclo: 0 }) })
       act(() => { result.current.advancePhase() })
-      expect(result.current.fase).toBe('pausa_curta')
-      expect(result.current.cicloAtual).toBe(1)
+      expect(result.current.state.fase).toBe('pausa_curta')
+      expect(result.current.state.cicloAtual).toBe(1)
     })
 
     it('avanca de pausa para foco', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('pausa_curta') })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'pausa_curta' }) })
       act(() => { result.current.advancePhase() })
-      expect(result.current.fase).toBe('foco')
+      expect(result.current.state.fase).toBe('foco')
     })
 
     it('faz pausa longa no ciclo configurado (padrao=4)', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('foco'); result.current.setCicloAtual(3) })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'foco' }); result.current.dispatch({ type: 'SET_CICLO', ciclo: 3 }) })
       act(() => { result.current.advancePhase() })
-      expect(result.current.fase).toBe('pausa_longa')
+      expect(result.current.state.fase).toBe('pausa_longa')
     })
 
     it('ciclo 3 nao dispara pausa longa', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setFase('foco'); result.current.setCicloAtual(2) })
+      act(() => { result.current.dispatch({ type: 'SET_FASE', fase: 'foco' }); result.current.dispatch({ type: 'SET_CICLO', ciclo: 2 }) })
       act(() => { result.current.advancePhase() })
-      expect(result.current.fase).toBe('pausa_curta')
+      expect(result.current.state.fase).toBe('pausa_curta')
     })
   })
 
@@ -148,8 +148,8 @@ describe('PomodoroProvider', () => {
     it('tick loop grava heartbeat no localStorage quando screen=running', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => {
-        result.current.setScreen('running')
-        result.current.setAtivo(true)
+        result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' })
+        result.current.dispatch({ type: 'SET_ATIVO', ativo: true })
         result.current.startedAtRef.current = Date.now()
       })
       act(() => { vi.advanceTimersByTime(300) })
@@ -172,13 +172,13 @@ describe('PomodoroProvider', () => {
     it('heartbeat salva dados do contexto', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => {
-        result.current.setScreen('running')
-        result.current.setAtivo(true)
-        result.current.setFase('foco')
-        result.current.setCicloAtual(2)
-        result.current.setSessaoId(42)
-        result.current.setInterrupcoes(['interrupcao1'])
-        result.current.setContexto({ tipo: 'tarefa', id: 1, nome: 'Revisar PR' })
+        result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' })
+        result.current.dispatch({ type: 'SET_ATIVO', ativo: true })
+        result.current.dispatch({ type: 'SET_FASE', fase: 'foco' })
+        result.current.dispatch({ type: 'SET_CICLO', ciclo: 2 })
+        result.current.dispatch({ type: 'SET_SESSAO_ID', sessaoId: 42 })
+        result.current.dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: ['interrupcao1'] })
+        result.current.dispatch({ type: 'SET_CONTEXTO', contexto: { tipo: 'tarefa', id: 1, nome: 'Revisar PR' } })
         result.current.startedAtRef.current = Date.now()
       })
       act(() => { vi.advanceTimersByTime(300) })
@@ -195,22 +195,30 @@ describe('PomodoroProvider', () => {
   })
 
   describe('auto-start', () => {
+    function irParaFocoEnd(result: { current: ReturnType<typeof usePomodoroContext> }) {
+      act(() => {
+        result.current.dispatch({ type: 'OVERWRITE_STATE', state: { screen: 'foco_end', ativo: false } })
+      })
+    }
+
     it('NAO inicia automaticamente se config.autoStart=false', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setScreen('foco_end'); result.current.setAtivo(false) })
+      irParaFocoEnd(result)
+      expect(result.current.state.screen).toBe('foco_end')
       act(() => { vi.advanceTimersByTime(5000) })
-      expect(result.current.screen).toBe('foco_end')
+      expect(result.current.state.screen).toBe('foco_end')
     })
 
     it('inicia automaticamente apos 3s quando autoStart=true e screen=foco_end', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => { result.current.setConfig(prev => ({ ...prev, autoStart: true })) })
-      act(() => { result.current.setScreen('foco_end'); result.current.setAtivo(false) })
+      irParaFocoEnd(result)
+      expect(result.current.state.screen).toBe('foco_end')
       act(() => { vi.advanceTimersByTime(2999) })
-      expect(result.current.screen).toBe('foco_end')
+      expect(result.current.state.screen).toBe('foco_end')
       act(() => { vi.advanceTimersByTime(1) })
-      expect(result.current.screen).toBe('running')
-      expect(result.current.ativo).toBe(true)
+      expect(result.current.state.screen).toBe('running')
+      expect(result.current.state.ativo).toBe(true)
     })
   })
 
@@ -218,57 +226,57 @@ describe('PomodoroProvider', () => {
     it('registra listener de blur quando screen=running', () => {
       const addSpy = vi.spyOn(window, 'addEventListener')
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setScreen('running') })
+      act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
       expect(addSpy).toHaveBeenCalledWith('blur', expect.any(Function))
       addSpy.mockRestore()
     })
 
-    it('incrementa distracoes via setDistracoes funcional', () => {
+    it('incrementa distracoes via dispatch INCREMENT_DISTRACAO', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setDistracoes(d => d + 1) })
-      expect(result.current.distracoes).toBe(1)
+      act(() => { result.current.dispatch({ type: 'INCREMENT_DISTRACAO' }) })
+      expect(result.current.state.distracoes).toBe(1)
     })
 
     it('zera distracoes ao entrar em running', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      act(() => { result.current.setDistracoes(5) })
-      act(() => { result.current.setScreen('running') })
-      expect(result.current.distracoes).toBe(0)
+      act(() => { result.current.dispatch({ type: 'SET_DISTRACOES', distracoes: 5 }) })
+      act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
+      expect(result.current.state.distracoes).toBe(0)
     })
   })
 
   describe('screen transitions', () => {
     it('estado inicial: idle, foco, ciclo 0', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
-      expect(result.current.screen).toBe('idle')
-      expect(result.current.fase).toBe('foco')
-      expect(result.current.cicloAtual).toBe(0)
-      expect(result.current.ativo).toBe(false)
+      expect(result.current.state.screen).toBe('idle')
+      expect(result.current.state.fase).toBe('foco')
+      expect(result.current.state.cicloAtual).toBe(0)
+      expect(result.current.state.ativo).toBe(false)
     })
 
     it('tick loop finaliza foco e vai para foco_end', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => {
-        result.current.setScreen('running')
-        result.current.setAtivo(true)
-        result.current.setFase('foco')
+        result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' })
+        result.current.dispatch({ type: 'SET_ATIVO', ativo: true })
+        result.current.dispatch({ type: 'SET_FASE', fase: 'foco' })
         result.current.startedAtRef.current = Date.now() - 25 * 60 * 1000 - 1
       })
       act(() => { vi.advanceTimersByTime(300) })
-      expect(result.current.screen).toBe('foco_end')
-      expect(result.current.ativo).toBe(false)
+      expect(result.current.state.screen).toBe('foco_end')
+      expect(result.current.state.ativo).toBe(false)
     })
 
     it('modo livre exibe tempo decorrido', () => {
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => {
-        result.current.setScreen('livre')
-        result.current.setAtivo(true)
+        result.current.dispatch({ type: 'SET_SCREEN', screen: 'livre' })
+        result.current.dispatch({ type: 'SET_ATIVO', ativo: true })
         result.current.startedAtRef.current = Date.now() - 125 * 1000
       })
       act(() => { vi.advanceTimersByTime(300) })
-      expect(result.current.minutos).toBe(2)
-      expect(result.current.segundos).toBe(5)
+      expect(result.current.state.minutos).toBe(2)
+      expect(result.current.state.segundos).toBe(5)
     })
   })
 })

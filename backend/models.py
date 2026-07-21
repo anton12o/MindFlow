@@ -144,11 +144,21 @@ class TarefaBase(SQLModel):
         if v not in ("pendente", "em_andamento", "feito"):
             raise ValueError(f'status inválido: "{v}". Deve ser "pendente", "em_andamento" ou "feito"')
         return v
+
+    @field_validator('quadrante')
+    @classmethod
+    def check_quadrante(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v not in ("fazer", "agendar", "delegar", "eliminar", ""):
+            raise ValueError(f'quadrante inválido: "{v}"')
+        return v
     bloco_id: int | None = Field(default=None, foreign_key="blocos_rotina.id", ondelete="SET NULL", index=True)
     data: str
     tipo_id: int | None = Field(default=None, foreign_key="tipos_objeto.id", ondelete="SET NULL", index=True)
     criado_em: str = Field(default_factory=now)
     propriedades: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
+    quadrante: str = "agendar"
     descricao: str = ""
     recorrente: bool = False
     total_foco_min: int = 0
@@ -171,6 +181,7 @@ class TarefaCreate(SQLModel):
     data: str
     tipo_id: int | None = None
     propriedades: dict[str, Any] = {}
+    quadrante: str = "agendar"
     descricao: str = ""
     recorrente: bool = False
     ordem: int = 0
@@ -186,6 +197,7 @@ class TarefaUpdate(SQLModel):
     bloco_id: int | None = None
     tipo_id: int | None = None
     propriedades: dict[str, Any] | None = None
+    quadrante: str | None = None
     descricao: str | None = None
     recorrente: bool | None = None
     recorrencia_tipo: str | None = None

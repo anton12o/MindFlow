@@ -13,7 +13,7 @@ vi.mock('../store/theme', async (importOriginal) => {
 
 vi.mock('../store/pomodoro', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, usePomodoroContext: () => ({ ativo: mockPomodoroAtivo }) }
+  return { ...actual, usePomodoroContext: () => ({ state: { ativo: mockPomodoroAtivo }, dispatch: vi.fn(), config: {} as Record<string, unknown>, setConfig: vi.fn(), resetTimer: vi.fn(), advancePhase: vi.fn(), startedAtRef: { current: 0 }, audioCtxRef: { current: null }, saveHeartbeat: vi.fn(), clearHeartbeat: vi.fn() }) }
 })
 
 vi.mock('../hooks/useFocusTrap', () => ({

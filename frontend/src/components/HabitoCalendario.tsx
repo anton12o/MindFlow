@@ -89,7 +89,7 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
       {/* Day-of-week headers */}
       <div className="grid grid-cols-7 gap-0 text-center mb-1">
         {DIAS_SEMANA.map(d => (
-          <span key={d} className="text-[10px] text-text-muted font-medium">{d}</span>
+          <span key={d} className="text-xs text-text-muted font-medium">{d}</span>
         ))}
       </div>
       {/* Day cells */}
@@ -108,7 +108,7 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
               onClick={() => handleDayClick(dia)}
               className={`flex flex-col items-center py-0.5 cursor-pointer transition-colors ${isFuture ? 'opacity-30 cursor-default' : 'hover:bg-bg-hover rounded'}`}
             >
-              <span className={`text-[11px] leading-none mb-0.5 ${isToday ? 'font-bold text-accent' : 'text-text-secondary'}`}>
+              <span className={`text-xs leading-none mb-0.5 ${isToday ? 'font-bold text-accent' : 'text-text-secondary'}`}>
                 {dia}
               </span>
               <span
@@ -123,9 +123,9 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
         })}
       </div>
       {createMut.isPending && (
-        <p className="text-[10px] text-text-muted text-center mt-1 animate-pulse">Salvando...</p>
+        <p className="text-xs text-text-muted text-center mt-1 animate-pulse">Salvando...</p>
       )}
-      <div className="flex items-center justify-center gap-3 mt-2 text-[10px] text-text-muted">
+      <div className="flex items-center justify-center gap-3 mt-2 text-xs text-text-muted">
         <span>✅ Check-in</span>
         <span>⭕ Sem registro</span>
       </div>

@@ -80,7 +80,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
     <div className={`fixed inset-0 bg-black/60 flex items-start justify-center pt-[10vh] z-50 ${isOpen ? '' : 'hidden'}`} onClick={onClose}>
       <div ref={modalRef} className="bg-bg-secondary rounded-xl border border-border w-full max-w-lg shadow-2xl max-h-[70vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-4 border-b border-border">
-          <span className="text-xs text-text-muted uppercase tracking-wider">Captura rápida</span>
+          <span className="text-xs text-text-muted uppercase tracking-wide">Captura rápida</span>
         </div>
         <form onSubmit={handleSubmit} className="p-4 border-b border-border">
           <input
@@ -120,7 +120,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
         ) : items && items.length > 0 ? (
           <div className="flex-1 overflow-y-auto p-4 space-y-2">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-text-muted uppercase tracking-wider">Pendentes ({items.length})</p>
+              <p className="text-xs text-text-muted uppercase tracking-wide">Pendentes ({items.length})</p>
               <div className="flex items-center gap-2">
                 {selectedIds.size > 0 && (
                   <>

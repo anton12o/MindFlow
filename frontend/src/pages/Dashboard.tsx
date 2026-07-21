@@ -19,7 +19,7 @@ const Card = React.memo(function Card({ titulo, children, loading, erro, vazio, 
   const navigate = useNavigate()
   return (
     <div className="bg-bg-secondary rounded-xl border border-border p-4">
-      <h2 onClick={linkTo ? () => navigate(linkTo) : undefined} className={`text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 ${linkTo ? 'cursor-pointer hover:text-text-primary transition-colors' : ''}`}>{titulo}</h2>
+      <h2 onClick={linkTo ? () => navigate(linkTo) : undefined} className={`text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 ${linkTo ? 'cursor-pointer hover:text-text-primary transition-colors' : ''}`}>{titulo}</h2>
       {loading && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
       {erro && <div className="flex flex-col items-center gap-2 py-4"><p className="text-sm text-danger">Erro ao carregar</p><button onClick={onRetry} className="text-xs text-accent hover:text-accent-hover transition-colors">Tentar novamente</button></div>}
       {vazio && (vazioChildren || <p className="text-sm text-text-muted py-4 text-center">Nenhum item</p>)}
@@ -35,7 +35,7 @@ function QueriesSection() {
   const pinned = queries.slice(0, 4)
   return (
     <div className="mt-6">
-      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-3 px-1">📌 Consultas</h2>
+      <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 px-1">📌 Consultas</h2>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {pinned.map(q => (
           <button key={q.id} onClick={() => navigate(`/consultas?id=${q.id}`)}
@@ -110,7 +110,7 @@ export default function Dashboard() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
+          <h1 className="text-xl font-bold">Dashboard</h1>
           <p className="text-sm text-text-muted mt-1">
             {new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </p>
@@ -131,22 +131,22 @@ export default function Dashboard() {
       <div className="flex items-center mb-6 px-4 py-3 bg-bg-secondary rounded-xl border border-border">
         <button onClick={() => navigate('/ideias')} className="flex-1 flex items-center justify-center gap-2 hover:bg-bg-hover transition-colors rounded-lg py-1">
           <span className="text-xl font-extrabold text-text-primary tabular-nums">{dash?.total_notas ?? '-'}</span>
-          <span className="text-xs text-text-muted uppercase tracking-wider">Notas</span>
+          <span className="text-xs text-text-muted uppercase tracking-wide">Notas</span>
         </button>
         <div className="w-px h-6 bg-border shrink-0" />
         <button onClick={() => navigate('/rotina')} className="flex-1 flex items-center justify-center gap-2 hover:bg-bg-hover transition-colors rounded-lg py-1">
           <span className="text-xl font-extrabold text-text-primary tabular-nums">{dash?.total_tarefas ?? '-'}</span>
-          <span className="text-xs text-text-muted uppercase tracking-wider">Tarefas</span>
+          <span className="text-xs text-text-muted uppercase tracking-wide">Tarefas</span>
         </button>
         <div className="w-px h-6 bg-border shrink-0" />
         <button onClick={() => navigate('/flashcards')} className="flex-1 flex items-center justify-center gap-2 hover:bg-bg-hover transition-colors rounded-lg py-1">
           <span className="text-xl font-extrabold text-text-primary tabular-nums">{dash?.total_flashcards ?? '-'}</span>
-          <span className="text-xs text-text-muted uppercase tracking-wider">Flashcards</span>
+          <span className="text-xs text-text-muted uppercase tracking-wide">Flashcards</span>
         </button>
         <div className="w-px h-6 bg-border shrink-0" />
         <button onClick={() => navigate('/pomodoro')} className="flex-1 flex items-center justify-center gap-2 hover:bg-bg-hover transition-colors rounded-lg py-1">
           <span className="text-xl font-extrabold text-text-primary tabular-nums">{dash?.total_sessoes ?? '-'}</span>
-          <span className="text-xs text-text-muted uppercase tracking-wider">Sessões</span>
+          <span className="text-xs text-text-muted uppercase tracking-wide">Sessões</span>
         </button>
       </div>
 
@@ -187,7 +187,7 @@ export default function Dashboard() {
                   {t.status === 'feito' ? '✓' : ''}
                 </button>
                 <button type="button" onClick={() => navigate('/rotina')} className="text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}">{t.titulo}</button>
-                <span className={`text-xs px-1.5 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
+                <span className={`text-xs px-2 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
                   {labelPrioridade(t.prioridade)}
                 </span>
               </div>
@@ -229,7 +229,7 @@ export default function Dashboard() {
 
         {/* Foco */}
         <div className="bg-accent/[0.06] border-accent/20 rounded-xl border p-4 md:col-span-2">
-          <h2 className="text-sm font-semibold text-accent uppercase tracking-wider mb-3">🎯 Foco</h2>
+          <h2 className="text-sm font-semibold text-accent uppercase tracking-wide mb-3">🎯 Foco</h2>
           <PomodoroTimer />
         </div>
 

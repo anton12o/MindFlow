@@ -11,7 +11,11 @@ const CUSTOM_KEY = 'mindflow_custom_theme'
 function loadCustom(): CustomTheme {
   try {
     const raw = localStorage.getItem(CUSTOM_KEY)
-    return raw ? JSON.parse(raw) : {}
+    const t: CustomTheme = raw ? JSON.parse(raw) : {}
+    if (t['--color-accent'] && !t['--color-accent-foreground']) {
+      t['--color-accent-foreground'] = getAccentForeground(t['--color-accent'])
+    }
+    return t
   } catch { /* silent */; return {} }
 }
 
@@ -80,6 +84,32 @@ export function darkenColor(hex: string, percent: number): string {
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
+export function lightenColor(hex: string, percent: number): string {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = Math.min(255, (num >> 16) + Math.round(2.55 * percent))
+  const g = Math.min(255, ((num >> 8) & 0xff) + Math.round(2.55 * percent))
+  const b = Math.min(255, (num & 0xff) + Math.round(2.55 * percent))
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`
+}
+
+function getBrightness(hex: string): number {
+  const num = parseInt(hex.replace('#', ''), 16)
+  const r = (num >> 16) & 0xff
+  const g = ((num >> 8) & 0xff)
+  const b = num & 0xff
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function getAccentForeground(hex: string): string {
+  return getBrightness(hex) > 0.5 ? '#000000' : '#FFFFFF'
+}
+
+function smartHover(hex: string, darkenPct = 15, lightenPct = 30): string {
+  return getBrightness(hex) > 0.5 ? darkenColor(hex, darkenPct) : lightenColor(hex, lightenPct)
+}
+
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(loadTheme)
   const [theme, setTheme] = useState<Theme>(() => resolveTheme(mode))
@@ -128,7 +158,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }
 
   function setCustomTheme(t: CustomTheme) {
-    setCustomThemeState(prev => ({ ...prev, ...t }))
+    const merged = { ...t }
+    if (merged['--color-accent']) {
+      if (!merged['--color-accent-foreground']) {
+        merged['--color-accent-foreground'] = getAccentForeground(merged['--color-accent'])
+      }
+      if (!merged['--color-accent-hover']) {
+        merged['--color-accent-hover'] = smartHover(merged['--color-accent'])
+      }
+    }
+    setCustomThemeState(prev => ({ ...prev, ...merged }))
   }
 
   function resetCustomTheme() {

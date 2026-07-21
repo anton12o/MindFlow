@@ -6,6 +6,9 @@ import { usePomodoroContext, type Fase, type PomodoroScreen } from '../store/pom
 import { useNotify, useDnd } from '../store/notification'
 import { startAmbient, stopAmbient } from '../utils/ambientSound'
 import { useConfig } from '../store/config'
+import PomodoroConfigPanel from './PomodoroConfigPanel'
+import PomodoroResumoForm from './PomodoroResumoForm'
+import ConfirmModal from './ConfirmModal'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
@@ -25,33 +28,26 @@ function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
 }
 
 const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Props) {
-  const {
-    minutos, setMinutos, segundos, setSegundos,
-    ativo, setAtivo,
-    sessaoId, setSessaoId,
-    resumo, setResumo,
-    mostrarResumo, setMostrarResumo,
-    config, setConfig,
-    fase, setFase, cicloAtual, setCicloAtual,
-    advancePhase, resetTimer, startedAtRef,
-    screen, setScreen,
-    interrupcoes, setInterrupcoes,
-    distracoes,
-    setContexto,
-    audioCtxRef,
-    saveHeartbeat,
-    clearHeartbeat,
-  } = usePomodoroContext()
+  const { state, dispatch, config, setConfig, advancePhase, startedAtRef, audioCtxRef, saveHeartbeat, clearHeartbeat } = usePomodoroContext()
+  const { minutos, segundos, ativo, sessaoId, resumo, mostrarResumo, fase, cicloAtual, screen, interrupcoes, distracoes } = state
 
   const notify = useNotify()
   const setDndActive = useDnd()
-  const isCreating = useRef(false)
-  const cancelledRef = useRef(false)
+  const cancelRef = useRef(false)
   const queryClient = useQueryClient()
 
+  const createSessaoMut = useMutation({
+    mutationFn: (params: { contexto_tipo: string; contexto_id: number | null; duracao_min: number }) =>
+      createSessao(params),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pomodoro', 'sessoes'] })
+    },
+    onError: (e) => { console.error('[PomodoroTimer] criar sessão', e); notify('Erro ao iniciar sessão') },
+  })
+
   useEffect(() => {
-    setContexto(contexto || null)
-    return () => { setContexto(null) }
+    dispatch({ type: 'SET_CONTEXTO', contexto: contexto || null })
+    return () => { dispatch({ type: 'SET_CONTEXTO', contexto: null }) }
   }, [contexto])
 
   const HB_KEY = 'mindflow_pomodoro_heartbeat'
@@ -82,7 +78,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       createNota({ titulo: `📥 ${texto}`, conteudo: '' })
         .catch(e => { console.error('[Pomodoro] salvar interrupção no inbox', e); notify('Erro ao salvar interrupção') })
     })
-    setInterrupcoes([])
+    dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: [] })
   }
 
   const [showConfig, setShowConfig] = useState(false)
@@ -117,6 +113,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
 
   const [taskInput, setTaskInput] = useState('')
   const [interrupcaoInput, setInterrupcaoInput] = useState('')
+  const [showStopConfirm, setShowStopConfirm] = useState(false)
 
   const finalizarMut = useMutation({
     mutationFn: (params: { id: number; body: { conteudo_resumo?: string; contexto_nome?: string } }) =>
@@ -134,13 +131,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   function handleFinalizar(comResumo: boolean) {
     if (sessaoId) {
       finalizarMut.mutate(
-        {
-          id: sessaoId,
-          body: {
-            conteudo_resumo: comResumo && resumo ? resumo : undefined,
-            contexto_nome: contexto?.nome,
-          },
-        },
+        { id: sessaoId, body: { conteudo_resumo: comResumo && resumo ? resumo : undefined, contexto_nome: contexto?.nome } },
         {
           onSuccess: () => {
             onFinalizar?.()
@@ -153,38 +144,36 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   }
 
   function handleFree() {
-    if (isCreating.current) return
+    if (createSessaoMut.isPending) return
     if (!canTransition('idle', 'livre')) return
-    isCreating.current = true
-    cancelledRef.current = false
-    createSessao({
-      contexto_tipo: 'livre',
-      contexto_id: null,
-      duracao_min: 0,
-    }).then(s => {
-      isCreating.current = false
-      if (cancelledRef.current) { finalizarSessao(s.id, {}); return }
-      clearHeartbeat()
-      setSessaoId(s.id)
-      startedAtRef.current = Date.now()
-      setMinutos(0)
-      setSegundos(0)
-      setAtivo(true)
-      setScreen('livre')
-      setInterrupcoes([])
-    }).catch(e => {
-      isCreating.current = false
-      console.error('[Pomodoro] criar livre', e)
-      notify('Erro ao iniciar sessão livre')
-    })
+    cancelRef.current = false
+    createSessaoMut.mutate(
+      { contexto_tipo: 'livre', contexto_id: null, duracao_min: 0 },
+      {
+        onSuccess: (s) => {
+          if (cancelRef.current) { finalizarSessao(s.id, {}); return }
+          clearHeartbeat()
+          dispatch({ type: 'SET_SESSAO_ID', sessaoId: s.id })
+          startedAtRef.current = Date.now()
+          dispatch({ type: 'SET_TIMER', minutos: 0, segundos: 0 })
+          dispatch({ type: 'SET_ATIVO', ativo: true })
+          dispatch({ type: 'SET_SCREEN', screen: 'livre' })
+          dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: [] })
+        },
+      },
+    )
   }
 
   function handleStop() {
+    if (createSessaoMut.isPending) {
+      cancelRef.current = true
+      return
+    }
     if (screen === 'livre') {
       clearHeartbeat()
-      setAtivo(false)
-      setScreen('idle')
-      cancelledRef.current = true
+      dispatch({ type: 'SET_ATIVO', ativo: false })
+      dispatch({ type: 'SET_SCREEN', screen: 'idle' })
+      cancelRef.current = true
       if (sessaoId) {
         finalizarMut.mutate(
           { id: sessaoId, body: { contexto_nome: contexto?.nome } },
@@ -195,9 +184,9 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     }
     if (!canTransition(screen === 'running' ? 'running' : 'pausado', 'idle')) return
     clearHeartbeat()
-    setAtivo(false)
-    setScreen('idle')
-    cancelledRef.current = true
+    dispatch({ type: 'SET_ATIVO', ativo: false })
+    dispatch({ type: 'SET_SCREEN', screen: 'idle' })
+    cancelRef.current = true
     if (sessaoId) {
       finalizarMut.mutate(
         { id: sessaoId, body: { contexto_nome: contexto?.nome } },
@@ -206,65 +195,66 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     }
   }
 
-  function toggle() {
-    if (screen === 'running') {
-      if (!canTransition('running', 'pausado')) return
-      const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
-      const elapsed = Date.now() - startedAtRef.current
-      remainingRef.current = Math.max(0, phaseMs - elapsed)
-      const totalSec = Math.ceil(remainingRef.current / 1000)
-      setMinutos(Math.floor(totalSec / 60))
-      setSegundos(totalSec % 60)
-      setAtivo(false)
-      setScreen('pausado')
-      setTimeout(() => saveHeartbeat(), 50)
+  function handleStopClick() {
+    if (interrupcoes.length > 0) {
+      setShowStopConfirm(true)
       return
     }
+    handleStop()
+  }
 
-    if (screen === 'pausado') {
-      if (!canTransition('pausado', 'running')) return
-      const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
-      startedAtRef.current = Date.now() - (phaseMs - remainingRef.current)
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioContext()
-      } else if (audioCtxRef.current.state === 'suspended') {
-        audioCtxRef.current.resume()
-      }
-      setAtivo(true)
-      setScreen('running')
-      return
+  function handlePause() {
+    if (!canTransition('running', 'pausado')) return
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+    const elapsed = Date.now() - startedAtRef.current
+    remainingRef.current = Math.max(0, phaseMs - elapsed)
+    const totalSec = Math.ceil(remainingRef.current / 1000)
+    dispatch({ type: 'SET_TIMER', minutos: Math.floor(totalSec / 60), segundos: totalSec % 60 })
+    dispatch({ type: 'SET_ATIVO', ativo: false })
+    dispatch({ type: 'SET_SCREEN', screen: 'pausado' })
+    setTimeout(() => saveHeartbeat(), 50)
+  }
+
+  function handleResume() {
+    if (!canTransition('pausado', 'running')) return
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+    startedAtRef.current = Date.now() - (phaseMs - remainingRef.current)
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext()
+    } else if (audioCtxRef.current.state === 'suspended') {
+      audioCtxRef.current.resume()
     }
+    dispatch({ type: 'SET_ATIVO', ativo: true })
+    dispatch({ type: 'SET_SCREEN', screen: 'running' })
+  }
 
-    if (isCreating.current) return
+  function handleStart() {
+    if (createSessaoMut.isPending) return
     if (!canTransition(screen, 'running')) return
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioContext()
     } else if (audioCtxRef.current.state === 'suspended') {
       audioCtxRef.current.resume()
     }
-    isCreating.current = true
-    cancelledRef.current = false
-    createSessao({
-      contexto_tipo: contexto?.tipo || (taskInput.trim() ? 'tarefa' : 'livre'),
-      contexto_id: contexto?.id || null,
-      duracao_min: minutos,
-    }).then(s => {
-      isCreating.current = false
-      if (cancelledRef.current) {
-        finalizarSessao(s.id, {})
-        return
-      }
-      clearHeartbeat()
-      setSessaoId(s.id)
-      startedAtRef.current = Date.now()
-      setAtivo(true)
-      setScreen('running')
-      setInterrupcoes([])
-    }).catch(e => {
-      isCreating.current = false
-      console.error('[Pomodoro] criar sessão', e)
-      notify('Erro ao iniciar sessão')
-    })
+    cancelRef.current = false
+    createSessaoMut.mutate(
+      {
+        contexto_tipo: contexto?.tipo || (taskInput.trim() ? 'tarefa' : 'livre'),
+        contexto_id: contexto?.id || null,
+        duracao_min: minutos,
+      },
+      {
+        onSuccess: (s) => {
+          if (cancelRef.current) { finalizarSessao(s.id, {}); return }
+          clearHeartbeat()
+          dispatch({ type: 'SET_SESSAO_ID', sessaoId: s.id })
+          startedAtRef.current = Date.now()
+          dispatch({ type: 'SET_ATIVO', ativo: true })
+          dispatch({ type: 'SET_SCREEN', screen: 'running' })
+          dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: [] })
+        },
+      },
+    )
   }
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
@@ -280,32 +270,31 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     if (!heartbeatData) return
     const { fase: hFase, cicloAtual: hCiclo, minutos: hMin, segundos: hSeg,
             interrupcoes: hInt, remainingMs, contextoTipo, contextoId } = heartbeatData
-    setFase(hFase)
-    setCicloAtual(hCiclo)
-    setMinutos(hMin)
-    setSegundos(hSeg)
-    setInterrupcoes(hInt || [])
-    isCreating.current = true
-    createSessao({
-      contexto_tipo: contextoTipo || 'tarefa',
-      contexto_id: contextoId || null,
-      duracao_min: Math.ceil(remainingMs / 60000) || 1,
-    }).then(s => {
-      isCreating.current = false
-      if (cancelledRef.current) { finalizarSessao(s.id, {}); return }
-      setSessaoId(s.id)
-      const phaseMs = (hFase === 'foco' ? config.focoMin : hFase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
-      startedAtRef.current = Date.now() - Math.max(0, phaseMs - remainingMs)
-      setAtivo(true)
-      setScreen('running')
-      clearHeartbeat()
-      setShowRestore(false)
-      setHeartbeatData(null)
-    }).catch(e => {
-      isCreating.current = false
-      console.error('[Pomodoro] restaurar sessão', e)
-      notify('Erro ao restaurar sessão')
-    })
+    dispatch({ type: 'SET_FASE', fase: hFase })
+    dispatch({ type: 'SET_CICLO', ciclo: hCiclo })
+    dispatch({ type: 'SET_TIMER', minutos: hMin, segundos: hSeg })
+    dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: hInt || [] })
+    cancelRef.current = false
+    createSessaoMut.mutate(
+      {
+        contexto_tipo: contextoTipo || 'tarefa',
+        contexto_id: contextoId || null,
+        duracao_min: Math.ceil(remainingMs / 60000) || 1,
+      },
+      {
+        onSuccess: (s) => {
+          if (cancelRef.current) { finalizarSessao(s.id, {}); return }
+          dispatch({ type: 'SET_SESSAO_ID', sessaoId: s.id })
+          const phaseMs = (hFase === 'foco' ? config.focoMin : hFase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+          startedAtRef.current = Date.now() - Math.max(0, phaseMs - remainingMs)
+          dispatch({ type: 'SET_ATIVO', ativo: true })
+          dispatch({ type: 'SET_SCREEN', screen: 'running' })
+          clearHeartbeat()
+          setShowRestore(false)
+          setHeartbeatData(null)
+        },
+      },
+    )
   }
 
   return (
@@ -315,11 +304,11 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
           <p className="text-sm text-text-primary mb-3">Sessão interrompida detectada ({heartbeatData.minutos}:{String(heartbeatData.segundos).padStart(2, '0')} restantes)</p>
           <div className="flex gap-2 justify-center">
             <button onClick={() => { clearHeartbeat(); setShowRestore(false); setHeartbeatData(null) }}
-              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+              className="px-4 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
               Descartar
             </button>
             <button onClick={handleRestore}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors">
+              className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-colors">
               Continuar sessão
             </button>
           </div>
@@ -333,40 +322,40 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         <div className="flex items-center gap-2">
           {screen === 'idle' && (
             <>
-              <button onClick={toggle}
-                className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
+              <button onClick={handleStart}
+                className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
                 Iniciar
               </button>
-              <button onClick={() => { setMinutos(config.descansoMin); setSegundos(0); toggle() }}
-                className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+              <button onClick={() => { dispatch({ type: 'SET_TIMER', minutos: config.descansoMin, segundos: 0 }); handleStart() }}
+                className="px-3 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
                 ☕ {config.descansoMin}min
               </button>
               <button onClick={handleFree}
-                className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+                className="px-3 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
                 Livre
               </button>
             </>
           )}
-      {(screen === 'running' || screen === 'livre') && (
+          {(screen === 'running' || screen === 'livre') && (
             <>
-              <button onClick={toggle}
-                className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+              <button onClick={handlePause}
+                className="px-4 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
                 Pausar
               </button>
-              <button onClick={handleStop} className="text-xs text-danger hover:underline ml-1">Parar</button>
+              <button onClick={handleStopClick} className="text-xs text-danger hover:underline ml-1">Parar</button>
             </>
           )}
           {screen === 'pausado' && (
             <>
-              <button onClick={toggle}
-                className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
+              <button onClick={handleResume}
+                className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
                 Continuar
               </button>
-              <button onClick={handleStop} className="text-xs text-danger hover:underline ml-1">Parar</button>
+              <button onClick={handleStopClick} className="text-xs text-danger hover:underline ml-1">Parar</button>
             </>
           )}
           {screen === 'livre' && (
-            <button onClick={handleStop} className="px-4 py-1.5 bg-danger text-white text-sm rounded-lg hover:bg-danger/80 transition-colors">
+            <button onClick={handleStopClick} className="px-4 py-2 bg-danger text-white text-sm rounded-lg hover:bg-danger/80 transition-colors">
               Parar
             </button>
           )}
@@ -384,23 +373,23 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         </div>
       )}
 
-      {screen === 'running' && (
+      {(screen === 'running' || screen === 'pausado') && (
         <div className="w-full">
           <div className="flex gap-2">
             <input
               value={interrupcaoInput}
               onChange={e => setInterrupcaoInput(e.target.value)}
               placeholder="Anotar distração..."
-              className="flex-1 bg-bg-tertiary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
+              className="flex-1 bg-bg-tertiary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
             />
             <button
               onClick={() => {
                 if (interrupcaoInput.trim()) {
-                  setInterrupcoes([...interrupcoes, interrupcaoInput.trim()])
+                  dispatch({ type: 'ADD_INTERRUPCAO', texto: interrupcaoInput.trim() })
                   setInterrupcaoInput('')
                 }
               }}
-              className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors"
+              className="px-3 py-2 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-colors"
               title="Adicionar interrupção" aria-label="Adicionar interrupção"
             >
               +
@@ -431,166 +420,14 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         )}
       </div>
 
-      <div className="w-full border border-border rounded-lg overflow-hidden bg-bg-tertiary">
-        <button
-          onClick={() => setShowConfig(!showConfig)}
-          className="w-full flex items-center justify-between p-3 text-left text-sm text-text-secondary hover:bg-bg-hover transition-colors"
-          disabled={ativo}
-        >
-          <span>⚙️ Configurações</span>
-          <span className={`transition-transform ${showConfig ? 'rotate-180' : ''}`}>▼</span>
-        </button>
-        {showConfig && (
-          <div className="p-3 space-y-3 border-t border-border bg-bg-secondary">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Foco (min)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={config.focoMin}
-                  onChange={e => setConfig(c => ({ ...c, focoMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Pausa curta (min)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={config.pausaCurtaMin}
-                  onChange={e => setConfig(c => ({ ...c, pausaCurtaMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Pausa longa (min)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="120"
-                  value={config.pausaLongaMin}
-                  onChange={e => setConfig(c => ({ ...c, pausaLongaMin: Math.min(120, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Ciclos até pausa longa</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={config.ciclosAtePausaLonga}
-                  onChange={e => setConfig(c => ({ ...c, ciclosAtePausaLonga: Math.min(20, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Meta diária (min)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="480"
-                  value={config.dailyFocusMin}
-                  onChange={e => setConfig(c => ({ ...c, dailyFocusMin: Math.min(480, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-text-muted mb-1">Descanso (min)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={config.descansoMin}
-                  onChange={e => setConfig(c => ({ ...c, descansoMin: Math.min(60, Math.max(1, parseInt(e.target.value) || 1)) }))}
-                  className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
-                  disabled={ativo}
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-text-muted">Auto-iniciar próximo ciclo</label>
-              <button
-                onClick={() => setConfig(c => ({ ...c, autoStart: !c.autoStart }))}
-                className={`w-10 h-5 rounded-full transition-colors ${config.autoStart ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                disabled={ativo}
-              >
-                <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${config.autoStart ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-            <div className="flex items-center justify-between">
-              <label className="text-xs text-text-muted">Não perturbe (suprime notificações)</label>
-              <button
-                onClick={() => setConfig(c => ({ ...c, dnd: !c.dnd }))}
-                className={`w-10 h-5 rounded-full transition-colors ${config.dnd ? 'bg-accent' : 'bg-bg-tertiary'}`}
-                disabled={ativo}
-              >
-                <span className={`block w-4 h-4 bg-white rounded-full transition-transform ${config.dnd ? 'translate-x-5' : 'translate-x-0.5'}`} />
-              </button>
-            </div>
-            <button
-              onClick={() => setConfig({ focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4, dailyFocusMin: 120, autoStart: false, dnd: false, descansoMin: 5 })}
-              className="text-sm text-accent hover:underline self-start"
-              disabled={ativo}
-            >
-              Restaurar padrão
-            </button>
-          </div>
-        )}
-      </div>
+      <PomodoroConfigPanel config={config} setConfig={setConfig} ativo={ativo} showConfig={showConfig} setShowConfig={setShowConfig} />
 
       {mostrarResumo && !ativo && (
-        <div className="w-full max-w-md mt-2">
-          {distracoes > 0 && (
-            <p className="text-xs text-text-muted mb-2">👀 {distracoes} {distracoes === 1 ? 'distração' : 'distrações'}</p>
-          )}
-          {interrupcoes.length > 0 && (
-            <div className="mb-2 text-xs text-text-muted">
-              <p className="font-medium mb-0.5">Distrações registradas:</p>
-              <ul className="space-y-0.5">
-                {interrupcoes.map((item, i) => (
-                  <li key={i} className="flex items-start gap-1">• {item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <textarea
-            value={resumo}
-            onChange={e => setResumo(e.target.value)}
-            placeholder="Registrar resumo da sessão (opcional)..."
-            className="w-full bg-bg-tertiary rounded-lg p-3 text-sm outline-none resize-none h-20 focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                handleFinalizar(false)
-                setMostrarResumo(false)
-              }}
-              disabled={finalizarMut.isPending}
-              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors disabled:opacity-50"
-            >
-              {finalizarMut.isPending ? '...' : 'Pular'}
-            </button>
-            <button
-              onClick={() => {
-                handleFinalizar(true)
-                setMostrarResumo(false)
-              }}
-              disabled={finalizarMut.isPending}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover disabled:opacity-50"
-            >
-              {finalizarMut.isPending ? '...' : 'Salvar resumo'}
-            </button>
-          </div>
-        </div>
+        <PomodoroResumoForm resumo={resumo} setResumo={(r) => dispatch({ type: 'SET_RESUMO', resumo: r })}
+          distracoes={distracoes} interrupcoes={interrupcoes}
+          isPending={finalizarMut.isPending}
+          onPular={() => { handleFinalizar(false); dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false }) }}
+          onSalvar={() => { handleFinalizar(true); dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false }) }} />
       )}
 
       {distracoes > 0 && (
@@ -600,50 +437,13 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       )}
 
       {screen === 'foco_end' && (
-        <div className="w-full max-w-md mt-2">
-          {interrupcoes.length > 0 && (
-            <div className="mb-2 text-xs text-text-muted">
-              <p className="font-medium mb-0.5">Distrações registradas:</p>
-              <ul className="space-y-0.5">
-                {interrupcoes.map((item, i) => (
-                  <li key={i} className="flex items-start gap-1">• {item}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <textarea
-            value={resumo}
-            onChange={e => setResumo(e.target.value)}
-            placeholder="Registrar resumo da sessão (opcional)..."
-            className="w-full bg-bg-tertiary rounded-lg p-3 text-sm outline-none resize-none h-20 focus-visible:ring-2 focus-visible:ring-accent"
-          />
-          <div className="flex gap-2 mt-2">
-            <button
-              onClick={() => {
-                handleFinalizar(false)
-                advancePhase()
-                resetTimer()
-                setSessaoId(null)
-                setScreen('idle')
-              }}
-              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
-            >
-              Pular resumo e iniciar pausa
-            </button>
-            <button
-              onClick={() => {
-                handleFinalizar(true)
-                advancePhase()
-                resetTimer()
-                setSessaoId(null)
-                setScreen('idle')
-              }}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
-            >
-              Salvar resumo e iniciar pausa
-            </button>
-          </div>
-        </div>
+        <PomodoroResumoForm resumo={resumo} setResumo={(r) => dispatch({ type: 'SET_RESUMO', resumo: r })}
+          distracoes={distracoes} interrupcoes={interrupcoes}
+          isPending={finalizarMut.isPending}
+          labelPular="Pular resumo e iniciar pausa"
+          labelSalvar="Salvar resumo e iniciar pausa"
+          onPular={() => { handleFinalizar(false); advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SESSAO_ID', sessaoId: null }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }}
+          onSalvar={() => { handleFinalizar(true); advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SESSAO_ID', sessaoId: null }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }} />
       )}
 
       {screen === 'pausa_end' && !ativo && (
@@ -659,21 +459,21 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
                 <button
                   onClick={() => {
                     advancePhase()
-                    resetTimer()
-                    setScreen('idle')
+                    dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } })
+                    dispatch({ type: 'SET_SCREEN', screen: 'idle' })
                   }}
-                  className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
+                  className="px-4 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors"
                 >
                   Não, obrigado
                 </button>
                 <button
                   onClick={() => {
                     advancePhase()
-                    resetTimer()
-                    setScreen('idle')
-                    toggle()
+                    dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } })
+                    dispatch({ type: 'SET_SCREEN', screen: 'idle' })
+                    handleStart()
                   }}
-                  className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover"
+                  className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover"
                 >
                   Sim, iniciar foco
                 </button>
@@ -685,11 +485,22 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
 
       {!ativo && !mostrarResumo && screen === 'idle' && minutos === 0 && segundos === 0 && (
         <button
-          onClick={() => { clearHeartbeat(); setMinutos(config.focoMin); setSegundos(0); setResumo(''); setSessaoId(null); setFase('foco'); setCicloAtual(0) }}
+          onClick={() => { clearHeartbeat(); dispatch({ type: 'SET_TIMER', minutos: config.focoMin, segundos: 0 }); dispatch({ type: 'SET_RESUMO', resumo: '' }); dispatch({ type: 'SET_SESSAO_ID', sessaoId: null }); dispatch({ type: 'SET_FASE', fase: 'foco' }); dispatch({ type: 'SET_CICLO', ciclo: 0 }) }}
           className="text-sm text-accent hover:underline"
         >
           Novo Pomodoro
         </button>
+      )}
+
+      {showStopConfirm && (
+        <ConfirmModal
+          titulo="Interrupções não salvas"
+          mensagem={`Você tem ${interrupcoes.length} interrupção(ões) anotada(s) mas não salva(s).`}
+          confirmLabel="Salvar e parar"
+          cancelLabel="Parar sem salvar"
+          onConfirm={() => { salvarInterrupcoesNoInbox(); setShowStopConfirm(false); handleStop() }}
+          onCancel={() => { setShowStopConfirm(false); handleStop() }}
+        />
       )}
     </div>
   )

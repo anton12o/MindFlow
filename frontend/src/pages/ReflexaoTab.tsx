@@ -133,7 +133,7 @@ export default function ReflexaoTab() {
           <span className="text-xs text-text-muted tabular-nums w-28 text-center">
             {formatRange(stats.semana.inicio, stats.semana.fim)}
           </span>
-          <button onClick={() => setOffset(o => o + 1)} disabled={offset >= 0} title="Próxima semana" className="p-1 text-text-muted hover:text-text-primary disabled:opacity-30 transition-colors">
+          <button onClick={() => setOffset(o => o + 1)} disabled={offset >= 0} title="Próxima semana" className="p-1 text-text-muted hover:text-text-primary disabled:opacity-disabled-heavy transition-colors">
             <ChevronRight size={16} />
           </button>
         </div>
@@ -157,7 +157,7 @@ export default function ReflexaoTab() {
           <button
             onClick={() => salvarReflexao.mutate()}
             disabled={salvarReflexao.isPending || respostas.every(r => !r.trim())}
-            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-all active:scale-95"
+            className="px-3 py-1.5 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover disabled:opacity-disabled transition-all active:scale-95"
           >
             {salvarReflexao.isPending ? 'Salvando...' : reflexaoAtual ? 'Atualizar reflexão' : 'Salvar reflexão'}
           </button>

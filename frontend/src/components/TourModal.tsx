@@ -46,7 +46,7 @@ export default function TourModal({ open, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]" onClick={handleClose}>
-      <div ref={ref} className="bg-bg-secondary rounded-xl border border-border shadow-2xl w-full max-w-lg mx-4 p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
+      <div ref={ref} className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 w-full max-w-lg mx-4 p-6 animate-fade-in" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-lg font-bold">Bem-vindo ao MindFlow</h2>
           <span className="text-xs text-text-muted font-mono">{tourStep + 1} de {TOUR_STEPS.length}</span>
@@ -66,7 +66,7 @@ export default function TourModal({ open, onClose }: Props) {
         <div className="flex items-center justify-between mb-6">
           <button onClick={() => setTourStep(s => Math.max(0, s - 1))}
             disabled={tourStep === 0}
-            className="w-10 h-10 rounded-lg border border-border flex items-center justify-center text-sm text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-10 h-10 rounded-lg border border-border flex items-center justify-center text-sm text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-disabled-heavy disabled:cursor-not-allowed"
             aria-label="Anterior"><ChevronLeft size={16} /></button>
           <div className="flex gap-1.5">
             {TOUR_STEPS.map((_, i) => (
@@ -77,7 +77,7 @@ export default function TourModal({ open, onClose }: Props) {
           </div>
           <button onClick={() => setTourStep(s => Math.min(TOUR_STEPS.length - 1, s + 1))}
             disabled={tourStep === TOUR_STEPS.length - 1}
-            className="w-10 h-10 rounded-lg border border-border flex items-center justify-center text-sm text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="w-10 h-10 rounded-lg border border-border flex items-center justify-center text-sm text-text-primary hover:bg-bg-hover transition-colors disabled:opacity-disabled-heavy disabled:cursor-not-allowed"
             aria-label="Próximo"><ChevronRight size={16} /></button>
         </div>
 
@@ -95,12 +95,12 @@ export default function TourModal({ open, onClose }: Props) {
           </div>
           {tourStep < TOUR_STEPS.length - 1 ? (
             <button onClick={() => { navigate(TOUR_STEPS[tourStep].rota); handleClose() }}
-              className="px-4 py-2 bg-accent text-white rounded-lg transition-all active:scale-95 hover:bg-accent-hover text-sm">
+              className="px-4 py-2 bg-accent text-accent-foreground rounded-lg transition-all active:scale-95 hover:bg-accent-hover text-sm">
               Ir para {TOUR_STEPS[tourStep].titulo} →
             </button>
           ) : (
             <button onClick={handleClose}
-              className="px-6 py-2 bg-accent text-white rounded-lg transition-all active:scale-95 hover:bg-accent-hover text-sm">
+              className="px-6 py-2 bg-accent text-accent-foreground rounded-lg transition-all active:scale-95 hover:bg-accent-hover text-sm">
               Concluir
             </button>
           )}
