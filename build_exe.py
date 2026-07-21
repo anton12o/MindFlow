@@ -69,9 +69,9 @@ def main():
         "--add-data", f"{BACKEND}{os.pathsep}backend",
         # Ícone (para atalho desktop)
         "--add-data", f"{ICON.parent}{os.pathsep}assets",
-        # Alembic: ini + migrations na raiz do _MEIPASS
-        "--add-data", f"{BACKEND / 'alembic.ini'}{os.pathsep}.",
-        "--add-data", f"{BACKEND / 'migrations'}{os.pathsep}migrations",
+        # Alembic: ini + migrations em backend/ dentro do _MEIPASS
+        "--add-data", f"{BACKEND / 'alembic.ini'}{os.pathsep}backend",
+        "--add-data", f"{BACKEND / 'migrations'}{os.pathsep}backend/migrations",
         # Hidden imports (PyInstaller não descobre via string "main:app")
         "--hidden-import", "main",
         "--hidden-import", "uvicorn",

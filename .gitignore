@@ -48,3 +48,4 @@ docs/cerebro.md
 # Build output + temporários
 build/
 test_output.txt
+*.spec
