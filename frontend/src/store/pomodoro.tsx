@@ -340,12 +340,13 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.ativo, state.screen, state.fase, config, state.interrupcoes, state.contexto])
 
-  // eslint-disable-next-line react-hooks/refs
   const broadcastState = useMemo(() => ({
     sessaoId: state.sessaoId, minutos: state.minutos, segundos: state.segundos,
     ativo: state.ativo, fase: state.fase, cicloAtual: state.cicloAtual,
     screen: state.screen, interrupcoes: state.interrupcoes,
-    distracoes: state.distracoes, startedAt: startedAtRef.current,
+    distracoes: state.distracoes,
+    // eslint-disable-next-line react-hooks/refs
+    startedAt: startedAtRef.current,
   }), [state.sessaoId, state.minutos, state.segundos, state.ativo, state.fase, state.cicloAtual, state.screen, state.interrupcoes, state.distracoes])
 
   useBroadcastSync('sync:pomodoro', broadcastState, (data) => {

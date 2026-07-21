@@ -35,7 +35,7 @@ const defaultState = {
 function resetContext(overrides: Record<string, unknown> = {}) {
   const hasStateKey = 'state' in overrides
   mockContext = {
-    state: { ...defaultState, ...(hasStateKey ? (overrides.state as any) : overrides) },
+    state: { ...defaultState, ...(hasStateKey ? (overrides.state as Record<string, unknown>) : overrides) } as typeof defaultState,
     dispatch: vi.fn(),
     config: { ...defaultConfig },
     setConfig: vi.fn(),
