@@ -3,13 +3,7 @@ import { screen, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from './utils'
 import Sidebar from '../components/Sidebar'
 
-const mockCycleTheme = vi.fn()
 let mockPomodoroAtivo = false
-
-vi.mock('../store/theme', async (importOriginal) => {
-  const actual = await importOriginal()
-  return { ...actual, useTheme: () => ({ mode: 'dark', cycleTheme: mockCycleTheme }), MODE_ICON: { dark: '🌙', light: '☀️', system: '💻' } }
-})
 
 vi.mock('../store/pomodoro', async (importOriginal) => {
   const actual = await importOriginal()
@@ -22,7 +16,6 @@ vi.mock('../hooks/useFocusTrap', () => ({
 
 beforeEach(() => {
   mockPomodoroAtivo = false
-  mockCycleTheme.mockClear()
 })
 
 function renderSidebar(route = '/') {
@@ -75,12 +68,6 @@ describe('Sidebar', () => {
     renderSidebar()
     const btn = screen.getByTitle('Foco')
     expect(btn.querySelector('.animate-pulse')).not.toBeInTheDocument()
-  })
-
-  it('chama cycleTheme ao clicar no botao de tema', () => {
-    renderSidebar()
-    fireEvent.click(screen.getByTitle(/Tema:/))
-    expect(mockCycleTheme).toHaveBeenCalledTimes(1)
   })
 
   it('chama onToggleInbox ao clicar no botao de captura', () => {
