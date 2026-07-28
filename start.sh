@@ -74,9 +74,18 @@ if [ -z "$PYTHON" ]; then
 fi
 
 # ── python3-venv ────────────────────────────────────────────
+VENV_PKG="python3-venv"
+PY_VER=$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 if ! "$PYTHON" -c "import venv" 2>/dev/null; then
-  auto_install python3-venv || auto_install python3-venv || \
-    fail "python3-venv necessario. Rode: sudo apt install python3-venv"
+  auto_install "$VENV_PKG" || auto_install "$VENV_PKG" || \
+    fail "$VENV_PKG necessario. Rode: sudo apt install $VENV_PKG"
+fi
+# ensurepip pode vir em pacote separado (Debian/Ubuntu)
+if ! "$PYTHON" -c "import ensurepip" 2>/dev/null; then
+  VENV_VER="${VENV_PKG}-${PY_VER}"
+  info "ensurepip nao disponivel — tentando $VENV_VER..."
+  auto_install "$VENV_VER" || auto_install "$VENV_VER" || \
+    fail "Rode: sudo apt install ${VENV_VER}"
 fi
 
 # ── Node.js ─────────────────────────────────────────────────
