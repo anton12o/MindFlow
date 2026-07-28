@@ -94,14 +94,23 @@ if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
 fi
 
 # ── Node.js ─────────────────────────────────────────────────
+# Vite 8 requer Node >= 20.19 ou >= 22.12
+node_ver_ok() {
+  local v="$1" maj min
+  maj=$(echo "$v" | cut -d. -f1)
+  min=$(echo "$v" | cut -d. -f2)
+  [ "$maj" -gt 20 ] && return 0
+  [ "$maj" -eq 20 ] && [ "$min" -ge 19 ] && return 0
+  [ "$maj" -eq 22 ] && [ "$min" -ge 12 ] && return 0
+  return 1
+}
 NODE_CMD=""
 if command -v node >/dev/null 2>&1; then
-  NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-  [ "$NODE_VER" -ge 18 ] && NODE_CMD="node"
+  node_ver_ok "$(node -v | sed 's/v//')" && NODE_CMD="node"
 fi
 
 if [ -z "$NODE_CMD" ]; then
-  warn "Node.js 18+ nao encontrado"
+  warn "Node.js 20.19+ necessario (instalado: $(node -v 2>/dev/null || echo '---'))"
   case "$DISTRO" in
     ubuntu|debian|pop|mint|zorin)
       if ! sudo -n apt-get install -y -qq nodejs 2>/dev/null; then
@@ -119,19 +128,17 @@ if [ -z "$NODE_CMD" ]; then
       auto_install nodejs
       ;;
     *)
-      fail "Instale Node.js 18+ manualmente: https://nodejs.org"
+      fail "Instale Node.js 20.19+ manualmente: https://nodejs.org"
       echo "  Depois execute ./start.sh novamente."
       ;;
   esac
   if command -v node >/dev/null 2>&1; then
-    NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
-    if [ "$NODE_VER" -ge 18 ]; then
-      NODE_CMD="node"
-    fi
+    node_ver_ok "$(node -v | sed 's/v//')" && NODE_CMD="node"
   fi
   if [ -z "$NODE_CMD" ]; then
-    warn "Node.js 18+ ainda nao disponivel."
-    echo "  Instale manualmente e execute ./start.sh novamente."
+    warn "Node.js 20.19+ ainda nao disponivel."
+    echo "  Instale manualmente: https://nodejs.org"
+    echo "  Depois execute ./start.sh novamente."
   fi
 fi
 
