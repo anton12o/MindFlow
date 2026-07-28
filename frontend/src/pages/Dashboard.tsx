@@ -18,7 +18,7 @@ const Card = React.memo(function Card({ titulo, children, loading, erro, vazio, 
 }) {
   const navigate = useNavigate()
   return (
-    <div className="bg-bg-secondary rounded-xl border border-border p-4">
+    <div className="bg-bg-secondary rounded-xl border border-border p-3">
       <h2 onClick={linkTo ? () => navigate(linkTo) : undefined} className={`text-sm font-semibold text-text-muted uppercase tracking-wide mb-3 ${linkTo ? 'cursor-pointer hover:text-text-primary transition-colors' : ''}`}>{titulo}</h2>
       {loading && <p className="text-sm text-text-muted py-4 text-center animate-pulse">Carregando...</p>}
       {erro && <div className="flex flex-col items-center gap-2 py-4"><p className="text-sm text-danger">Erro ao carregar</p><button onClick={onRetry} className="text-xs text-accent hover:text-accent-hover transition-colors">Tentar novamente</button></div>}
@@ -39,7 +39,7 @@ function QueriesSection() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {pinned.map(q => (
           <button key={q.id} onClick={() => navigate(`/consultas?id=${q.id}`)}
-            className="bg-bg-secondary border border-border rounded-xl p-4 text-left hover:border-accent/30 hover:bg-bg-hover transition-all text-sm group">
+            className="bg-bg-secondary border border-border rounded-xl p-3 text-left hover:border-accent/30 hover:bg-bg-hover transition-all text-sm group">
             <p className="font-medium text-text-primary truncate group-hover:text-accent transition-colors">{q.nome}</p>
             <p className="text-xs text-text-muted mt-1 capitalize">{q.visualizacao}</p>
           </button>
@@ -72,7 +72,7 @@ export default function Dashboard() {
     staleTime: 30_000,
   })
 
-  const { data: leitura } = useQuery({
+  const { data: leitura, isLoading: leituraLoad, isError: leituraErr } = useQuery({
     queryKey: ['stats', 'leitura'],
     queryFn: getLeituraStats,
     staleTime: 60_000,
@@ -83,12 +83,14 @@ export default function Dashboard() {
   const [diarioId, setDiarioId] = useState<number | null>(null)
   const diarioCreating = useRef(false)
   useEffect(() => {
+    let ignore = false
     if (!dash || diarioId || diarioCreating.current) return
     const d = dash.notas_hoje.find(n => n.titulo?.toLowerCase().startsWith('diário'))
     if (d) { startTransition(() => setDiarioId(d.id)); return }
     diarioCreating.current = true
     const dataBR = hojeLocal()
-    createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { setDiarioId(n.id); diarioCreating.current = false }).catch(e => { console.error('[Dashboard]', e); diarioCreating.current = false })
+    createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { if (!ignore) { setDiarioId(n.id); diarioCreating.current = false } }).catch(e => { console.error('[Dashboard]', e); if (!ignore) diarioCreating.current = false })
+    return () => { ignore = true }
   }, [dash, diarioId])
 
   const toggleTarefaMut = useMutation({
@@ -107,7 +109,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Dashboard</h1>
@@ -158,7 +160,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between py-2">
             <span className="text-sm">{dash?.inbox_count ?? 0} {(dash?.inbox_count ?? 0) === 1 ? 'item pendente' : 'itens pendentes'}</span>
             <button onClick={() => window.dispatchEvent(new Event('open-inbox'))}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
+              className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
               Abrir inbox
             </button>
           </div>
@@ -183,11 +185,11 @@ export default function Dashboard() {
               <div key={t.id} className="flex items-center gap-2 py-2 border-b border-border last:border-0 rounded-lg px-2 -mx-2">
                 <button onClick={(e) => { e.stopPropagation(); handleToggleTarefa(t) }}
                   className={`w-4 h-4 rounded border shrink-0 flex items-center justify-center text-xs transition-colors
-                    ${t.status === 'feito' ? 'bg-accent border-accent text-white' : 'border-border hover:border-accent'}`}>
+                    ${t.status === 'feito' ? 'bg-accent border-accent text-accent-foreground' : 'border-border hover:border-accent'}`}>
                   {t.status === 'feito' ? '✓' : ''}
                 </button>
-                <button type="button" onClick={() => navigate('/rotina')} className="text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}">{t.titulo}</button>
-                <span className={`text-xs px-2 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
+                <button type="button" onClick={() => navigate('/rotina')} className={`text-sm flex-1 text-left hover:text-accent transition-colors cursor-pointer bg-transparent border-none p-0 ${t.status === 'feito' ? 'line-through text-text-muted' : 'text-text-primary'}`}>{t.titulo}</button>
+                <span className={`text-xs px-2 py-1 rounded ${badgePrioridade(t.prioridade)}`}>
                   {labelPrioridade(t.prioridade)}
                 </span>
               </div>
@@ -199,8 +201,8 @@ export default function Dashboard() {
         </Card>
 
         {/* Leitura */}
-        <Card titulo="📖 Leitura" loading={isLoading} erro={isError} onRetry={refetch}
-          vazio={!leitura?.top_notas?.length && !isLoading && !isError}
+        <Card titulo="📖 Leitura" loading={leituraLoad} erro={leituraErr}
+          vazio={!leitura?.top_notas?.length && !leituraLoad && !leituraErr}
           vazioChildren={<p className="text-sm text-text-muted text-center py-3">📖 Abra uma nota para começar</p>}>
           <div className="flex gap-3 mb-3">
             <div className="flex-1 text-center">
@@ -228,7 +230,7 @@ export default function Dashboard() {
         </Card>
 
         {/* Foco */}
-        <div className="bg-accent/[0.06] border-accent/20 rounded-xl border p-4 md:col-span-2">
+        <div className="bg-accent/[0.06] border-accent/20 rounded-xl border p-3 md:col-span-2">
           <h2 className="text-sm font-semibold text-accent uppercase tracking-wide mb-3">🎯 Foco</h2>
           <PomodoroTimer />
         </div>

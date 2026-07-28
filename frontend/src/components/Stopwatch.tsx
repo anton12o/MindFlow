@@ -95,7 +95,7 @@ export default function Stopwatch() {
 
   return (
     <div className="text-center">
-      <div className="text-5xl font-mono font-bold tabular-nums mb-4 text-accent">
+      <div role="timer" aria-live="polite" className="text-5xl font-mono font-bold tabular-nums mb-4 text-accent">
         {formatMs(elapsed)}
       </div>
       <div className="flex gap-3 justify-center mb-4">
@@ -108,7 +108,7 @@ export default function Stopwatch() {
               <button onClick={iniciar}
                 className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
               <button onClick={resetar}
-                className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger/80 transition-all active:scale-95">Resetar</button>
+                className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger-hover transition-all active:scale-95">Resetar</button>
             </>
           )
         ) : (

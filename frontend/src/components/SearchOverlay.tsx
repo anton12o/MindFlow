@@ -74,16 +74,16 @@ export default function SearchOverlay({ isOpen, onClose }: Props) {
           <p className="text-xs text-text-muted mt-2">Enter para navegar · ↑↓ para navegar · Esc para fechar</p>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {!q.trim() && <p className="text-sm text-text-muted text-center py-8">Digite para buscar</p>}
+          {!q.trim() && <p className="text-sm text-text-muted text-center py-6">Digite para buscar</p>}
           {isFetching && <p className="text-sm text-text-muted text-center py-4 animate-pulse">Buscando...</p>}
-          {data && flatResults.length === 0 && <p className="text-sm text-text-muted text-center py-8">Nenhum resultado encontrado</p>}
+          {data && flatResults.length === 0 && <p className="text-sm text-text-muted text-center py-6">Nenhum resultado encontrado</p>}
           {flatResults.map((r, i) => (
             <div key={r.id}
               onClick={() => { r.navigate(); onClose() }}
               onMouseEnter={() => setSelectedIndex(i)}
               className={`flex items-start gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${i === selectedIndex ? 'bg-bg-hover' : 'hover:bg-bg-hover'}`}
             >
-              <span className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent font-medium shrink-0 mt-0.5">{r.type}</span>
+              <span className="text-xs px-2 py-1 rounded bg-accent/10 text-accent font-medium shrink-0 mt-0.5">{r.type}</span>
               <div className="min-w-0 flex-1">
                 <p className="text-sm truncate">{r.label}</p>
                 {r.snippet && <p className="text-xs text-text-muted truncate mt-0.5">{r.snippet}</p>}

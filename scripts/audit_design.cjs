@@ -7,11 +7,15 @@
 
 const path = require('path')
 const fs = require('fs')
+const os = require('os')
 const playwrightDir = path.resolve(__dirname, '..', 'frontend', 'node_modules', 'playwright')
 const { chromium } = require(path.join(playwrightDir, 'index.js'))
 
-const BROWSER_EXE = process.env.PLAYWRIGHT_EXECUTABLE_PATH ||
-  path.join(process.env.USERPROFILE, 'AppData', 'Local', 'ms-playwright', 'chromium-1228', 'chrome-win64', 'chrome.exe')
+const MS_PLAYWRIGHT = process.platform === 'win32'
+  ? path.join(os.homedir(), 'AppData', 'Local', 'ms-playwright', 'chromium-1228', 'chrome-win64', 'chrome.exe')
+  : path.join(os.homedir(), '.cache', 'ms-playwright', 'chromium-1228', 'chrome-linux', 'chrome')
+
+const BROWSER_EXE = process.env.PLAYWRIGHT_EXECUTABLE_PATH || MS_PLAYWRIGHT
 
 const VIEWS = [
   { tipo: 'eisenhower', label: 'Eisenhower', tabLabel: 'Eisenhower' },

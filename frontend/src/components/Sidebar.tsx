@@ -19,6 +19,7 @@ const primaryItems = [
   { icon: <Grid3x3 size={18} />, label: 'Matriz', page: '/matriz' },
   { icon: <BarChart3 size={18} />, label: 'Insights', page: '/insights' },
   { icon: <Table2 size={18} />, label: 'Consultas', page: '/consultas' },
+  { icon: <BarChart3 size={18} />, label: 'Revisão', page: '/revisao' },
 ]
 
 const bottomItems = [
@@ -40,8 +41,11 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
   const [showShutdown, setShowShutdown] = useState(false)
   const [shutdownCountdown, setShutdownCountdown] = useState<number | null>(null)
   const shutdownTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const shutdownAbortRef = useRef<AbortController | undefined>(undefined)
   const [shutdownDone, setShutdownDone] = useState(false)
+  const [shutdownError, setShutdownError] = useState<string | null>(null)
+  const [prevShutdown, setPrevShutdown] = useState(false)
+  const shutdownTokenRef = useRef<string | undefined>(undefined)
+  const shutdownRetryRef = useRef(0)
   const countdownRef = useRef<HTMLDivElement>(null)
   const doneRef = useRef<HTMLDivElement>(null)
   useFocusTrap(countdownRef, shutdownCountdown !== null && shutdownCountdown > 0)
@@ -100,20 +104,49 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
   function handleShutdown() {
     setShowShutdown(false)
     setShutdownCountdown(3)
+    setShutdownDone(false)
+    setShutdownError(null)
+    shutdownTokenRef.current = undefined
+    shutdownRetryRef.current = 0
 
-    const controller = new AbortController()
-    shutdownAbortRef.current = controller
-    const doShutdown = async () => {
-      try {
-        await fetch(API_BASE + '/shutdown', { method: 'POST', signal: controller.signal })
-      } catch (e) { console.error('[Sidebar]', e) }
-    }
-    doShutdown()
+    fetch(API_BASE + '/shutdown/init', { method: 'POST' })
+      .then(r => r.json())
+      .then(data => { shutdownTokenRef.current = data.token })
+      .catch(() => {
+        setShutdownCountdown(null)
+        setShutdownError('Servidor não respondeu. Verifique se o MindFlow está rodando.')
+      })
 
     const timer = (count: number) => {
       if (count <= 0) {
-        setShutdownCountdown(null)
-        setShutdownDone(true)
+        const token = shutdownTokenRef.current
+        if (token) {
+          fetch(API_BASE + '/shutdown/confirm?token=' + encodeURIComponent(token), { method: 'POST' })
+            .then(r => {
+              setShutdownCountdown(null)
+              if (r.ok) {
+                try { localStorage.setItem('mindflow_shutdown_done', 'true') } catch {}
+                if ('Notification' in window && Notification.permission === 'granted') {
+                  new Notification('MindFlow', { body: 'Servidor encerrado com segurança.' })
+                }
+                setShutdownDone(true)
+              }
+              else setShutdownError('Servidor não confirmou o desligamento.')
+            })
+            .catch(() => {
+              setShutdownCountdown(null)
+              setShutdownError('Servidor não respondeu. Verifique se o MindFlow está rodando.')
+            })
+        } else {
+          shutdownRetryRef.current++
+          if (shutdownRetryRef.current > 10) {
+            setShutdownCountdown(null)
+            setShutdownError('Servidor não confirmou o desligamento. Tente novamente.')
+            return
+          }
+          setShutdownCountdown(0)
+          shutdownTimerRef.current = setTimeout(() => timer(0), 500)
+        }
         return
       }
       setShutdownCountdown(count)
@@ -122,28 +155,52 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
     timer(3)
   }
 
+  function retryShutdown() {
+    setShutdownError(null)
+    handleShutdown()
+  }
+
   function cancelShutdown() {
     clearTimeout(shutdownTimerRef.current)
-    setShutdownCountdown(null)
-    if (shutdownAbortRef.current) {
-      shutdownAbortRef.current.abort()
-      shutdownAbortRef.current = undefined
+    const token = shutdownTokenRef.current
+    shutdownTokenRef.current = undefined
+    if (token) {
+      fetch(API_BASE + '/shutdown/cancel?token=' + encodeURIComponent(token), { method: 'POST' }).catch((e) => { console.error('[Sidebar] cancelShutdown', e) })
     }
+    setShutdownCountdown(null)
+    setShutdownError(null)
+    setShutdownDone(false)
   }
 
   useEffect(() => {
     return () => clearTimeout(shutdownTimerRef.current)
   }, [])
 
+  useEffect(() => {
+    try {
+      if (localStorage.getItem('mindflow_shutdown_done') === 'true') {
+        localStorage.removeItem('mindflow_shutdown_done')
+        setPrevShutdown(true)
+        const id = setTimeout(() => setPrevShutdown(false), 8000)
+        return () => clearTimeout(id)
+      }
+    } catch {}
+  }, [])
+
   return (
     <>
+      {prevShutdown && (
+        <div className="fixed top-0 left-0 right-0 z-50 bg-accent/10 text-accent text-center text-xs py-1.5 cursor-pointer" onClick={() => setPrevShutdown(false)}>
+          MindFlow encerrado com segurança na sessão anterior.
+        </div>
+      )}
       <button onClick={() => setCollapsed(p => !p)}
-        className="fixed top-2 left-1 z-50 min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg bg-bg-secondary border border-border text-text-muted hover:text-text-primary transition-all active:scale-95 md:hidden"
+        className="fixed top-2 left-1 z-50 min-w-11 min-h-11 flex items-center justify-center rounded-lg bg-bg-secondary border border-border text-text-muted hover:text-text-primary transition-all active:scale-95 md:hidden"
         title={collapsed ? 'Abrir menu' : 'Fechar menu'}>
         {collapsed ? <Menu size={16} /> : <XIcon size={16} />}
       </button>
       {collapsed && <div className="fixed inset-0 bg-black/40 z-30 md:hidden" onClick={() => setCollapsed(false)} />}
-      <aside role="navigation" aria-label="Navegação principal" style={{ width: collapsed ? undefined : (desktopCollapsed ? 48 : sidebarWidth) }} className={`bg-bg-secondary border-r border-border flex flex-col py-4 gap-1 shrink-0 transition-transform duration-200 overflow-hidden
+      <aside role="navigation" aria-label="Navegação principal" style={{ width: collapsed ? undefined : (desktopCollapsed ? 48 : sidebarWidth) }} className={`bg-bg-secondary border-r border-border flex flex-col py-4 gap-1 shrink-0 transition-transform duration-200 overflow-y-auto
         ${collapsed ? '-translate-x-full' : 'translate-x-0'}
         fixed md:relative z-40 h-full md:h-full md:translate-x-0`}>
         <div onMouseDown={handleMouseDown} className={`absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-accent/30 transition-colors z-10 ${desktopCollapsed ? 'hidden' : ''}`} />
@@ -151,11 +208,11 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
           <div className={`flex items-center w-full ${desktopCollapsed ? 'justify-center px-0.5 flex-col gap-1' : 'px-2 justify-between'}`}>
             {desktopCollapsed ? (
               <>
-                <div className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm" title="MindFlow">
+                <div className="min-w-8 min-h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm" title="MindFlow">
                   🧠
                 </div>
                 <button onClick={() => { setDesktopCollapsed(false); try { localStorage.setItem('mindflow_sidebar_collapsed', 'false') } catch { /* silent */ } }}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
+                  className="min-w-11 min-h-11 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Expandir sidebar">
                   <PanelLeft size={14} />
                 </button>
@@ -163,11 +220,11 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
             ) : (
               <>
                 <div className="flex items-center gap-2 flex-1 justify-center">
-                  <div className="min-w-[32px] min-h-[32px] flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm">🧠</div>
+                  <div className="min-w-8 min-h-8 flex items-center justify-center rounded-lg bg-accent/20 text-accent text-sm">🧠</div>
                   {sidebarWidth > 90 && <span className="text-sm font-semibold text-accent tracking-tight">MindFlow</span>}
                 </div>
                 <button onClick={() => { setDesktopCollapsed(p => { const v = !p; try { localStorage.setItem('mindflow_sidebar_collapsed', String(v)) } catch { /* silent */ }; return v }) }}
-                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
+                  className="min-w-11 min-h-11 flex items-center justify-center rounded-lg text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
                   title="Recolher sidebar">
                   <PanelLeftClose size={16} />
                 </button>
@@ -226,18 +283,27 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
       {showShutdown && (
         <ConfirmModal
           titulo="Encerrar MindFlow"
-          mensagem="Tem certeza que deseja encerrar o servidor? Você precisará reiniciá-lo pelo terminal."
+          mensagem="Tem certeza que deseja encerrar o servidor?"
           destructive
           confirmLabel="Encerrar"
           onConfirm={handleShutdown}
           onCancel={() => setShowShutdown(false)}
         />
       )}
-      {shutdownCountdown !== null && shutdownCountdown > 0 && (
+      {shutdownCountdown !== null && (
         <div ref={countdownRef} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4">
-            <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
-            <p className="text-sm text-text-muted">Encerrando servidor...</p>
+            {shutdownCountdown > 0 ? (
+              <>
+                <div className="text-5xl font-bold text-danger tabular-nums">{shutdownCountdown}</div>
+                <p className="text-sm text-text-muted">Encerrando servidor...</p>
+              </>
+            ) : (
+              <>
+                <div className="animate-spin w-10 h-10 border-4 border-accent border-t-transparent rounded-full mx-auto" />
+                <p className="text-sm text-text-muted">Aguardando resposta do servidor...</p>
+              </>
+            )}
             <button
               onClick={cancelShutdown}
               className="px-6 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover transition-all active:scale-95 text-sm"
@@ -249,10 +315,40 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
       )}
       {shutdownDone && (
         <div ref={doneRef} className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
-          <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4 relative">
+            <button
+              onClick={() => setShutdownDone(false)}
+              className="absolute top-2 right-2 min-w-8 min-h-8 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover transition-all active:scale-95"
+              title="Fechar"
+            >
+              <XIcon size={14} />
+            </button>
             <div className="text-4xl">✅</div>
             <p className="text-base font-medium text-text-primary">Servidor encerrado</p>
             <p className="text-sm text-text-muted">Você pode fechar esta aba.</p>
+          </div>
+        </div>
+      )}
+      {shutdownError && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-bg-secondary rounded-xl border border-border shadow-elevation-6 p-6 text-center space-y-4 max-w-xs w-full mx-4">
+            <div className="text-4xl">❌</div>
+            <p className="text-base font-medium text-text-primary">Falha ao encerrar</p>
+            <p className="text-sm text-text-muted">{shutdownError}</p>
+            <div className="flex gap-2 justify-center">
+              <button
+                onClick={() => setShutdownError(null)}
+                className="px-6 py-2 bg-bg-tertiary text-text-primary rounded-lg hover:bg-bg-hover transition-all active:scale-95 text-sm"
+              >
+                OK
+              </button>
+              <button
+                onClick={retryShutdown}
+                className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95 text-sm"
+              >
+                Tentar novamente
+              </button>
+            </div>
           </div>
         </div>
       )}

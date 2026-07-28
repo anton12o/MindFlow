@@ -21,6 +21,8 @@ import { useBroadcastInvalidate } from './hooks/useBroadcastInvalidate'
 import { useFocusTrap } from './hooks/useFocusTrap'
 import { useConfig } from './hooks/useConfig'
 import { hojeLocal } from './utils/date'
+import { Maximize2 } from 'lucide-react'
+import { ZenModeProvider, useZenMode } from './contexts/ZenModeContext'
 
 const CommandPalette = lazy(() => import('./components/CommandPalette'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -50,27 +52,11 @@ function Layout() {
   const [showPalette, setShowPalette] = useState(false)
   const [paletteMode, setPaletteMode] = useState<'comando' | 'nota'>('comando')
   const [inboxOpen, setInboxOpen] = useState(false)
-  const [zenMode, setZenMode] = useState(() => {
-    try { return localStorage.getItem('mindflow_zen_mode') === 'true' } catch { return false }
-  })
+  const { zenMode, toggleZen } = useZenMode()
   const [importOpen, setImportOpen] = useState(false)
   const [logsOpen, setLogsOpen] = useState(false)
   const [keybindingsOpen, setKeybindingsOpen] = useState(false)
   const { match } = useKeybindings()
-
-  useEffect(() => {
-    const handler = () => setZenMode(p => {
-      const next = !p
-      try { localStorage.setItem('mindflow_zen_mode', String(next)) } catch { /* silent */ }
-      return next
-    })
-    window.addEventListener('toggle-zen', handler)
-    return () => window.removeEventListener('toggle-zen', handler)
-  }, [])
-
-  useEffect(() => {
-    try { localStorage.setItem('mindflow_zen_mode', String(zenMode)) } catch { /* silent */ }
-  }, [zenMode])
 
   useBroadcastInvalidate()
 
@@ -113,6 +99,8 @@ function Layout() {
     { id: 'config', label: 'Ir para Config', action: () => navigate('/config') },
     { id: 'consultas', label: 'Ir para Consultas', action: () => navigate('/consultas') },
     { id: 'insights', label: 'Ir para Insights', action: () => navigate('/insights') },
+    { id: 'revisao', label: 'Ir para Revisão Semanal', action: () => navigate('/revisao') },
+    { id: 'matriz', label: 'Ir para Matriz (Eisenhower/E×I)', action: () => navigate('/matriz') },
     { id: 'inbox', label: 'Captura rápida', action: () => setInboxOpen(p => !p) },
     { id: 'import', label: 'Importar dados (JSON)', action: () => setImportOpen(true) },
     { id: 'logs', label: 'Ver logs de erro', action: () => setLogsOpen(true) },
@@ -197,17 +185,21 @@ function Layout() {
   }, [])
 
   const toggleInbox = useCallback(() => setInboxOpen(p => !p), [])
+  const isFullWidth = page === 'ideias' || page === 'flashcards' || page === 'consultas'
   return (
-    <div className={`h-screen flex overflow-hidden ${zenMode ? 'focus-mode' : ''}`}>
+    <div className={`h-screen flex overflow-hidden ${appConfig.modoCompacto ? 'modo-compacto' : ''}`}>
       <div className={`transition-all duration-300 shrink-0 ${zenMode ? '-translate-x-full opacity-0 pointer-events-none w-0 overflow-hidden' : ''}`}>
         <Sidebar onToggleInbox={toggleInbox} />
       </div>
       <main className="flex-1 overflow-y-auto animate-fade-in relative">
-          <button onClick={() => window.dispatchEvent(new CustomEvent('toggle-zen'))}
-                className={`fixed top-3 right-3 z-50 min-w-[44px] min-h-[44px] rounded-lg flex items-center justify-center text-xs transition-colors ${zenMode ? 'bg-accent/20 text-accent hover:bg-accent/30' : 'bg-bg-tertiary text-text-muted hover:bg-bg-hover hover:text-text-primary'}`}
-            title={zenMode ? 'Sair do Modo Foco (Ctrl+Shift+F)' : 'Modo Foco (Ctrl+Shift+F)'} aria-label="Alternar Modo Foco">
-            {zenMode ? '✕' : '⛶'}
-          </button>
+          <div className={isFullWidth ? '' : `mx-auto ${appConfig.larguraConteudo === 'padrao' ? 'max-w-conteudo-padrao' : appConfig.larguraConteudo === 'largo' ? 'max-w-conteudo-largo' : 'max-w-conteudo-cheio'}`}>
+          {zenMode && (
+            <button onClick={toggleZen}
+              className="fixed top-3 right-3 z-40 min-w-11 min-h-11 rounded-lg bg-accent/20 text-accent hover:bg-accent/30 flex items-center justify-center text-xs transition-colors"
+              title="Sair do Modo Foco (Ctrl+Shift+F — pode conflitar com Firefox)" aria-label="Sair do Modo Foco">
+              <Maximize2 size={16} />
+            </button>
+          )}
           {!online && (
             <div className="sticky top-0 z-45 bg-danger/10 border-b border-danger/20 px-4 py-2 text-sm text-danger text-center">
               Servidor offline ⚠️ alguns dados podem não estar disponíveis
@@ -233,6 +225,7 @@ function Layout() {
             </Routes>
           </Suspense>
           </ErrorBoundary>
+          </div>
       </main>
       {importOpen && <ImportModal onClose={() => setImportOpen(false)} onSuccess={handleImportSuccess} />}
       {showPalette && (
@@ -339,7 +332,9 @@ export default function App() {
             <PomodoroProvider>
               <NotificationProvider>
                 <ConfigProvider>
-                  <Layout />
+                  <ZenModeProvider>
+                    <Layout />
+                  </ZenModeProvider>
                 </ConfigProvider>
               </NotificationProvider>
             </PomodoroProvider>

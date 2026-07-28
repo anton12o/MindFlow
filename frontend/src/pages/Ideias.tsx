@@ -23,10 +23,14 @@ import { useDebounce } from '../hooks/useDebounce'
 import { useFocusTrap } from '../hooks/useFocusTrap'
 import { useTabState } from '../hooks/useTabState'
 import { useNotify } from '../store/notification'
+import { useConfig } from '../hooks/useConfig'
+import { useNotaTemplates } from '../hooks/useNotaTemplates'
 import { Plus, Star, Folder, X, ChevronDown, ChevronUp } from 'lucide-react'
 export default function Ideias() {
   const queryClient = useQueryClient()
   const notify = useNotify()
+  const { config } = useConfig()
+  const { templates } = useNotaTemplates()
   const tabState = useTabState()
   const selectedId = tabState.activeId
   const [viewMode, setViewMode] = useState(false)
@@ -39,7 +43,7 @@ export default function Ideias() {
   const [tags, setTags] = useState<Tag[]>([])
   const [tagFilter, setTagFilter] = useState<number[]>([])
   const [sortBy, setSortBy] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('ideias_filtros') || '{}').sortBy || '' } catch { return '' }
+    try { return JSON.parse(localStorage.getItem('ideias_filtros') || '{}').sortBy || config.ordenacaoPadrao } catch { return config.ordenacaoPadrao }
   })
   const [filterData, setFilterData] = useState(() => {
     try { return JSON.parse(localStorage.getItem('ideias_filtros') || '{}').filterData || '' } catch { return '' }
@@ -99,13 +103,13 @@ export default function Ideias() {
       if (target) selectNota(target)
     }
   }, [searchParams, notas, tabState.activeId])
-  const { data: conexoes } = useQuery({
+  const { data: conexoes, isLoading: conexLoad, isError: conexErr } = useQuery({
     queryKey: ['conexoes', tabState.activeId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
     enabled: !!tabState.activeId,
     staleTime: 120_000,
   })
-  const { data: notaTagsData } = useQuery({
+  const { data: notaTagsData, isLoading: tagsLoad, isError: tagsErr } = useQuery({
     queryKey: ['notaTags', tabState.activeId],
     queryFn: ({ queryKey }) => getNotaTags(queryKey[1] as number),
     enabled: !!tabState.activeId,
@@ -209,7 +213,13 @@ export default function Ideias() {
     setViewMode(false)
   }
   async function handleCreate() {
-    createMut.mutate({ titulo: '(sem título)', conteudo: '', pasta_id: pastaFilter ?? null })
+    let titulo = '(sem título)'
+    let conteudo = ''
+    if (config.modeloPadraoId) {
+      const tmpl = templates.find(t => t.id === config.modeloPadraoId)
+      if (tmpl) { titulo = tmpl.titulo; conteudo = tmpl.conteudo }
+    }
+    createMut.mutate({ titulo, conteudo, pasta_id: pastaFilter ?? null })
   }
   function handleTemplateSelect(titulo: string, conteudo: string) {
     createMut.mutate({ titulo, conteudo, pasta_id: pastaFilter ?? null })
@@ -427,7 +437,7 @@ export default function Ideias() {
           <div className="flex items-center gap-2 mb-2 shrink-0 bg-danger/10 rounded-lg px-3 py-2">
             <span className="text-xs text-danger font-medium">{selectedIds.size} selecionada{selectedIds.size > 1 ? 's' : ''}</span>
             <button onClick={handleBatchDelete} disabled={batchDeleteMut.isPending}
-              className="ml-auto px-3 py-1 bg-danger text-white text-xs rounded-lg disabled:opacity-50">
+              className="ml-auto px-3 py-1 bg-danger text-white text-xs rounded-lg disabled:opacity-disabled">
               {batchDeleteMut.isPending ? 'Excluindo...' : 'Excluir'}
             </button>
             <button onClick={() => { setSelectMode(false); setSelectedIds(new Set()) }}
@@ -482,20 +492,20 @@ export default function Ideias() {
                     return (
                       <div key={p.id}>
                         <div className="group relative flex items-center" style={{ paddingLeft: `${depth * 16}px` }}>
-                          <button onClick={() => hasChildren && toggleExpanded(p.id)} className="w-4 shrink-0 text-[10px] text-text-muted">
+                          <button onClick={() => hasChildren && toggleExpanded(p.id)} className="w-4 shrink-0 text-xs text-text-muted">
                             {hasChildren ? (expandedFolders.has(p.id) ? '▼' : '▶') : ''}
                           </button>
                           <button onClick={() => setPastaFilter(pastaFilter === p.id ? null : p.id)}
                             className={`flex-1 text-left px-2 py-1 rounded text-xs transition-colors flex items-center gap-1 min-w-0 ${pastaFilter === p.id ? 'bg-accent/20 text-accent' : 'hover:bg-bg-hover text-text-muted hover:text-text-primary'}`}>
                             <Folder size={14} className="shrink-0 text-text-muted" />
                             <span className="truncate flex-1">{p.nome}</span>
-                            {count > 0 && <span className="text-[10px] text-text-muted tabular-nums shrink-0">{count}</span>}
+                            {count > 0 && <span className="text-xs text-text-muted tabular-nums shrink-0">{count}</span>}
                           </button>
                           <button onClick={() => { setCreatingSubIn(p.id); setSubFolderName('') }}
                             className="opacity-0 group-hover:opacity-100 text-xs text-text-muted hover:text-accent shrink-0 px-1 transition-opacity"
                             title="Nova subpasta"><Plus size={12} /></button>
                           <button onClick={e => { e.stopPropagation(); setConfirmDeletePasta(p.id) }}
-                            className="absolute right-0.5 top-0.5 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity"
+                            className="absolute right-0.5 top-0.5 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-1 rounded transition-opacity"
                             title="Excluir pasta"><X size={12} /></button>
                         </div>
                         {creatingSubIn === p.id && (
@@ -558,7 +568,7 @@ export default function Ideias() {
                         </button>
                         {!selectMode && (
                         <button onClick={e => { e.stopPropagation(); setConfirmDelete(n.id) }}
-                          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 p-0.5 rounded transition-opacity"
+                          className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 p-1 rounded transition-opacity"
                           title="Excluir nota"><X size={12} /></button>
                         )}
                       </div>
@@ -692,7 +702,7 @@ export default function Ideias() {
                 } else {
                   createTagMut.mutate({ nome: newTagNome, cor: newTagCor })
                 }
-              }} className="px-4 py-2 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover">
+              }} className="px-4 py-2 text-sm rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover">
                 {editingTag ? 'Salvar' : 'Criar'}
               </button>
             </div>

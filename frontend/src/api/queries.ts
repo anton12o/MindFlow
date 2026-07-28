@@ -10,6 +10,9 @@ export const createQuery = (data: { nome: string; tipo_objeto_id: number; visual
 export const deleteQuery = (id: number) =>
   request(`/queries/${id}`, { method: 'DELETE' })
 
+export const updateQuery = (id: number, data: Partial<{ nome: string; tipo_objeto_id: number; visualizacao: string; campo_agrupamento: string | null; filtros: object; ordem: string }>) =>
+  request<QuerieSalva>(`/queries/${id}`, { method: 'PATCH', body: JSON.stringify(data) })
+
 export type QueryResultItem = Record<string, unknown> & { id: number; titulo: string }
 export const executarQuery = (id: number, mes?: string, gantt?: boolean) =>
   request<{ tipo: string; dados: QueryResultItem[]; total?: number; truncated?: boolean }>(`/queries/${id}/executar${mes || gantt ? `?${[mes && `mes=${mes}`, gantt && 'gantt=true'].filter(Boolean).join('&')}` : ''}`, { method: 'POST' })

@@ -21,10 +21,10 @@ def cold_backup(db_path: Path, backup_dir: Path, src_conn: sqlite3.Connection | 
 
         if src_conn:
             with sqlite3.connect(dst) as dst_conn:
-                src_conn.backup(dst_conn, pages=1000)
+                src_conn.backup(dst_conn, pages=-1)
         else:
             with sqlite3.connect(str(db_path)) as src, sqlite3.connect(dst) as dst:
-                src.backup(dst, pages=1000)
+                src.backup(dst, pages=-1)
 
         logger.info("Backup salvo: %s", dst)
 

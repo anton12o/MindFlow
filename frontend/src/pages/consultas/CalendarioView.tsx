@@ -50,13 +50,19 @@ export default function CalendarioView({ query, result, resLoad, resErr, mesAtua
           const [a, mesNum] = mesAtual.split('-').map(Number)
           const d = new Date(a, mesNum - 2, 1)
           onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronLeft size={16} /></button>
-        <h3 className="text-lg font-semibold capitalize">{mesLabel}</h3>
+        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover" aria-label="Mês anterior"><ChevronLeft size={16} /></button>
+        <div className="flex items-center gap-2">
+          <h3 className="text-lg font-semibold capitalize">{mesLabel}</h3>
+          <button onClick={() => {
+            const now = new Date()
+            onMesChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
+          }} className="px-2 py-0.5 text-[10px] bg-bg-tertiary rounded hover:bg-bg-hover" aria-label="Ir para o mês atual">Hoje</button>
+        </div>
         <button onClick={() => {
           const [a, mesNum] = mesAtual.split('-').map(Number)
           const d = new Date(a, mesNum, 1)
           onMesChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover"><ChevronRight size={16} /></button>
+        }} className="px-3 py-1.5 bg-bg-tertiary rounded-lg hover:bg-bg-hover" aria-label="Próximo mês"><ChevronRight size={16} /></button>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-2">
         {diasSemana.map(d => <div key={d} className="text-center text-xs font-semibold text-text-muted py-1">{d}</div>)}
@@ -68,9 +74,9 @@ export default function CalendarioView({ query, result, resLoad, resErr, mesAtua
               if (dia === null) return <div key={di} className="h-20 bg-bg-tertiary/50" />
               const notas = notasPorDia[dia] || []
               return (
-                <div key={di} className="relative h-20 overflow-hidden bg-bg-secondary border border-border rounded-lg p-1 transition-colors hover:bg-bg-hover">
-                  <div className="text-xs font-semibold text-text-muted mb-1">{dia}</div>
-                  <div className="space-y-1 overflow-y-auto h-[calc(100%-18px)]">
+                <div key={di} className="relative h-20 overflow-hidden bg-bg-secondary border border-border rounded-lg p-1 transition-colors hover:bg-bg-hover flex flex-col">
+                  <div className="text-xs font-semibold text-text-muted mb-1 shrink-0">{dia}</div>
+                  <div className="flex-1 space-y-1 overflow-y-auto">
                     {notas.slice(0, 3).map(n => (
                       <div key={n.id} draggable className="text-xs bg-bg-tertiary rounded px-2 py-0.5 truncate cursor-grab hover:bg-bg-hover">
                         {n.titulo}

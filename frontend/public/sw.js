@@ -99,6 +99,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip service worker for third-party resources (fonts, analytics, etc.)
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   // Network-first for HTML navigation and JS/CSS chunks (avoids stale chunk errors)
   if (event.request.mode === 'navigate' || url.pathname.startsWith('/assets/')) {
     networkFirst(event);

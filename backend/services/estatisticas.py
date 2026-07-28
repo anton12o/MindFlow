@@ -22,18 +22,34 @@ def calcular_estatisticas(mes: int, ano: int, session: Session) -> dict:
         por_dia[dia] = por_dia.get(dia, 0) + 1
 
     limite = (date.today() - timedelta(days=365)).isoformat()
-    todas = session.exec(
+    datas_notas = session.exec(
         select(Nota.criado_em).where(Nota.criado_em >= limite)
     ).all()
-    dias_com_nota: set[str] = set()
-    for n in todas:
-        dias_com_nota.add(n[:10])
+    datas_tarefas = session.exec(
+        select(Tarefa.data).where(Tarefa.data >= limite, Tarefa.status == "feito")
+    ).all()
+    datas_pomodoros = session.exec(
+        select(func.substr(SessaoPomodoro.finalizado_em, 1, 10))
+        .where(SessaoPomodoro.finalizado_em >= limite)
+    ).all()
+    datas_habitos = session.exec(
+        select(RegistroHabito.data).where(RegistroHabito.data >= limite).distinct()
+    ).all()
+    dias_com_atividade: set[str] = set()
+    for d in datas_notas:
+        dias_com_atividade.add(d[:10])
+    for d in datas_tarefas:
+        dias_com_atividade.add(d[:10])
+    for d in datas_pomodoros:
+        dias_com_atividade.add(d)
+    for d in datas_habitos:
+        dias_com_atividade.add(d[:10])
 
     streak = 0
     d = date.today()
     while True:
         chave = d.isoformat()
-        if chave in dias_com_nota:
+        if chave in dias_com_atividade:
             streak += 1
             d -= timedelta(days=1)
         else:
@@ -41,7 +57,7 @@ def calcular_estatisticas(mes: int, ano: int, session: Session) -> dict:
 
     ultimo_dia = calendar.monthrange(ano, mes)[1]
 
-    logger.info("Estatísticas %d/%d: %d notas, streak %d", mes, ano, len(notas), streak)
+    logger.info("Estatísticas %d/%d: %d notas, streak %d (multi-atividade)", mes, ano, len(notas), streak)
 
     return {
         "por_dia": por_dia,

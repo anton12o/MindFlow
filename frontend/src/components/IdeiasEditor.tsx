@@ -8,6 +8,7 @@ import { API_BASE } from '../api/client'
 import { useNotify } from '../store/notification'
 import { wordCount, readTime } from '../utils/wordCount'
 import { evaluarFormula, FormulaError } from '../utils/formulaEvaluator'
+import { useZenMode } from '../contexts/ZenModeContext'
 import VersionHistoryModal from './VersionHistoryModal'
 import { Folder, Scissors, Plus, Star, History, ArrowRight, ArrowLeft, X, CheckSquare, Link2, FileText, Lightbulb, Tag as TagIcon } from 'lucide-react'
 import EditorMarkdown from './EditorMarkdown'
@@ -66,7 +67,7 @@ export default function IdeiasEditor({
   const [showSlash, setShowSlash] = useState(false)
   const [slashQuery, setSlashQuery] = useState('')
   const [headerCollapsed, setHeaderCollapsed] = useState(false)
-  const [zenMode, setZenMode] = useState(false)
+  const { zenMode } = useZenMode()
   const [sugestoes, setSugestoes] = useState<{ tag_id: number; score: number }[]>([])
   const [tagsMap, setTagsMap] = useState<Record<number, Tag>>({})
   const [showVersoes, setShowVersoes] = useState(false)
@@ -107,7 +108,9 @@ export default function IdeiasEditor({
     return () => clearTimeout(timer)
   }, [editando, notaAtual.id, notaAtual.conteudo, notaTagsData])
   useEffect(() => {
-    getTags().then(all => setTagsMap(Object.fromEntries(all.map(t => [t.id, t])))).catch((e) => { console.error('[IdeiasEditor] getTags', e); notify('Erro ao carregar tags') })
+    let ignore = false
+    getTags().then(all => { if (!ignore) setTagsMap(Object.fromEntries(all.map(t => [t.id, t]))) }).catch((e) => { if (!ignore) { console.error('[IdeiasEditor] getTags', e); notify('Erro ao carregar tags') } })
+    return () => { ignore = true }
   }, [])
 
   const tipo = useMemo(() => tipos?.find(t => t.id === notaAtual.tipo_id), [tipos, notaAtual.tipo_id])
@@ -188,12 +191,7 @@ export default function IdeiasEditor({
     return () => el.removeEventListener('scroll', onScroll)
   }, [selectedId])
 
-  // Zen mode toggle via event
-  useEffect(() => {
-    const handler = () => setZenMode(p => !p)
-    window.addEventListener('toggle-zen', handler)
-    return () => window.removeEventListener('toggle-zen', handler)
-  }, [])
+
 
   // Cleanup timers on unmount
   useEffect(() => {
@@ -257,7 +255,7 @@ export default function IdeiasEditor({
         }
       }
     }
-  })
+  }, [dirty, editando, selectedId, saveBeforeSwitchRef])
 
   // Override save status from parent mutation
   const prevSavePending = useRef(savePending)
@@ -344,7 +342,7 @@ export default function IdeiasEditor({
                 const v = e.target.value
                 onSave(selectedId, { tipo_id: v ? Number(v) : null })
               }}
-                className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
+                className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
                 <option value="">Sem tipo</option>
                 {(tipos || []).map(t => <option key={t.id} value={t.id}>{t.icone} {t.nome}</option>)}
               </select>
@@ -354,7 +352,7 @@ export default function IdeiasEditor({
                 const v = e.target.value
                 onSave(selectedId, { pasta_id: v ? Number(v) : null })
               }}
-                className="bg-bg-tertiary rounded px-2 py-0.5 text-xs outline-none">
+                className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
                 <option value="">Sem pasta</option>
                 {(pastas || []).map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
               </select>
@@ -381,7 +379,7 @@ export default function IdeiasEditor({
               {notaTagsData.map(tag => {
                 const bg = tag.cor || '#6B7280'
                 return (
-                  <span key={tag.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-sm text-text-primary"
+                  <span key={tag.id} className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-sm text-text-primary"
                     style={{ backgroundColor: `${bg}15`, border: `1px solid ${bg}44` }}>
                     {tag.nome}
                     {editando && (
@@ -393,13 +391,13 @@ export default function IdeiasEditor({
               })}
               {editando && (
                 <button onClick={onShowTagModal}
-                  className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
+                  className="px-2 py-1 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
               )}
             </span>
           )}
           {editando && (!notaTagsData || notaTagsData.length === 0) && (
             <button onClick={onShowTagModal}
-              className="px-1.5 py-0.5 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
+              className="px-2 py-1 text-xs text-text-muted hover:text-accent rounded-full border border-dashed border-border hover:border-accent/50 inline-flex items-center gap-0.5"><Plus size={10} /> Tag</button>
           )}
           {editando && sugestoes.length > 0 && (
             <span className="flex gap-1 flex-wrap mt-1">
@@ -416,7 +414,7 @@ export default function IdeiasEditor({
                       queryClient.invalidateQueries({ queryKey: ['notaTags', notaAtual.id] })
                       queryClient.invalidateQueries({ queryKey: ['notas'] })
                     } catch (e) { console.error('[IdeiasEditor] addTag', e); notify('Erro ao adicionar tag') }
-                  }} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs text-text-muted cursor-pointer hover:text-text-primary transition-colors"
+                  }} className="inline-flex items-center gap-0.5 px-2 py-1 rounded-full text-xs text-text-muted cursor-pointer hover:text-text-primary transition-colors"
                     style={{ backgroundColor: `${bg}10`, border: `1px dashed ${bg}44` }}
                     title={`Relevância: ${s.score}`}>
                     + {tag.nome}
@@ -431,7 +429,7 @@ export default function IdeiasEditor({
               <div className="flex flex-wrap gap-1 mt-1">
                 {relacionadas.map(n => (
                   <button key={n.id} onClick={() => { const r = notas.find(x => x.id === n.id); if (r) onSelectNota(r) }}
-                    className="px-1.5 py-0.5 text-xs bg-bg-tertiary rounded-full text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
+                    className="px-2 py-1 text-xs bg-bg-tertiary rounded-full text-text-muted hover:text-text-primary hover:bg-bg-hover transition-colors"
                     title={`${n.tags_compartilhadas} tag(s) compartilhada(s) · similaridade ${n.similaridade}`}>
                     {n.titulo}
                   </button>
@@ -470,7 +468,7 @@ export default function IdeiasEditor({
                   {saveStatus === 'success' && <span className="text-xs text-success animate-fade-in">Salvo!</span>}
                   {saveStatus === 'error' && <span className="text-xs text-danger animate-fade-in">Erro</span>}
                   <button onClick={handleSave} disabled={saveStatus === 'saving'}
-                    className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50" title="Salvar (Ctrl+Enter)">
+                    className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg transition-all active:scale-95 disabled:opacity-disabled" title="Salvar (Ctrl+Enter)">
                     {saveStatus === 'saving' ? 'Salvando...' : 'Salvar'}
                   </button>
                 </div>
@@ -485,17 +483,7 @@ export default function IdeiasEditor({
                 className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Anexar arquivo">
                 📎
               </button>
-              <button onClick={() => {
-                if (!selectedId) return
-                window.open(API_BASE + `/notas/${selectedId}/export/md`)
-              }}
-                className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como Markdown">
-                ↓.md
-              </button>
-              <button onClick={() => { if (selectedId) window.open(API_BASE + `/notas/${selectedId}/export/json`) }}
-                className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Exportar como JSON">
-                ↓.json
-              </button>
+
               <button onClick={() => { if (selectedId) setShowVersoes(true) }}
                 className="px-2 py-1.5 bg-bg-tertiary text-text-muted text-xs rounded-lg hover:bg-bg-hover hover:text-text-primary transition-colors" title="Histórico de versões">
                 <History size={14} />
@@ -507,7 +495,7 @@ export default function IdeiasEditor({
               </button>
             </div>
             <button onClick={() => { if (selectedId) onDelete(selectedId) }} disabled={deletePending}
-              className="ml-2 px-4 py-1.5 bg-danger hover:bg-danger/80 text-white text-sm rounded-lg disabled:opacity-50">
+              className="ml-2 px-4 py-1.5 bg-danger hover:bg-danger-hover text-white text-sm rounded-lg disabled:opacity-disabled">
               {deletePending ? 'Excluindo...' : 'Excluir'}
             </button>
           </div>
@@ -552,7 +540,7 @@ export default function IdeiasEditor({
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none mb-2 min-h-[60px]" placeholder="Cole o trecho aqui..." />
               <div className="flex gap-2">
                 <button onClick={handleExtrair} disabled={!extractText.trim()}
-                  className="px-3 py-1 bg-accent text-white text-xs rounded-lg transition-all active:scale-95 disabled:opacity-50">Extrair</button>
+                  className="px-3 py-1 bg-accent text-accent-foreground text-xs rounded-lg transition-all active:scale-95 disabled:opacity-disabled">Extrair</button>
                 <button onClick={() => { setShowExtract(false); setExtractText('') }}
                   className="px-3 py-1 bg-bg-secondary text-text-primary text-xs rounded-lg">Cancelar</button>
               </div>

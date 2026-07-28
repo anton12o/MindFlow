@@ -12,6 +12,8 @@ import { autocompletion, CompletionContext } from '@codemirror/autocomplete'
 import { Bold, Italic, Strikethrough, Code, Sigma, List, ListOrdered, CheckSquare, TextQuote, Link2, Table, Minus, RemoveFormatting, Undo2, Redo2 } from 'lucide-react'
 import { useTheme } from '../store/theme'
 import { htmlToMarkdown } from '../utils/pasteHandler'
+import { tablePreviewPlugin } from './cm6-table-preview'
+import TableEditorModal from './TableEditorModal'
 
 interface Props {
   value: string
@@ -115,6 +117,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
           '.cm-gutters': { minWidth: '16px', borderRight: 'none', backgroundColor: 'transparent' },
           '.cm-foldGutter .cm-gutterElement': { cursor: 'pointer', color: 'var(--color-text-muted)', fontSize: '11px' },
         }),
+        tablePreviewPlugin((from, to, markdown) => editTableRef.current?.(from, to, markdown)),
         autocompletion({
           override: [
             (context: CompletionContext) => {
@@ -174,7 +177,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         annotations: Transaction.addToHistory.of(false),
       })
     }
-  }, [value])
+  }, [value, viewRef])
 
   const handleUndo = useCallback(() => {
     const view = viewRef.current; if (view) undo(view)
@@ -248,13 +251,36 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
     }
   }, [])
 
+  const [tableModalOpen, setTableModalOpen] = useState(false)
+  const [editTableTarget, setEditTableTarget] = useState<{ from: number; to: number; markdown: string } | null>(null)
+  const editTableRef = useRef<(from: number, to: number, markdown: string) => void>()
+
+  editTableRef.current = (from: number, to: number, markdown: string) => {
+    setEditTableTarget({ from, to, markdown })
+    setTableModalOpen(true)
+  }
+
   const handleTable = useCallback(() => {
+    setEditTableTarget(null)
+    setTableModalOpen(true)
+  }, [])
+
+  const handleInsertTable = useCallback((tbl: string) => {
     const view = viewRef.current
     if (!view) return
-    const pos = view.state.selection.main.from
-    const tbl = '| col1 | col2 |\n|------|------|\n|      |      |'
-    view.dispatch({ changes: { from: pos, insert: tbl } })
-  }, [])
+    if (editTableTarget) {
+      view.dispatch({ changes: { from: editTableTarget.from, to: editTableTarget.to, insert: tbl } })
+      setEditTableTarget(null)
+    } else {
+      const pos = view.state.selection.main.from
+      const doc = view.state.doc
+      const line = doc.lineAt(pos)
+      const hasPrevText = line.number > 1 && doc.line(line.number - 1).length > 0
+      const prefix = (hasPrevText || line.from < pos || line.length > 0) ? '\n\n' : ''
+      const suffix = pos < doc.length ? '\n\n' : ''
+      view.dispatch({ changes: { from: pos, insert: `${prefix}${tbl}${suffix}` } })
+    }
+  }, [editTableTarget])
 
   const handleClearFormatting = useCallback(() => {
     const view = viewRef.current
@@ -321,6 +347,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         <button onClick={handleClearFormatting} className={btn} title="Limpar formatação" aria-label="Limpar formatação"><RemoveFormatting size={14} /></button>
       </div>
       <div ref={ref} className="min-h-[calc(100vh-280px)]" />
+      <TableEditorModal isOpen={tableModalOpen} onClose={() => { setTableModalOpen(false); setEditTableTarget(null) }} onInsert={handleInsertTable} initialMarkdown={editTableTarget?.markdown} />
     </div>
   )
 })

@@ -16,7 +16,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   try {
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
+      headers: options?.body instanceof FormData ? options?.headers : { 'Content-Type': 'application/json', ...options?.headers },
       signal: controller.signal,
     })
     let text: string

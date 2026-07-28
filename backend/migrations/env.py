@@ -2,6 +2,7 @@ import sys
 from pathlib import Path
 
 from alembic import context
+from sqlalchemy import text
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -40,6 +41,7 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     with engine.connect() as connection:
+        connection.execute(text("PRAGMA foreign_keys = ON"))
         context.configure(
             connection=connection,
             target_metadata=target_metadata,

@@ -65,14 +65,14 @@ export default function NotaTemplatePicker({ onClose, onSelect }: Props) {
                 <button onClick={() => { setShowForm(false); setNewTitle(''); setNewContent('') }}
                   className="px-3 py-1 text-xs rounded-lg bg-bg-hover text-text-muted hover:text-text-primary transition-colors">Cancelar</button>
                 <button onClick={handleAdd}
-                  className="px-3 py-1 text-xs rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors">Salvar</button>
+                  className="px-3 py-1 text-xs rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover transition-colors">Salvar</button>
               </div>
             </div>
           )}
         </div>
         <div className="p-4 pt-2 overflow-y-auto flex-1 space-y-2">
           {filtered.length === 0 && (
-            <p className="text-sm text-text-muted text-center py-8">
+            <p className="text-sm text-text-muted text-center py-6">
               {search ? 'Nenhum modelo encontrado' : 'Nenhum modelo salvo. Crie um clicando em "+ Novo modelo".'}
             </p>
           )}

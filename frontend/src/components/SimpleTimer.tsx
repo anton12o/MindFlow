@@ -103,7 +103,7 @@ export default function SimpleTimer() {
           <span className="text-lg">min</span>
         </div>
       ) : (
-        <div className="text-5xl font-mono font-bold tabular-nums mb-4 text-accent">
+        <div role="timer" aria-live="polite" className="text-5xl font-mono font-bold tabular-nums mb-4 text-accent">
           {mm}:{ss}
         </div>
       )}
@@ -119,7 +119,7 @@ export default function SimpleTimer() {
             <button onClick={iniciar}
               className="px-6 py-2 bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-all active:scale-95">Retomar</button>
             <button onClick={resetar}
-              className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger/80 transition-all active:scale-95">Resetar</button>
+              className="px-6 py-2 bg-danger text-white rounded-lg hover:bg-danger-hover transition-all active:scale-95">Resetar</button>
           </>
         )}
       </div>

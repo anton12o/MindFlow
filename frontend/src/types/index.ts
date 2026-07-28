@@ -163,6 +163,19 @@ export interface Template {
   criado_em: string
 }
 
+export interface PesosScore {
+  foco: number
+  tarefas: number
+  habitos: number
+  notas: number
+}
+
+export interface MetasScore {
+  focoMin: number
+  tarefas: number
+  notas: number
+}
+
 export interface Config {
   tema: 'claro' | 'escuro' | 'sistema'
   fonteTamanho: number
@@ -171,6 +184,15 @@ export interface Config {
   autoSaveInterval: number
   hiddenSections: string[]
   somAmbiente: boolean
+  primeiroDiaSemana: 'segunda' | 'domingo'
+  modeloPadraoId: string | null
+  ordenacaoPadrao: 'data_desc' | 'data_asc' | 'titulo' | 'modificado'
+  larguraConteudo: 'padrao' | 'largo' | 'cheio'
+  pesosScore: PesosScore
+  metasScore: MetasScore
+  toleranciaStreak: number
+  modoCompacto: boolean
+  zenModeDesativado: boolean
 }
 
 export interface IdeasToolbarProps {

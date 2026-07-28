@@ -106,7 +106,7 @@ export default function HabitoCalendario({ habitoId, cor }: Props) {
             <div
               key={dia}
               onClick={() => handleDayClick(dia)}
-              className={`flex flex-col items-center py-0.5 cursor-pointer transition-colors ${isFuture ? 'opacity-30 cursor-default' : 'hover:bg-bg-hover rounded'}`}
+              className={`flex flex-col items-center py-1 cursor-pointer transition-colors ${isFuture ? 'opacity-30 cursor-default' : 'hover:bg-bg-hover rounded'}`}
             >
               <span className={`text-xs leading-none mb-0.5 ${isToday ? 'font-bold text-accent' : 'text-text-secondary'}`}>
                 {dia}

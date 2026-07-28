@@ -48,7 +48,7 @@ function TarefaItemBase({
           <div className="flex flex-col gap-1 flex-1">
             <div className="flex items-center gap-2">
               <input value={editingTitle} onChange={e => onEditTitleChange(e.target.value)}
-                className="flex-1 bg-bg-primary rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-accent" />
+                className="flex-1 bg-bg-primary rounded px-2 py-1 text-sm outline-none focus-visible:ring-1 focus-visible:ring-accent" />
               <button onClick={onSaveEdit}
                 disabled={isPendingUpdate} className="text-xs text-success disabled:opacity-disabled">{isPendingUpdate ? '...' : 'OK'}</button>
               <button onClick={onCancelEdit} className="text-xs text-text-muted">Cancelar</button>
@@ -60,7 +60,7 @@ function TarefaItemBase({
                 Recorrente
               </label>
               <select value={editingPrioridade} onChange={e => onEditPrioridadeChange(e.target.value)}
-                className="bg-bg-tertiary rounded px-2 py-0.5 text-[10px] outline-none">
+                className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
                 <option value="baixa">{labelPrioridade('baixa')}</option>
                 <option value="normal">{labelPrioridade('normal')}</option>
                 <option value="alta">{labelPrioridade('alta')}</option>
@@ -69,7 +69,7 @@ function TarefaItemBase({
               {editingRecorrente && (
                 <>
                     <select value={editingRecTipo ?? 'daily'} onChange={e => onEditRecTipoChange(e.target.value)}
-                      className="bg-bg-tertiary rounded px-2 py-0.5 text-[10px] outline-none">
+                      className="bg-bg-tertiary rounded px-2 py-1 text-xs outline-none">
                     <option value="daily">Diária</option>
                     <option value="weekly">Semanal</option>
                     <option value="monthly">Mensal</option>
@@ -78,7 +78,7 @@ function TarefaItemBase({
                   <span className="text-xs text-text-muted">a cada</span>
                     <input type="number" min={1} value={editingRecIntervalo}
                       onChange={e => onEditRecIntervaloChange(Math.max(1, Number(e.target.value)))}
-                      className="w-12 bg-bg-tertiary rounded px-2 py-0.5 text-[10px] outline-none text-center" />
+                      className="w-12 bg-bg-tertiary rounded px-2 py-1 text-xs outline-none text-center" />
                 </>
               )}
             </div>
@@ -87,7 +87,7 @@ function TarefaItemBase({
           <>
             <span className={`text-sm flex-1 ${tarefa.status === 'feito' ? 'line-through text-text-muted' : ''}`}>{tarefa.titulo}</span>
             {tarefa.recorrente && <span className="text-xs text-accent" title="Recorrente">🔁</span>}
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${badgePrioridade(tarefa.prioridade)}`}>
+            <span className={`text-xs font-bold px-2 py-1 rounded ${badgePrioridade(tarefa.prioridade)}`}>
               {labelPrioridade(tarefa.prioridade)}
             </span>
             <button onClick={onFocusPomodoro}

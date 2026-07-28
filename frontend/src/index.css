@@ -142,6 +142,50 @@ body {
   animation: check-pop 300ms ease-out;
 }
 
+.cm-table-wrapper {
+  display: block;
+  margin: 12px 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.cm-table-wrapper:hover { opacity: 0.85; }
+.cm-table-render {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 13px;
+  font-family: var(--font-sans);
+}
+.cm-table-render th {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  text-align: left;
+  padding: 6px 10px;
+  border-bottom: 2px solid var(--color-border);
+}
+.cm-table-render td {
+  color: var(--color-text-primary);
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+.cm-table-render tbody tr:last-child td { border-bottom: none; }
+
+.modo-compacto .p-4 { padding: 0.75rem; }
+.modo-compacto .gap-4 { gap: 0.75rem; }
+.modo-compacto .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem; }
+.modo-compacto .rounded-xl { border-radius: 0.5rem; }
+.modo-compacto .p-6 { padding: 1rem; }
+.modo-compacto .gap-6 { gap: 1rem; }
+.modo-compacto .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 1rem; }
+.modo-compacto .p-3 { padding: 0.625rem; }
+
+.max-w-conteudo-padrao { max-width: 56rem; }
+.max-w-conteudo-largo { max-width: 72rem; }
+.max-w-conteudo-cheio { max-width: 100%; }
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-in,
   .animate-slide-up,

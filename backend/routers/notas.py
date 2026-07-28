@@ -442,14 +442,7 @@ def explore_nota(nota_id: int, session: Session = Depends(get_session)):
 
 
 @router.get("/estatisticas")
-def estatisticas_notas(mes: int, ano: int, session: Session = Depends(get_session)):
-    if mes < 1 or mes > 12:
-        return {
-            "por_dia": {},
-            "total_mes": 0,
-            "streak": 0,
-            "ultimo_dia": 0,
-        }
+def estatisticas_notas(mes: int = Query(ge=1, le=12), ano: int = Query(ge=2020), session: Session = Depends(get_session)):
     return calcular_estatisticas(mes, ano, session)
 
 @router.get("/recentes", response_model=list[NotaRead])

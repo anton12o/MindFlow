@@ -2,6 +2,8 @@ import atexit
 import logging
 import os
 import threading
+import uuid
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -17,6 +19,9 @@ router = APIRouter()
 
 BACKUP_DIR = Path(__file__).parent.parent / "data" / "backups"
 DB_PATH = Path(__file__).parent.parent / "mindflow.db"
+
+_pending_shutdown: dict[str, datetime] = {}
+_PENDING_TIMEOUT = timedelta(seconds=30)
 
 
 def cold_backup():
@@ -37,7 +42,21 @@ def _wal_checkpoint():
     except Exception as e:
         logger.warning("WAL checkpoint / VACUUM falhou: %s", e)
 
+
+def _execute_shutdown():
+    _wal_checkpoint()
+    cold_backup()
+    import sys
+    main_mod = sys.modules.get('main')
+    server = getattr(main_mod, '_uvicorn_server', None) if main_mod else None
+    if server:
+        server.should_exit = True
+    else:
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+
+
 atexit.register(_wal_checkpoint)
+atexit.register(cold_backup)
 
 
 @router.post("/db/backup")
@@ -87,16 +106,35 @@ def db_vacuum():
     threading.Thread(target=_vacuum, daemon=True).start()
     return {"ok": True, "mensagem": "Compactação iniciada em segundo plano"}
 
+
 @router.post("/shutdown")
 def shutdown(_rl: None = Depends(shutdown_limiter)):
     logger.info("Recebido pedido de encerramento via API")
-    _wal_checkpoint()
-    cold_backup()
-    import sys
-    main_mod = sys.modules.get('main')
-    server = getattr(main_mod, '_uvicorn_server', None) if main_mod else None
-    if server:
-        server.should_exit = True
-    else:
-        threading.Timer(0.5, lambda: os._exit(0)).start()
+    _execute_shutdown()
+    return {"ok": True}
+
+
+@router.post("/shutdown/init")
+def shutdown_init():
+    token = str(uuid.uuid4())
+    _pending_shutdown[token] = datetime.now()
+    now = datetime.now()
+    expired = [k for k, v in list(_pending_shutdown.items()) if now - v > _PENDING_TIMEOUT]
+    for k in expired:
+        del _pending_shutdown[k]
+    return {"token": token}
+
+
+@router.post("/shutdown/confirm")
+def shutdown_confirm(token: str):
+    if token not in _pending_shutdown:
+        raise HTTPException(status_code=404, detail="Token não encontrado ou expirado")
+    del _pending_shutdown[token]
+    _execute_shutdown()
+    return {"ok": True}
+
+
+@router.post("/shutdown/cancel")
+def shutdown_cancel(token: str):
+    _pending_shutdown.pop(token, None)
     return {"ok": True}

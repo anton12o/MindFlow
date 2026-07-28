@@ -67,14 +67,14 @@ export default function SavedFiltersSection({
       {saved.length > 0 && (
         <div className="space-y-0.5">
           {saved.map((f, i) => (
-            <div key={i} className="group flex items-center gap-1">
+            <div key={f.nome + '-' + f.search + '-' + (f.pastaFilter ?? '') + '-' + f.sortBy} className="group flex items-center gap-1">
               <button onClick={() => onApply(f)}
                 className="flex-1 text-left px-2 py-1 rounded text-xs hover:bg-bg-hover text-text-muted hover:text-text-primary transition-colors truncate flex items-center gap-1">
                 <Search size={10} className="shrink-0" />
                 <span className="truncate">{f.nome}</span>
               </button>
               <button onClick={() => setSaved(prev => prev.filter((_, j) => j !== i))}
-                className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-0.5 rounded transition-opacity">
+                className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger/80 text-xs p-1 rounded transition-opacity">
                 <X size={10} />
               </button>
             </div>

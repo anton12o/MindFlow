@@ -36,14 +36,14 @@ export default function ConfirmModal({ titulo, mensagem, onConfirm, onCancel, co
           <h3 id="confirm-modal-title" className="text-base font-semibold mb-2">{titulo}</h3>
           <p className="text-sm text-text-muted">{mensagem}</p>
         </div>
-        <div className="flex justify-end gap-2 px-5 pb-4">
+        <div className="flex justify-end gap-2 px-4 pb-4">
           <button onClick={onCancel}
             className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
             {cancelLabel}
           </button>
           <button ref={confirmRef} onClick={onConfirm}
             disabled={disabled}
-            className={`px-4 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-disabled ${destructive ? 'bg-danger text-white hover:bg-danger/80' : 'bg-accent text-accent-foreground hover:bg-accent-hover'}`}>
+            className={`px-4 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-disabled ${destructive ? 'bg-danger text-white hover:bg-danger-hover' : 'bg-accent text-accent-foreground hover:bg-accent-hover'}`}>
             {disabled ? 'Aguarde...' : confirmLabel}
           </button>
         </div>

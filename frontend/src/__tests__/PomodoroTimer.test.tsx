@@ -186,8 +186,8 @@ describe('PomodoroTimer', () => {
   it('foco_end exibe resumo e botões', () => {
     resetContext({ screen: 'foco_end' })
     renderTimer()
-    expect(screen.getByText('Pular resumo e iniciar pausa')).toBeInTheDocument()
-    expect(screen.getByText('Salvar resumo e iniciar pausa')).toBeInTheDocument()
+    expect(screen.getByText('Pular')).toBeInTheDocument()
+    expect(screen.getByText('Salvar resumo')).toBeInTheDocument()
   })
 
   it('restore banner aparece quando showRestore', async () => {

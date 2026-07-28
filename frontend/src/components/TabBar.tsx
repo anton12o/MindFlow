@@ -29,7 +29,7 @@ export default function TabBar({ tabs, activeId, notas, onSelect, onClose }: Tab
             <span className="truncate flex-1">{titulo}</span>
             <button
               onClick={e => { e.stopPropagation(); onClose(id) }}
-              className="opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger rounded p-0.5 transition-opacity">
+              className="opacity-0 group-hover:opacity-100 hover:bg-danger/10 hover:text-danger rounded p-1 transition-opacity">
               <X size={10} />
             </button>
           </div>

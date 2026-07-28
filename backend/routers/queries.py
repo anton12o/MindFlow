@@ -8,7 +8,7 @@ from sqlalchemy import text
 from sqlmodel import Session, SQLModel, select
 
 from database import get_session
-from models import Nota, QuerySalva, QuerySalvaCreate, QuerySalvaRead, Tarefa, TipoObjeto
+from models import Nota, QuerySalva, QuerySalvaCreate, QuerySalvaRead, QuerySalvaUpdate, Tarefa, TipoObjeto
 
 from .common import commit_with_handle
 
@@ -60,6 +60,21 @@ NOTA_CAMPOS_PERMITIDOS = {"titulo", "conteudo", "pasta_id", "tipo_id", "propried
 def _tipo_eh_tarefa(tipo_objeto_id: int, session: Session) -> bool:
     tipo = session.get(TipoObjeto, tipo_objeto_id)
     return tipo is not None and tipo.nome == TAREFA_NOME
+@router.patch("/{query_id}", response_model=QuerySalvaRead)
+def update_query(query_id: int, q: QuerySalvaUpdate, session: Session = Depends(get_session)):
+    db = session.get(QuerySalva, query_id)
+    if not db:
+        raise HTTPException(status_code=404, detail="Consulta não encontrada")
+    update_data = q.model_dump(exclude_unset=True)
+    if "visualizacao" in update_data:
+        QuerySalva.check_visualizacao(update_data["visualizacao"])
+    for key, val in update_data.items():
+        setattr(db, key, val)
+    session.add(db)
+    commit_with_handle(session, context="atualizar consulta")
+    session.refresh(db)
+    return db
+
 @router.delete("/{query_id}")
 def delete_query(query_id: int, session: Session = Depends(get_session)):
     db = session.get(QuerySalva, query_id)

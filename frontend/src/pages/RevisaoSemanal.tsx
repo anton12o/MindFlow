@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWeeklyStats, type DiaStats, type PeriodoStats } from '../api/stats'
+import { getWeeklyStats, type DiaStats, type PeriodoStats, type ScoreConfig } from '../api/stats'
+import { useConfig } from '../hooks/useConfig'
 import { createNota } from '../api/notas'
 import { useNavigate } from 'react-router-dom'
 import { useNotify } from '../store/notification'
@@ -94,11 +95,23 @@ const METRICAS_EVOL = [
 
 function EvolucaoSemanal() {
   const [metrica, setMetrica] = useState('total_notas')
+  const { config } = useConfig()
+  const sc: ScoreConfig = {
+    primeiroDia: config.primeiroDiaSemana === 'domingo' ? 6 : 0,
+    pesoFoco: config.pesosScore.foco,
+    pesoTarefas: config.pesosScore.tarefas,
+    pesoHabitos: config.pesosScore.habitos,
+    pesoNotas: config.pesosScore.notas,
+    metaFocoMin: config.metasScore.focoMin,
+    metaTarefas: config.metasScore.tarefas,
+    metaNotas: config.metasScore.notas,
+    streakGrace: config.toleranciaStreak,
+  }
 
   const results = useQueries({
     queries: Array.from({ length: 8 }, (_, i) => ({
       queryKey: ['stats-weekly', -i],
-      queryFn: () => getWeeklyStats(-i),
+      queryFn: () => getWeeklyStats(-i, sc),
       staleTime: 60_000,
     })),
   })
@@ -119,7 +132,7 @@ function EvolucaoSemanal() {
   const metricaDef = METRICAS_EVOL.find(m => m.key === metrica) || METRICAS_EVOL[0]
 
   return (
-    <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+    <section className="bg-bg-secondary/50 rounded-xl p-3 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Evolução Semanal</h2>
         <select value={metrica} onChange={e => setMetrica(e.target.value)}
@@ -210,10 +223,22 @@ export default function RevisaoSemanal() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const notify = useNotify()
+  const { config } = useConfig()
+  const sc: ScoreConfig = {
+    primeiroDia: config.primeiroDiaSemana === 'domingo' ? 6 : 0,
+    pesoFoco: config.pesosScore.foco,
+    pesoTarefas: config.pesosScore.tarefas,
+    pesoHabitos: config.pesosScore.habitos,
+    pesoNotas: config.pesosScore.notas,
+    metaFocoMin: config.metasScore.focoMin,
+    metaTarefas: config.metasScore.tarefas,
+    metaNotas: config.metasScore.notas,
+    streakGrace: config.toleranciaStreak,
+  }
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['stats-weekly', offset],
-    queryFn: () => getWeeklyStats(offset),
+    queryFn: () => getWeeklyStats(offset, sc),
     staleTime: 60_000,
   })
 
@@ -246,33 +271,9 @@ export default function RevisaoSemanal() {
     onError: (e) => { console.error('[RevisaoSemanal]', e); notify('Erro ao criar revisão semanal') },
   })
 
-  const [respostas, setRespostas] = useState(['', '', '', ''])
-  const perguntasReflexao = [
-    'O que funcionou bem esta semana?',
-    'O que poderia ter sido melhor?',
-    'Qual foi o aprendizado mais importante?',
-    'O que você quer focar na próxima semana?',
-  ]
-
-  const salvarReflexao = useMutation({
-    mutationFn: () => {
-      const linhas = [`# Reflexão Semanal`, '', `> ${formatRange(semana.inicio, semana.fim)}`, '']
-      respostas.forEach((r, i) => {
-        if (r.trim()) {
-          linhas.push(`## ${perguntasReflexao[i]}`, '', r, '')
-        }
-      })
-      return createNota({ titulo: `Reflexão Semanal 📝 ${semana.inicio}`, conteudo: linhas.join('\n') })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notas'] })
-    },
-    onError: (e) => { console.error('[RevisaoSemanal]', e); notify('Erro ao salvar reflexão') },
-  })
-
   if (isLoading) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className="p-6 space-y-6">
         <h1 className="text-xl font-bold">Revisão Semanal</h1>
         <div className="animate-pulse space-y-4">
           <div className="h-24 bg-bg-secondary rounded-xl" />
@@ -285,7 +286,7 @@ export default function RevisaoSemanal() {
 
   if (error || !data) {
     return (
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="p-6">
         <h1 className="text-xl font-bold mb-4">Revisão Semanal</h1>
         <p className="text-danger">Erro ao carregar dados da semana. <button onClick={() => refetch()} className="text-accent hover:underline ml-2">Tentar novamente</button></p>
       </div>
@@ -317,7 +318,7 @@ export default function RevisaoSemanal() {
     .map(k => ({ key: k, label: scoreMessages[k], atual: score[k], max: maxScores[k] }))
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6 animate-fade-in">
+    <div className="p-6 space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold">Revisão Semanal</h1>
@@ -335,7 +336,7 @@ export default function RevisaoSemanal() {
             <button
               onClick={() => setOffset(o => o + 1)}
               disabled={offset >= 0}
-              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded text-text-muted hover:text-text-primary hover:bg-bg-hover disabled:opacity-disabled-heavy disabled:cursor-not-allowed transition-colors"
               title="Próxima semana"
             >
               <ChevronRight size={16} />
@@ -346,7 +347,7 @@ export default function RevisaoSemanal() {
           <button
             onClick={() => criarRevisao.mutate()}
             disabled={criarRevisao.isPending}
-            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-all active:scale-95"
+            className="px-3 py-1.5 text-sm bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover disabled:opacity-disabled transition-all active:scale-95"
           >
             {criarRevisao.isPending ? 'Criando...' : 'Criar nota de revisão'}
           </button>
@@ -375,7 +376,7 @@ export default function RevisaoSemanal() {
         <MetricCard label="Foco" value={semana.total_minutos_foco} passada={semana_passada.total_minutos_foco} suffix="min" title="Soma de duracao_min por finalizado_em" />
       </div>
 
-      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+      <section className="bg-bg-secondary/50 rounded-xl p-3 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Comparativo com a semana passada</h2>
         <ComparativoMetrica label="Notas criadas" atual={semana.total_notas} passada={semana_passada.total_notas} />
         <ComparativoMetrica label="Tarefas concluídas" atual={semana.total_tarefas} passada={semana_passada.total_tarefas} />
@@ -397,7 +398,7 @@ export default function RevisaoSemanal() {
       </section>
 
       {/* Score composto */}
-      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+      <section className="bg-bg-secondary/50 rounded-xl p-3 space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Score da Semana</h2>
           <span className={`text-3xl font-bold tabular-nums ${scoreColor}`}>{score.total}/100</span>
@@ -420,7 +421,7 @@ export default function RevisaoSemanal() {
 
       {/* Lacunas */}
       {lacunas.length > 0 && (
-        <section className="bg-danger/5 border border-danger/10 rounded-xl p-4 space-y-3">
+        <section className="bg-danger/5 border border-danger/10 rounded-xl p-3 space-y-3">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Oportunidades de melhoria</h2>
           <div className="space-y-2">
             {lacunas.map(l => (
@@ -433,7 +434,7 @@ export default function RevisaoSemanal() {
         </section>
       )}
 
-      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+      <section className="bg-bg-secondary/50 rounded-xl p-3 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Atividade por dia</h2>
         <div className="flex items-end gap-1.5 h-32">
           {semana.dias.map(d => {
@@ -448,7 +449,7 @@ export default function RevisaoSemanal() {
                   {d.tarefas > 0 && <div className="w-full bg-success rounded-sm" style={{ height: `${(d.tarefas / total) * 100}%`, minHeight: '4px' }} title={`${d.tarefas} tarefas`} />}
                   {d.pomodoros > 0 && <div className="w-full bg-warning rounded-sm" style={{ height: `${(d.pomodoros / total) * 100}%`, minHeight: '4px' }} title={`${d.pomodoros} pomodoros`} />}
                 </div>
-                <span className="text-[10px] text-text-muted leading-none">{label}</span>
+                <span className="text-xs text-text-muted leading-none">{label}</span>
               </div>
             )
           })}
@@ -463,7 +464,7 @@ export default function RevisaoSemanal() {
       {/* Evolução semanal */}
       <EvolucaoSemanal />
 
-      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-2">
+      <section className="bg-bg-secondary/50 rounded-xl p-3 space-y-2">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Detalhamento diário</h2>
         <div className="space-y-1">
           {semana.dias.length === 0 ? (
@@ -476,34 +477,7 @@ export default function RevisaoSemanal() {
         </div>
       </section>
 
-      <section className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
-        <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Reflexão</h2>
-        <div className="space-y-3">
-          {perguntasReflexao.map((p, i) => (
-            <div key={i}>
-              <p className="text-xs text-text-muted mb-1">{p}</p>
-              <textarea
-                value={respostas[i]}
-                onChange={e => setRespostas(prev => { const next = [...prev]; next[i] = e.target.value; return next })}
-                className="w-full bg-bg-primary border border-border rounded-lg p-2 text-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-accent/50 min-h-[60px]"
-                placeholder="Digite sua reflexão..."
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-3 pt-1">
-          <button
-            onClick={() => salvarReflexao.mutate()}
-            disabled={salvarReflexao.isPending || respostas.every(r => !r.trim())}
-            className="px-3 py-1.5 text-sm bg-accent text-white rounded-lg hover:bg-accent-hover disabled:opacity-50 transition-all active:scale-95"
-          >
-            {salvarReflexao.isPending ? 'Salvando...' : 'Salvar reflexão'}
-          </button>
-          {salvarReflexao.isSuccess && (
-            <span className="text-xs text-success animate-fade-in">✅ Nota criada!</span>
-          )}
-        </div>
-      </section>
+
     </div>
   )
 }

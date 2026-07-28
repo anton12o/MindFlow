@@ -1,6 +1,5 @@
-import { memo, useState, useRef, type ReactNode } from 'react'
+import { memo, useRef, type ReactNode } from 'react'
 import KebabMenu from './KebabMenu'
-import ConfirmModal from '../ConfirmModal'
 import type { Tarefa } from '../../types'
 
 interface TaskCardProps {
@@ -27,7 +26,6 @@ const CHECKBOX_STYLES: Record<string, string> = {
 const TaskCard = memo(function TaskCard({ tarefa, externalScore, onScoreClick, children, onToggleStatus, onDelete, onLimparQuadrante, onCriarNota, onIniciarPomodoro, quadrante, extraKebabItems }: TaskCardProps) {
   const concluida = tarefa.status === 'feito'
   const checkboxStyle = quadrante ? (CHECKBOX_STYLES[quadrante] || 'border-text-muted border-2') : 'border-text-muted border-2'
-  const [confirmDelete, setConfirmDelete] = useState(false)
   const toggleDebounce = useRef(false)
   const handleToggleClick = (e: React.MouseEvent) => {
     e.stopPropagation()
@@ -89,7 +87,7 @@ const TaskCard = memo(function TaskCard({ tarefa, externalScore, onScoreClick, c
             </button>
           )}
           {quadrante === 'eliminar' && onDelete && (
-            <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true) }}
+            <button onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id) }}
               className="shrink-0 text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
               title="Excluir tarefa" aria-label="Excluir tarefa">
               {'\u2715'} Excluir
@@ -104,21 +102,11 @@ const TaskCard = memo(function TaskCard({ tarefa, externalScore, onScoreClick, c
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 text-xs text-text-muted">
+      <div className="flex items-center gap-2 text-[10px] text-text-muted">
         <span>{tarefa.data}</span>
         {tarefa.tempo_estimado && <span>{tarefa.tempo_estimado}min</span>}
       </div>
       {children}
-      {confirmDelete && (
-        <ConfirmModal
-          titulo="Excluir tarefa"
-          mensagem={`Tem certeza que deseja excluir "${tarefa.titulo}"?`}
-          onConfirm={() => { setConfirmDelete(false); onDelete?.(tarefa.id) }}
-          onCancel={() => setConfirmDelete(false)}
-          confirmLabel="Sim, excluir"
-          destructive
-        />
-      )}
     </div>
   )
 })

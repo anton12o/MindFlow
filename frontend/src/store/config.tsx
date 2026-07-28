@@ -11,6 +11,15 @@ const DEFAULTS: Config = {
   autoSaveInterval: 2,
   hiddenSections: [],
   somAmbiente: true,
+  primeiroDiaSemana: 'segunda',
+  modeloPadraoId: null,
+  ordenacaoPadrao: 'data_desc',
+  larguraConteudo: 'padrao',
+  pesosScore: { foco: 25, tarefas: 25, habitos: 25, notas: 25 },
+  metasScore: { focoMin: 300, tarefas: 20, notas: 10 },
+  toleranciaStreak: 0,
+  modoCompacto: false,
+  zenModeDesativado: false,
 }
 
 function loadConfig(): Config {
