@@ -103,13 +103,13 @@ export default function Ideias() {
       if (target) selectNota(target)
     }
   }, [searchParams, notas, tabState.activeId])
-  const { data: conexoes, isLoading: conexLoad, isError: conexErr } = useQuery({
+  const { data: conexoes } = useQuery({
     queryKey: ['conexoes', tabState.activeId],
     queryFn: ({ queryKey }) => getConexoes(queryKey[1] as number),
     enabled: !!tabState.activeId,
     staleTime: 120_000,
   })
-  const { data: notaTagsData, isLoading: tagsLoad, isError: tagsErr } = useQuery({
+  const { data: notaTagsData } = useQuery({
     queryKey: ['notaTags', tabState.activeId],
     queryFn: ({ queryKey }) => getNotaTags(queryKey[1] as number),
     enabled: !!tabState.activeId,

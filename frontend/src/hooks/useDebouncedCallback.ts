@@ -3,8 +3,8 @@ import { useCallback, useRef, useEffect } from 'react'
 export function useDebouncedCallback<T extends (...args: unknown[]) => void>(fn: T, delay: number): T {
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const fnRef = useRef(fn)
-  fnRef.current = fn
 
+  useEffect(() => { fnRef.current = fn })
   useEffect(() => {
     return () => { clearTimeout(timerRef.current) }
   }, [])

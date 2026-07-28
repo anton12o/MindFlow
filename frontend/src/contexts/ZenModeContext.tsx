@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import { useConfig } from '../store/config'
 
@@ -11,30 +12,27 @@ const ZenModeContext = createContext<ZenModeContextType | null>(null)
 export function ZenModeProvider({ children }: { children: ReactNode }) {
   const { config } = useConfig()
   const disabled = config.zenModeDesativado
-  const [zenMode, setZenMode] = useState(() => {
-    if (disabled) return false
+  const [internalZen, setInternalZen] = useState(() => {
     try { return localStorage.getItem('mindflow_zen_mode') === 'true' } catch { return false }
   })
 
-  useEffect(() => {
-    if (disabled) setZenMode(false)
-  }, [disabled])
+  const zenMode = disabled ? false : internalZen
 
   useEffect(() => {
-    try { localStorage.setItem('mindflow_zen_mode', String(zenMode)) } catch { /* silent */ }
-  }, [zenMode])
+    try { localStorage.setItem('mindflow_zen_mode', String(internalZen)) } catch { /* silent */ }
+  }, [internalZen])
 
   useEffect(() => {
-    const handler = () => { if (!disabled) setZenMode(p => !p) }
+    const handler = () => { if (!disabled) setInternalZen(p => !p) }
     window.addEventListener('toggle-zen', handler)
     return () => window.removeEventListener('toggle-zen', handler)
   }, [disabled])
 
   const toggleZen = useCallback(() => {
-    setZenMode(p => !p)
+    setInternalZen(p => !p)
   }, [])
 
-  const value = { zenMode: disabled ? false : zenMode, toggleZen: disabled ? (() => {}) : toggleZen }
+  const value = { zenMode, toggleZen: disabled ? (() => {}) : toggleZen }
 
   return (
     <ZenModeContext.Provider value={value}>
