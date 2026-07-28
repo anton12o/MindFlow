@@ -120,7 +120,7 @@ def _repair_migrations():
         return True
     except Exception as e:
         err = str(e).lower()
-        if "duplicate column" not in err:
+        if "already exists" not in err and "duplicate column" not in err:
             logger.error("Falha na abordagem 2: %s", e)
             return False
 
