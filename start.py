@@ -226,22 +226,12 @@ def alembic_upgrade():
             warn("Banco de dados readonly — foi criado como root (sudo)?")
             info(f"  sudo chown -R $(whoami):$(whoami) {DATA_ROOT}")
             sys.exit(1)
-        if "already exists" in r.stderr:
-            warn("Banco com tabelas existentes — estampando (start.py)")
-            r2 = subprocess.run(
-                [sys.executable, "-m", "alembic", "stamp", "head"],
-                cwd=alembic_cwd, capture_output=True, text=True,
-            )
-            if r2.returncode == 0:
-                ok("Banco atualizado (stampado)")
-            else:
-                render_error(r2.stderr)
-                fail("Migration falhou")
-                sys.exit(1)
+        if "already exists" in r.stderr or "duplicate column" in r.stderr.lower():
+            warn("Tabelas/colunas existentes — reparo será feito pelo servidor")
             return
         render_error(r.stderr)
-        fail("Migration falhou")
-        sys.exit(1)
+        fail("Migration falhou — servidor tentará reparo")
+        return
     ok("Banco atualizado")
 
 

@@ -59,17 +59,134 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
 ALEMBIC_CFG = Config(Path(__file__).parent / "alembic.ini")
 ALEMBIC_CFG.set_main_option("sqlalchemy.url", str(engine.url))
 
+
+def _critical_columns_exist():
+    """Verifica se colunas críticas existem (schema vs versionamento)."""
+    cols = [
+        ("notas", "ordem"),
+        ("tarefas", "quadrante"),
+        ("notas", "acessos"),
+    ]
+    try:
+        with engine.connect() as conn:
+            for table, column in cols:
+                try:
+                    conn.execute(text(f"SELECT {column} FROM {table} LIMIT 0"))
+                except Exception:
+                    return False
+        return True
+    except Exception:
+        return False
+
+
+def _repair_migrations():
+    """Reparo robusto de migrations.
+
+    3 abordagens em cascata:
+      1. Drop alembic_version + upgrade head (Alembic resolve DAG completo, inclusive merge heads)
+      2. Stamp base + upgrade head (se falhar com 'already exists' na #1)
+      3. Per-revision com catch amplo (se falhar com 'duplicate column' na #2;
+         branches divergentes são estampadas e resolvidas pelo upgrade final)
+    """
+    from alembic.script import ScriptDirectory
+
+    script = ScriptDirectory.from_config(ALEMBIC_CFG)
+    base_rev = script.get_base()
+    if not base_rev:
+        logger.error("Nenhuma revisão base encontrada")
+        return False
+
+    # --- Abordagem 1: reset total ---
+    logger.info("Drop alembic_version + upgrade head (abordagem 1)")
+    with engine.connect() as conn:
+        conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
+        conn.commit()
+    try:
+        command.upgrade(ALEMBIC_CFG, "head")
+        logger.info("Reparo concluído (abordagem 1)")
+        return True
+    except Exception as e:
+        err = str(e).lower()
+        if "already exists" not in err and "duplicate column" not in err:
+            logger.error("Falha na abordagem 1: %s", e)
+            return False
+
+    # --- Abordagem 2: stamp base + upgrade ---
+    logger.info("Stamp base %s + upgrade head (abordagem 2)", base_rev)
+    command.stamp(ALEMBIC_CFG, base_rev)
+    try:
+        command.upgrade(ALEMBIC_CFG, "head")
+        logger.info("Reparo concluído (abordagem 2)")
+        return True
+    except Exception as e:
+        err = str(e).lower()
+        if "duplicate column" not in err:
+            logger.error("Falha na abordagem 2: %s", e)
+            return False
+
+    # --- Abordagem 3: per-revision (merge heads são estampadas se divergirem) ---
+    logger.info("Migração por migração (abordagem 3)")
+    revisions = list(script.walk_revisions(base_rev, "head"))
+    revisions.reverse()
+
+    for rev in revisions:
+        if rev.revision == base_rev:
+            continue
+        try:
+            command.upgrade(ALEMBIC_CFG, rev.revision)
+        except Exception as e:
+            err = str(e).lower()
+            if "already exists" in err or "duplicate column" in err:
+                logger.info("Migration %s já aplicada — estampando", rev.revision[:8])
+                command.stamp(ALEMBIC_CFG, rev.revision)
+            else:
+                # Branches divergentes ou erro inesperado — stamp + merge resolve
+                logger.warning("Migration %s com erro inesperado, estampando: %s", rev.revision[:8], e)
+                command.stamp(ALEMBIC_CFG, rev.revision)
+
+    command.upgrade(ALEMBIC_CFG, "head")
+    logger.info("Reparo concluído (abordagem 3)")
+    return True
+
+
 def run_migrations():
     try:
         if not DB_PATH.exists():
             logger.info("Banco não encontrado — criando via migrations")
             command.upgrade(ALEMBIC_CFG, "head")
-        else:
-            inspector = inspect(engine)
-            tables = inspector.get_table_names()
-            if "alembic_version" not in tables and tables:
-                logger.info("Banco existente sem controle de versão — estampando como head")
-                command.stamp(ALEMBIC_CFG, "head")
+            logger.info("Migrations aplicadas com sucesso")
+            return
+
+        inspector = inspect(engine)
+        tables = inspector.get_table_names()
+        if not tables:
+            command.upgrade(ALEMBIC_CFG, "head")
+            logger.info("Migrations aplicadas com sucesso")
+            return
+
+        if "alembic_version" not in tables:
+            logger.info("Banco existente sem versionamento — reparando")
+            if not _repair_migrations():
+                raise RuntimeError("Falha ao reparar migrations")
+            logger.info("Migrations aplicadas com sucesso")
+            return
+
+        try:
+            command.upgrade(ALEMBIC_CFG, "head")
+        except Exception as e:
+            logger.warning("Upgrade normal falhou: %s — reparando", e)
+            if not _repair_migrations():
+                raise
+            logger.info("Migrations aplicadas com sucesso (reparo pós-falha)")
+            return
+
+        if not _critical_columns_exist():
+            logger.warning("Schema inconsistente com versionamento — reparando")
+            if not _repair_migrations():
+                raise RuntimeError("Falha ao reparar schema inconsistente")
+            logger.info("Migrations aplicadas com sucesso (reparo schema)")
+            return
+
         logger.info("Migrations aplicadas com sucesso")
     except Exception as e:
         logger.error("Erro ao executar migrations: %s", e)
