@@ -90,7 +90,7 @@ export default function TagsPage({ compact }: { compact?: boolean }) {
         <Tag size={16} className="text-text-muted shrink-0" />
         <input value={newNome} onChange={e => setNewNome(e.target.value)}
           placeholder="Nova tag..." maxLength={50}
-          className="flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent" />
+          className="flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-1 focus-visible:ring-accent" />
         <input type="color" value={newCor} onChange={e => setNewCor(e.target.value)}
           className="w-8 h-8 rounded cursor-pointer border border-border" />
         <button type="submit" disabled={createMut.isPending || !newNome.trim()}
@@ -99,7 +99,7 @@ export default function TagsPage({ compact }: { compact?: boolean }) {
         </button>
       </form>
 
-      <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
+      <div className="bg-bg-secondary rounded-xl border border-border p-3 space-y-3">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Tags existentes ({tagsWithCount.length})</h2>
         {isLoading ? (
           <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-10 bg-bg-tertiary rounded-lg animate-pulse" />)}</div>
@@ -113,7 +113,7 @@ export default function TagsPage({ compact }: { compact?: boolean }) {
                   <>
                     <input ref={editRef} value={editNome} onChange={e => setEditNome(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveEdit(t.id); if (e.key === 'Escape') setEditingId(null) }}
-                      className="flex-1 bg-bg-primary rounded px-2 py-1 text-sm outline-none focus:ring-1 focus:ring-accent" />
+                      className="flex-1 bg-bg-primary rounded px-2 py-1 text-sm outline-none focus-visible:ring-1 focus-visible:ring-accent" />
                     <input type="color" value={editCor} onChange={e => setEditCor(e.target.value)}
                       className="w-7 h-7 rounded cursor-pointer border border-border" />
                     <button onClick={() => saveEdit(t.id)} disabled={updateMut.isPending}
@@ -141,7 +141,7 @@ export default function TagsPage({ compact }: { compact?: boolean }) {
       </div>
 
       {mergeOrigem && tags && (
-        <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
+        <div className="bg-bg-secondary rounded-xl border border-border p-3 space-y-3">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Mesclar tag</h2>
           <p className="text-xs text-text-muted">Mesclar associaÃ§Ãµes de uma tag em outra (a origem serÃ¡ excluÃ­da).</p>
           <div className="flex items-center gap-2">

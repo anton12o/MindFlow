@@ -2,29 +2,19 @@ import { useEffect, useRef, useState, memo, startTransition } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { createNota } from '../api/notas'
-import { usePomodoroContext, type Fase, type PomodoroScreen } from '../store/pomodoro'
+import { usePomodoroContext, canTransition, type Fase } from '../store/pomodoro'
 import { useNotify, useDnd } from '../store/notification'
-import { startAmbient, stopAmbient } from '../utils/ambientSound'
 import { useConfig } from '../store/config'
 import PomodoroConfigPanel from './PomodoroConfigPanel'
 import PomodoroResumoForm from './PomodoroResumoForm'
 import ConfirmModal from './ConfirmModal'
+import request from '../api/client'
+import { useAmbientSound } from '../hooks/useAmbientSound'
+import PomodoroRestoreBanner from './PomodoroRestoreBanner'
 
 interface Props {
   contexto?: { tipo: string; id: number; nome: string }
   onFinalizar?: () => void
-}
-
-function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
-  const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
-    idle: ['running', 'livre'],
-    running: ['idle', 'pausado', 'foco_end', 'pausa_end'],
-    pausado: ['idle', 'running'],
-    livre: ['idle'],
-    foco_end: ['idle', 'running'],
-    pausa_end: ['idle', 'running'],
-  }
-  return valid[de].includes(para)
 }
 
 const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Props) {
@@ -52,7 +42,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
 
   const HB_KEY = 'mindflow_pomodoro_heartbeat'
   const [showRestore, setShowRestore] = useState(false)
-  const [heartbeatData, setHeartbeatData] = useState<{ screen: string; remainingMs: number; minutos: number; segundos: number; interrupcoes: string[]; contextoTipo: string | null; contextoId: number | null; fase: Fase; cicloAtual: number } | null>(null)
+  const [heartbeatData, setHeartbeatData] = useState<{ screen: string; remainingMs: number; minutos: number; segundos: number; interrupcoes: string[]; contextoTipo: string | null; contextoId: number | null; fase: Fase; cicloAtual: number; sessaoId: number | null } | null>(null)
 
   useEffect(() => {
     try {
@@ -64,7 +54,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
             return
           }
           if (Date.now() - data.savedAt < 2 * 60 * 60 * 1000) {
-            startTransition(() => { setHeartbeatData(data); setShowRestore(true) })
+            startTransition(() => { setHeartbeatData(data as typeof heartbeatData); setShowRestore(true) })
             return
           }
         }
@@ -88,30 +78,9 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     setDndActive(config.dnd && (screen === 'running' || screen === 'livre'))
   }, [config.dnd, screen, setDndActive])
 
-  const [ambientOn, setAmbientOn] = useState(false)
-  useEffect(() => {
-    if (!appConfig.config.somAmbiente) {
-      if (ambientOn) { stopAmbient(); setAmbientOn(false) }
-      return
-    }
-    if (screen === 'running' || screen === 'livre') {
-      if (!ambientOn) {
-        const aCtx = audioCtxRef.current
-        if (aCtx && aCtx.state !== 'closed') {
-          startAmbient(aCtx)
-          setAmbientOn(true)
-        }
-      }
-    } else {
-      if (ambientOn) {
-        stopAmbient()
-        setAmbientOn(false)
-      }
-    }
-    return () => { if (ambientOn) { stopAmbient(); setAmbientOn(false) } }
-  }, [screen, appConfig.config.somAmbiente])
+  const { ambientOn } = useAmbientSound(screen, appConfig.config.somAmbiente, audioCtxRef)
 
-  const [taskInput, setTaskInput] = useState('')
+  const taskInputRef = useRef('')
   const [interrupcaoInput, setInterrupcaoInput] = useState('')
   const [showStopConfirm, setShowStopConfirm] = useState(false)
 
@@ -128,7 +97,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     onError: (e) => { console.error('[PomodoroTimer] finalizar', e); notify('Erro ao finalizar sessão') },
   })
 
-  function handleFinalizar(comResumo: boolean) {
+  function handleFinalizar(comResumo: boolean, onDone?: () => void) {
     if (sessaoId) {
       finalizarMut.mutate(
         { id: sessaoId, body: { conteudo_resumo: comResumo && resumo ? resumo : undefined, contexto_nome: contexto?.nome } },
@@ -136,6 +105,8 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
           onSuccess: () => {
             onFinalizar?.()
             clearHeartbeat()
+            dispatch({ type: 'SET_SESSAO_ID', sessaoId: null })
+            onDone?.()
           },
         },
       )
@@ -228,7 +199,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
     dispatch({ type: 'SET_SCREEN', screen: 'running' })
   }
 
-  function handleStart() {
+  function handleStart(minutosOverride?: number) {
     if (createSessaoMut.isPending) return
     if (!canTransition(screen, 'running')) return
     if (!audioCtxRef.current) {
@@ -237,24 +208,38 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       audioCtxRef.current.resume()
     }
     cancelRef.current = false
-    createSessaoMut.mutate(
-      {
-        contexto_tipo: contexto?.tipo || (taskInput.trim() ? 'tarefa' : 'livre'),
-        contexto_id: contexto?.id || null,
-        duracao_min: minutos,
-      },
-      {
-        onSuccess: (s) => {
-          if (cancelRef.current) { finalizarSessao(s.id, {}); return }
-          clearHeartbeat()
-          dispatch({ type: 'SET_SESSAO_ID', sessaoId: s.id })
-          startedAtRef.current = Date.now()
-          dispatch({ type: 'SET_ATIVO', ativo: true })
-          dispatch({ type: 'SET_SCREEN', screen: 'running' })
-          dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: [] })
-        },
-      },
-    )
+    const ctipo = contexto?.id ? contexto.tipo : (taskInputRef.current.trim() ? 'tarefa' : 'livre')
+    const cid = contexto?.id || null
+    const duracao = minutosOverride ?? minutos
+    async function start() {
+      if (contexto?.id) {
+        try {
+          await request(`/${contexto.tipo}s/${contexto.id}`)
+        } catch {
+          notify('Contexto não encontrado — iniciando sessão livre', 'warning')
+          createSessaoMut.mutate({ contexto_tipo: taskInputRef.current.trim() ? 'tarefa' : 'livre', contexto_id: null, duracao_min: duracao }, { onSuccess })
+          return
+        }
+      }
+      createSessaoMut.mutate({ contexto_tipo: ctipo, contexto_id: cid, duracao_min: duracao }, { onSuccess })
+    }
+    function onSuccess(s: { id: number }) {
+      if (cancelRef.current) { finalizarSessao(s.id, {}); return }
+      clearHeartbeat()
+      dispatch({ type: 'SET_SESSAO_ID', sessaoId: s.id })
+      startedAtRef.current = Date.now()
+      dispatch({ type: 'SET_ATIVO', ativo: true })
+      dispatch({ type: 'SET_SCREEN', screen: 'running' })
+      dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: [] })
+    }
+    start()
+  }
+
+  function handleSnooze() {
+    dispatch({ type: 'SET_TIMER', minutos: 5, segundos: 0 })
+    dispatch({ type: 'SET_SCREEN', screen: 'running' })
+    dispatch({ type: 'SET_ATIVO', ativo: true })
+    startedAtRef.current = Date.now()
   }
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`
@@ -269,11 +254,22 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   function handleRestore() {
     if (!heartbeatData) return
     const { fase: hFase, cicloAtual: hCiclo, minutos: hMin, segundos: hSeg,
-            interrupcoes: hInt, remainingMs, contextoTipo, contextoId } = heartbeatData
+            interrupcoes: hInt, remainingMs, contextoTipo, contextoId, sessaoId: hSessaoId } = heartbeatData
     dispatch({ type: 'SET_FASE', fase: hFase })
     dispatch({ type: 'SET_CICLO', ciclo: hCiclo })
     dispatch({ type: 'SET_TIMER', minutos: hMin, segundos: hSeg })
     dispatch({ type: 'SET_INTERRUPCOES', interrupcoes: hInt || [] })
+    if (hSessaoId) {
+      dispatch({ type: 'SET_SESSAO_ID', sessaoId: hSessaoId })
+      const phaseMs = (hFase === 'foco' ? config.focoMin : hFase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+      startedAtRef.current = Date.now() - Math.max(0, phaseMs - remainingMs)
+      dispatch({ type: 'SET_ATIVO', ativo: true })
+      dispatch({ type: 'SET_SCREEN', screen: 'running' })
+      clearHeartbeat()
+      setShowRestore(false)
+      setHeartbeatData(null)
+      return
+    }
     cancelRef.current = false
     createSessaoMut.mutate(
       {
@@ -300,25 +296,15 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   return (
     <div className="flex flex-col items-center gap-4 w-full max-w-md">
       {showRestore && heartbeatData && (
-        <div className="w-full bg-bg-secondary border border-border rounded-lg p-4 text-center animate-fade-in">
-          <p className="text-sm text-text-primary mb-3">Sessão interrompida detectada ({heartbeatData.minutos}:{String(heartbeatData.segundos).padStart(2, '0')} restantes)</p>
-          <div className="flex gap-2 justify-center">
-            <button onClick={() => { clearHeartbeat(); setShowRestore(false); setHeartbeatData(null) }}
-              className="px-4 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
-              Descartar
-            </button>
-            <button onClick={handleRestore}
-              className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-colors">
-              Continuar sessão
-            </button>
-          </div>
-        </div>
+        <PomodoroRestoreBanner minutos={heartbeatData.minutos} segundos={heartbeatData.segundos}
+          onDiscard={() => { clearHeartbeat(); setShowRestore(false); setHeartbeatData(null) }}
+          onRestore={handleRestore} />
       )}
       <div className="flex items-center gap-4 w-full">
         {contexto && (
           <span className="text-sm text-text-secondary truncate max-w-[150px]">{contexto.nome}</span>
         )}
-        <span className={`text-4xl font-mono font-bold tabular-nums ${screen === 'running' || screen === 'livre' ? 'text-accent' : 'text-text-primary'}`}>{display}</span>
+        <span role="timer" aria-live="polite" className={`text-4xl font-mono font-bold tabular-nums ${screen === 'running' || screen === 'livre' ? 'text-accent' : 'text-text-primary'}`}>{display}</span>
         <div className="flex items-center gap-2">
           {screen === 'idle' && (
             <>
@@ -326,7 +312,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
                 className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
                 Iniciar
               </button>
-              <button onClick={() => { dispatch({ type: 'SET_TIMER', minutos: config.descansoMin, segundos: 0 }); handleStart() }}
+              <button onClick={() => { dispatch({ type: 'SET_TIMER', minutos: config.descansoMin, segundos: 0 }); handleStart(config.descansoMin) }}
                 className="px-3 py-2 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
                 ☕ {config.descansoMin}min
               </button>
@@ -355,7 +341,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
             </>
           )}
           {screen === 'livre' && (
-            <button onClick={handleStopClick} className="px-4 py-2 bg-danger text-white text-sm rounded-lg hover:bg-danger/80 transition-colors">
+            <button onClick={handleStopClick} className="px-4 py-2 bg-danger text-white text-sm rounded-lg hover:bg-danger-hover transition-colors">
               Parar
             </button>
           )}
@@ -365,8 +351,8 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       {!contexto && screen === 'idle' && (
         <div className="w-full">
           <input
-            value={taskInput}
-            onChange={e => setTaskInput(e.target.value)}
+            defaultValue={taskInputRef.current}
+            onChange={e => { taskInputRef.current = e.target.value }}
             placeholder="O que você vai fazer neste ciclo? (Opcional)"
             className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
           />
@@ -398,7 +384,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
           {interrupcoes.length > 0 && (
             <ul className="mt-1 space-y-0.5">
               {interrupcoes.map((item, i) => (
-                <li key={i} className="text-xs text-text-muted flex items-start gap-1">
+                <li key={item + '-' + i} className="text-xs text-text-muted flex items-start gap-1">
                   <span className="mt-0.5">•</span>
                   <span>{item}</span>
                 </li>
@@ -426,8 +412,8 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         <PomodoroResumoForm resumo={resumo} setResumo={(r) => dispatch({ type: 'SET_RESUMO', resumo: r })}
           distracoes={distracoes} interrupcoes={interrupcoes}
           isPending={finalizarMut.isPending}
-          onPular={() => { handleFinalizar(false); dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false }) }}
-          onSalvar={() => { handleFinalizar(true); dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false }) }} />
+          onPular={() => { handleFinalizar(false, () => dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false })) }}
+          onSalvar={() => { handleFinalizar(true, () => dispatch({ type: 'SET_MOSTRAR_RESUMO', mostrar: false })) }} />
       )}
 
       {distracoes > 0 && (
@@ -437,13 +423,17 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
       )}
 
       {screen === 'foco_end' && (
-        <PomodoroResumoForm resumo={resumo} setResumo={(r) => dispatch({ type: 'SET_RESUMO', resumo: r })}
-          distracoes={distracoes} interrupcoes={interrupcoes}
-          isPending={finalizarMut.isPending}
-          labelPular="Pular resumo e iniciar pausa"
-          labelSalvar="Salvar resumo e iniciar pausa"
-          onPular={() => { handleFinalizar(false); advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SESSAO_ID', sessaoId: null }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }}
-          onSalvar={() => { handleFinalizar(true); advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SESSAO_ID', sessaoId: null }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }} />
+        <>
+          <PomodoroResumoForm resumo={resumo} setResumo={(r) => dispatch({ type: 'SET_RESUMO', resumo: r })}
+            distracoes={distracoes} interrupcoes={interrupcoes}
+            isPending={finalizarMut.isPending}
+            onPular={() => { handleFinalizar(false, () => { advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }) }}
+            onSalvar={() => { handleFinalizar(true, () => { advancePhase(); dispatch({ type: 'RESET_TIMER', durations: { foco: config.focoMin, pausa_curta: config.pausaCurtaMin, pausa_longa: config.pausaLongaMin } }); dispatch({ type: 'SET_SCREEN', screen: 'idle' }) }) }} />
+          <button onClick={handleSnooze}
+            className="mt-2 px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">
+            +5 min
+          </button>
+        </>
       )}
 
       {screen === 'pausa_end' && !ativo && (

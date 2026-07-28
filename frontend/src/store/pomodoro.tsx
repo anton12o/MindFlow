@@ -14,6 +14,7 @@ export interface PomodoroConfig {
   autoStart: boolean
   dnd: boolean
   descansoMin: number
+  timerContinuo: boolean
 }
 
 const DEFAULT_CONFIG: PomodoroConfig = {
@@ -25,6 +26,7 @@ const DEFAULT_CONFIG: PomodoroConfig = {
   autoStart: false,
   dnd: false,
   descansoMin: 5,
+  timerContinuo: false,
 }
 
 const STORAGE_KEY = 'mindflow_pomodoro_config'
@@ -118,7 +120,7 @@ export type PomodoroAction =
   | { type: 'RESET_TIMER'; durations: Record<Fase, number> }
   | { type: 'OVERWRITE_STATE'; state: Partial<PomodoroState> }
 
-function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
+export function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
   const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
     idle: ['running', 'livre'],
     running: ['idle', 'pausado', 'foco_end', 'pausa_end'],
@@ -229,9 +231,17 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (state.screen !== 'running' && state.screen !== 'livre') return
-    const handler = () => dispatch({ type: 'INCREMENT_DISTRACAO' })
-    window.addEventListener('blur', handler)
-    return () => window.removeEventListener('blur', handler)
+    let lastVisible = Date.now()
+    const handler = () => {
+      if (document.hidden && Date.now() - lastVisible > 30000) {
+        dispatch({ type: 'INCREMENT_DISTRACAO' })
+      }
+      if (!document.hidden) {
+        lastVisible = Date.now()
+      }
+    }
+    document.addEventListener('visibilitychange', handler)
+    return () => document.removeEventListener('visibilitychange', handler)
   }, [state.screen])
 
   useEffect(() => {
@@ -278,18 +288,19 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, [state.screen, state.fase, state.cicloAtual, state.sessaoId, state.distracoes, state.minutos, state.segundos, state.contexto, config])
 
   useEffect(() => {
-    if (!config.autoStart) return
+    if (!config.autoStart && !config.timerContinuo) return
     if (state.screen === 'foco_end' || state.screen === 'pausa_end') {
+      const delay = config.timerContinuo ? 0 : 3000
       const timer = setTimeout(() => {
         advancePhase()
         dispatch({ type: 'SET_SCREEN', screen: 'running' })
         dispatch({ type: 'SET_ATIVO', ativo: true })
         startedAtRef.current = Date.now()
         clearHeartbeat()
-      }, 3000)
+      }, delay)
       return () => clearTimeout(timer)
     }
-  }, [state.screen, config.autoStart, advancePhase, clearHeartbeat])
+  }, [state.screen, config.autoStart, config.timerContinuo, advancePhase, clearHeartbeat])
 
   useEffect(() => {
     if (!state.ativo || (state.screen !== 'running' && state.screen !== 'livre')) return

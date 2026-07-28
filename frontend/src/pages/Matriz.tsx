@@ -12,8 +12,9 @@ import { getEI, classificar } from '../utils/scoring'
 const ORDEM: MatrizTipo[] = ['eisenhower', 'esforco_impacto']
 
 export default function Matriz() {
-  const [tipo, setTipo] = useState<MatrizTipo | null>(null)
+  const [tipo, setTipo_] = useState<MatrizTipo | null>(null)
   const [offset, setOffset] = useState(0)
+  const setTipo = useCallback((t: MatrizTipo | null) => { setTipo_(t); setOffset(0) }, [])
 
   const { data: stats } = useQuery({
     queryKey: ['stats-weekly', offset],
@@ -88,7 +89,7 @@ export default function Matriz() {
             <h1 className="text-xl font-bold text-text-primary tracking-wide">MATRIZES</h1>
           </div>
           <div className="w-12 h-0.5 rounded-full bg-accent/30" />
-          {inicio && fim && <span className="text-[10px] text-text-muted">{inicio} a {fim}</span>}
+          {inicio && fim && <span className="text-xs text-text-muted">{inicio} a {fim}</span>}
         </div>
         <MatrixSelector onSelect={setTipo} tarefasCount={allItems.length} eiQuickWins={eiQuickWins} />
       </div>
@@ -113,7 +114,7 @@ export default function Matriz() {
       )}
       <div className="flex items-center border-b border-border">
         <button onClick={() => setTipo(null)}
-          className="flex items-center gap-1 text-xs text-text-muted hover:text-text-primary hover:bg-bg-secondary/50 transition-colors shrink-0 px-2 py-0.5 rounded-t"
+          className="flex items-center gap-1 text-xs text-text-muted hover:text-text-primary hover:bg-bg-secondary/50 transition-colors shrink-0 px-2 py-1 rounded-t"
           title="Voltar para todas as matrizes">
           <ArrowLeft className="size-3.5" />
           <span>Matrizes</span>
@@ -127,14 +128,14 @@ export default function Matriz() {
             const active = tipo === m.tipo
             return (
               <button key={m.tipo} onClick={() => setTipo(m.tipo)} title={m.descricao}
-                className={`relative text-xs shrink-0 transition-all px-3 py-0.5 rounded-t flex items-center gap-1.5 ${
+                className={`relative text-xs shrink-0 transition-all px-3 py-1 rounded-t flex items-center gap-1.5 ${
                   active
                     ? 'text-accent font-semibold border-b-2 border-accent bg-accent/8'
                     : 'text-text-muted hover:text-text-primary hover:bg-bg-secondary/50 border-b-2 border-transparent'
                 }`}>
                 <span className={`transition-colors ${active ? 'text-accent' : 'text-text-muted'}`}>{m.icone}</span>
                 {m.titulo}
-                <span className={`tabular-nums text-[10px] px-2 py-0.5 rounded-full ${
+                <span className={`tabular-nums text-xs px-2 py-1 rounded-full ${
                   active ? 'bg-accent text-accent-foreground' : 'bg-bg-tertiary text-text-muted'
                 }`}>{count}</span>
               </button>

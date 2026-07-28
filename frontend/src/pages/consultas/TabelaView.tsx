@@ -66,7 +66,7 @@ export default function TabelaView({ result, resLoad, resErr, errorMsg }: Props)
         <thead>
           <tr className="border-b border-border">
             {cols.map(col => (
-              <th key={col} onClick={() => handleHeader(col)}
+              <th key={col} scope="col" onClick={() => handleHeader(col)}
                 className="text-left px-3 py-2 text-text-muted font-medium cursor-pointer hover:text-accent transition-colors select-none">
                 <div className="flex items-center gap-1">
                   <span>{col}</span>
@@ -80,7 +80,7 @@ export default function TabelaView({ result, resLoad, resErr, errorMsg }: Props)
           {sorted.map((item, i) => (
             <tr key={item.id as number ?? i} className="border-b border-border last:border-0 hover:bg-bg-hover transition-colors">
               {cols.map(col => (
-                <td key={col} className="px-3 py-2 text-text-primary truncate max-w-[200px]">
+                <td key={col} className="px-3 py-2 text-text-primary truncate max-w-48">
                   {formatCell(item[col])}
                 </td>
               ))}

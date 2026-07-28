@@ -147,7 +147,7 @@ export default function CalendarioSemanal() {
                 const blocoNaHora = blocos.filter(b => b.hora_inicio.slice(0, 2) <= hora && b.hora_fim.slice(0, 2) > hora)
                 const tarefasDoDia = tarefasPorDia[diaIdx].filter(t => t.status !== 'feito')
                 return (
-                  <div key={weekDays[diaIdx].date} className="bg-bg-primary min-h-[48px] p-0.5 relative">
+                  <div key={weekDays[diaIdx].date} className="bg-bg-primary min-h-[48px] p-1 relative">
                     {blocoNaHora.map(b => (
                       <SortableItem key={b.id} bloco={b} />
                     ))}
@@ -214,7 +214,7 @@ const SortableItem = React.memo(function SortableItem({ bloco }: { bloco: BlocoR
       style={style}
       {...attributes}
       {...listeners}
-      className={`text-xs px-1 py-0.5 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-elevation-4 ring-2 ring-accent' : ''}`}
+      className={`text-xs px-1 py-1 rounded mb-0.5 truncate cursor-grab transition-colors ${isDragging ? 'opacity-50 shadow-elevation-4 ring-2 ring-accent' : ''}`}
     >
       <div {...attributes} {...listeners} className="cursor-grab text-text-muted hover:text-accent select-none">⠿</div>
       {bloco.titulo}

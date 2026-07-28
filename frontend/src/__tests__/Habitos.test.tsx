@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { screen, waitFor } from '@testing-library/react'
+import { screen, waitFor, fireEvent } from '@testing-library/react'
 import { renderWithProviders } from './utils'
 import Habitos from '../pages/Habitos'
-import { getHabitos } from '../api/habitos'
+import { getHabitos, createHabito, deleteHabito, createRegistro } from '../api/habitos'
 import type { Habito } from '../types'
 
 vi.mock('../api/habitos')
@@ -133,6 +133,44 @@ describe('Habitos', () => {
     renderWithProviders(<Habitos />)
     await waitFor(() => {
       expect(screen.queryByText(/Hábitos arquivados/)).not.toBeInTheDocument()
+    })
+  })
+
+  it('cria habito ao submeter formulario', async () => {
+    vi.mocked(createHabito).mockResolvedValue({ id: 99, nome: 'Novo habito', tipo: 'binario', meta: null, unidade: null, categoria: null, cor: null, ativo: true, criado_em: '2026-06-23T00:00:00' })
+    renderWithProviders(<Habitos />)
+    await waitFor(() => expect(screen.getByText('+ Novo hábito')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('+ Novo hábito'))
+    const inputs = screen.getAllByRole('textbox')
+    fireEvent.change(inputs[0], { target: { value: 'Novo habito' } })
+    fireEvent.click(screen.getByText('Criar'))
+    await waitFor(() => {
+      expect(createHabito).toHaveBeenCalledWith(expect.objectContaining({ nome: 'Novo habito' }))
+    })
+  })
+
+  it('exclui habito ao confirmar no modal', async () => {
+    vi.mocked(deleteHabito).mockResolvedValue({ ok: true })
+    renderWithProviders(<Habitos />)
+    await waitFor(() => expect(screen.getByText('Beber agua')).toBeInTheDocument())
+    const kebabButtons = screen.getAllByText('⋮')
+    fireEvent.click(kebabButtons[0])
+    await waitFor(() => expect(screen.getByText('🗑️ Excluir')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('🗑️ Excluir'))
+    await waitFor(() => expect(screen.getByText('Remover')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Remover'))
+    await waitFor(() => {
+      expect(deleteHabito).toHaveBeenCalledWith(1)
+    })
+  })
+
+  it('faz checkin ao clicar +1 em habito quantitativo', async () => {
+    vi.mocked(createRegistro).mockResolvedValue({ id: 1, habito_id: 1, data: '2026-06-23', valor: 1 })
+    renderWithProviders(<Habitos />)
+    await waitFor(() => expect(screen.getByText('+1')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('+1'))
+    await waitFor(() => {
+      expect(createRegistro).toHaveBeenCalledWith(1, { habito_id: 1, data: '2026-06-23', valor: 1 })
     })
   })
 })

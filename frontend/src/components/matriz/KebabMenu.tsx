@@ -75,7 +75,7 @@ export default function KebabMenu({ concluida, onConcluir, onExcluir, onLimparQu
   const renderExtraItems = () => {
     if (!hasItems) return null
     return items.map((item, i) => (
-      <button key={i} onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick() }}
+      <button key={typeof item.label === 'string' ? item.label + '-' + i : i} onClick={(e) => { e.stopPropagation(); setOpen(false); item.onClick() }}
         className={`w-full text-left text-xs px-3 py-2 transition-colors ${item.danger ? 'text-danger hover:bg-danger/10' : 'text-text-primary hover:bg-bg-primary'}`}>
         {item.label}
       </button>

@@ -22,9 +22,17 @@ def commit_with_handle(session: Session, db=None, context: str = "operação"):
         session.commit()
     except HTTPException:
         raise
-    except (DataError, IntegrityError, OperationalError) as e:
+    except IntegrityError as e:
         session.rollback()
-        logger.error("[%s] %s", context, e)
-        raise HTTPException(status_code=500, detail=f"Erro ao {context}")
+        logger.warning("[%s] IntegrityError: %s", context, e)
+        raise HTTPException(status_code=409, detail=f"Conflito ao {context}")
+    except DataError as e:
+        session.rollback()
+        logger.warning("[%s] DataError: %s", context, e)
+        raise HTTPException(status_code=422, detail=f"Dados inválidos ao {context}")
+    except OperationalError as e:
+        session.rollback()
+        logger.error("[%s] OperationalError: %s", context, e)
+        raise HTTPException(status_code=500, detail=f"Erro de banco ao {context}")
     if db is not None:
         session.refresh(db)

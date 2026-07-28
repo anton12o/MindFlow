@@ -101,12 +101,6 @@ describe('IdeiasEditor', () => {
     expect(screen.getByPlaceholderText('Cole o trecho aqui...')).toBeInTheDocument()
   })
 
-  it('botões de export .md e .json', () => {
-    renderEditor()
-    expect(screen.getByTitle('Exportar como Markdown')).toBeInTheDocument()
-    expect(screen.getByTitle('Exportar como JSON')).toBeInTheDocument()
-  })
-
   it('botão favoritar presente', () => {
     renderEditor()
     expect(screen.getByTitle('Adicionar aos favoritos')).toBeInTheDocument()

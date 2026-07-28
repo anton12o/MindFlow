@@ -55,7 +55,7 @@ export function KanbanView({ tarefas, isLoading, isError, onDropTarefa }: Kanban
                     <p className="text-sm font-medium truncate">{t.titulo}</p>
                     {t.descricao && <p className="text-xs text-text-muted truncate mt-0.5">{t.descricao}</p>}
                     <div className="flex items-center gap-2 mt-1.5">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>
+                      <span className={`text-xs font-bold px-2 py-1 rounded ${badgePrioridade(t.prioridade)}`}>
                         {labelPrioridade(t.prioridade)}
                       </span>
                       {t.recorrente && <span className="text-xs text-accent">🔁</span>}

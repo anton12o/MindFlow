@@ -1,19 +1,32 @@
 import { useState, useEffect, startTransition } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getReflexoes, createNota } from '../api/notas'
-import { getWeeklyStats } from '../api/stats'
+import { getReflexoes, createNota, updateNota } from '../api/notas'
+import { getWeeklyStats, type ScoreConfig } from '../api/stats'
 import type { Nota } from '../types'
 import { useNotify } from '../store/notification'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Settings, Plus, Trash2, ChevronUp, ChevronDown } from 'lucide-react'
+import { useReflexaoQuestions } from '../hooks/useReflexaoQuestions'
+import { useConfig } from '../hooks/useConfig'
 
-const PERGUNTAS = [
-  'O que funcionou bem esta semana?',
-  'O que poderia ter sido melhor?',
-  'Qual foi o aprendizado mais importante?',
-  'O que você quer focar na próxima semana?',
-]
+export function extractRespostasPorOrdem(conteudo: string, numPerguntas: number): string[] {
+  const linhas = (conteudo || '').split('\n')
+  const indices: number[] = []
+  linhas.forEach((l, i) => { if (l.startsWith('## ')) indices.push(i) })
+  const respostas: string[] = []
+  for (let i = 0; i < numPerguntas; i++) {
+    if (i < indices.length) {
+      const inicio = indices[i] + 1
+      const fim = indices[i + 1] ?? linhas.length
+      const trecho = linhas.slice(inicio, fim).filter(l => l && !l.startsWith('> ')).join('\n').trim()
+      respostas.push(trecho)
+    } else {
+      respostas.push('')
+    }
+  }
+  return respostas
+}
 
-function formatRange(inicio: string, fim: string) {
+export function formatRange(inicio: string, fim: string) {
   const d1 = new Date(inicio + 'T12:00:00')
   const d2 = new Date(fim + 'T12:00:00')
   const f1 = d1.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
@@ -43,12 +56,27 @@ function ReflexaoItem({ r }: { r: Nota }) {
 
 export default function ReflexaoTab() {
   const [offset, setOffset] = useState(0)
+  const [editandoPerguntas, setEditandoPerguntas] = useState(false)
+  const [novaPergunta, setNovaPergunta] = useState('')
   const queryClient = useQueryClient()
   const notify = useNotify()
+  const { questions, addQuestion, removeQuestion, updateQuestion, moveQuestion, resetQuestions } = useReflexaoQuestions()
+  const { config } = useConfig()
+  const sc: ScoreConfig = {
+    primeiroDia: config.primeiroDiaSemana === 'domingo' ? 6 : 0,
+    pesoFoco: config.pesosScore.foco,
+    pesoTarefas: config.pesosScore.tarefas,
+    pesoHabitos: config.pesosScore.habitos,
+    pesoNotas: config.pesosScore.notas,
+    metaFocoMin: config.metasScore.focoMin,
+    metaTarefas: config.metasScore.tarefas,
+    metaNotas: config.metasScore.notas,
+    streakGrace: config.toleranciaStreak,
+  }
 
   const { data: stats } = useQuery({
     queryKey: ['stats-weekly', offset],
-    queryFn: () => getWeeklyStats(offset),
+    queryFn: () => getWeeklyStats(offset, sc),
     staleTime: 60_000,
   })
 
@@ -63,32 +91,16 @@ export default function ReflexaoTab() {
     const props = r.propriedades as Record<string, unknown> | undefined
     return props?.semana_inicio === semanaInicio
   })
-  const respostasIniciais = reflexaoAtual
-    ? PERGUNTAS.map(p => {
-        const linhas = (reflexaoAtual.conteudo || '').split('\n')
-        const idx = linhas.findIndex(l => l.startsWith('## ') && l.includes(p))
-        if (idx === -1) return ''
-        const fim = linhas.slice(idx + 1).findIndex(l => l.startsWith('## '))
-        const trecho = linhas.slice(idx + 1, fim === -1 ? undefined : idx + 1 + fim)
-        return trecho.filter(l => l && !l.startsWith('> ')).join('\n').trim()
-      })
-    : ['', '', '', '']
-
-  const [respostas, setRespostas] = useState(respostasIniciais)
+  const [respostas, setRespostas] = useState<string[]>([])
 
   useEffect(() => {
     if (reflexaoAtual) {
-      const r = PERGUNTAS.map(p => {
-        const linhas = (reflexaoAtual.conteudo || '').split('\n')
-        const idx = linhas.findIndex(l => l.startsWith('## ') && l.includes(p))
-        if (idx === -1) return ''
-        const fim = linhas.slice(idx + 1).findIndex(l => l.startsWith('## '))
-        const trecho = linhas.slice(idx + 1, fim === -1 ? undefined : idx + 1 + fim)
-        return trecho.filter(l => l && !l.startsWith('> ')).join('\n').trim()
-      })
+      const r = extractRespostasPorOrdem(reflexaoAtual.conteudo || '', questions.length)
       startTransition(() => setRespostas(r))
+    } else {
+      setRespostas(new Array(questions.length).fill(''))
     }
-  }, [reflexaoAtual])
+  }, [reflexaoAtual, questions])
 
   const salvarReflexao = useMutation({
     mutationFn: () => {
@@ -96,22 +108,31 @@ export default function ReflexaoTab() {
       const linhas = [`# Reflexão Semanal`, '', `> ${formatRange(stats.semana.inicio, stats.semana.fim)}`, '']
       respostas.forEach((r, i) => {
         if (r.trim()) {
-          linhas.push(`## ${PERGUNTAS[i]}`, '', r, '')
+          linhas.push(`## ${questions[i]}`, '', r, '')
         }
       })
-      return createNota({
+      const payload = {
         titulo: `Reflexão Semanal 📝 ${stats.semana.inicio}`,
         conteudo: linhas.join('\n'),
         propriedades: { tipo: 'reflexao_semanal', semana_inicio: stats.semana.inicio },
-      })
+      }
+      if (reflexaoAtual) return updateNota(reflexaoAtual.id, payload)
+      return createNota(payload)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reflexoes'] })
       queryClient.invalidateQueries({ queryKey: ['notas'] })
-      notify('Reflexão salva')
+      notify(reflexaoAtual ? 'Reflexão atualizada' : 'Reflexão salva')
     },
     onError: (e) => { console.error('[ReflexaoTab]', e); notify('Erro ao salvar reflexão') },
   })
+
+  function handleAddPergunta() {
+    const t = novaPergunta.trim()
+    if (!t) return
+    addQuestion(t)
+    setNovaPergunta('')
+  }
 
   if (!stats) {
     return (
@@ -127,6 +148,11 @@ export default function ReflexaoTab() {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Reflexão Semanal</h2>
         <div className="flex items-center gap-2">
+          <button onClick={() => { setEditandoPerguntas(!editandoPerguntas); setNovaPergunta('') }}
+            title="Gerenciar perguntas"
+            className={`p-1.5 rounded-lg transition-colors ${editandoPerguntas ? 'bg-accent/20 text-accent' : 'text-text-muted hover:text-text-primary hover:bg-bg-hover'}`}>
+            <Settings size={16} />
+          </button>
           <button onClick={() => setOffset(o => o - 1)} title="Semana anterior" className="p-1 text-text-muted hover:text-text-primary transition-colors">
             <ChevronLeft size={16} />
           </button>
@@ -139,15 +165,68 @@ export default function ReflexaoTab() {
         </div>
       </div>
 
-      <div className="bg-bg-secondary/50 rounded-xl p-4 space-y-3">
+      {editandoPerguntas && (
+        <div className="bg-bg-secondary/80 rounded-xl border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-text-muted uppercase tracking-wide">Gerenciar Perguntas</h3>
+            <button onClick={resetQuestions}
+              className="text-xs text-text-muted hover:text-text-primary underline">
+              Restaurar padrão
+            </button>
+          </div>
+          <div className="space-y-2">
+            {questions.map((q, i) => (
+              <div key={q + '-' + i} className="flex items-center gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <button onClick={() => moveQuestion(i, i - 1)} disabled={i === 0}
+                    className="p-1 text-text-muted hover:text-text-primary disabled:opacity-disabled-heavy transition-colors">
+                    <ChevronUp size={12} />
+                  </button>
+                  <button onClick={() => moveQuestion(i, i + 1)} disabled={i === questions.length - 1}
+                    className="p-1 text-text-muted hover:text-text-primary disabled:opacity-disabled-heavy transition-colors">
+                    <ChevronDown size={12} />
+                  </button>
+                </div>
+                <input
+                  value={q}
+                  onChange={e => updateQuestion(i, e.target.value)}
+                  maxLength={200}
+                  className="flex-1 bg-bg-primary border border-border rounded px-2 py-1.5 text-sm text-text-primary outline-none focus-visible:ring-1 focus-visible:ring-accent"
+                />
+                <button onClick={() => removeQuestion(i)}
+                  className="p-1.5 text-danger/60 hover:text-danger transition-colors">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              value={novaPergunta}
+              onChange={e => setNovaPergunta(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddPergunta() } }}
+              placeholder="Nova pergunta..."
+              maxLength={200}
+              className="flex-1 bg-bg-primary border border-border rounded px-2 py-1.5 text-sm text-text-primary outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            />
+            <button onClick={handleAddPergunta}
+              className="p-1.5 text-accent hover:text-accent-hover transition-colors">
+              <Plus size={16} />
+            </button>
+          </div>
+          <p className="text-xs text-text-muted">As perguntas são salvas automaticamente no navegador.</p>
+        </div>
+      )}
+
+      <div className="bg-bg-secondary/50 rounded-xl p-3 space-y-3">
         <div className="space-y-3">
-          {PERGUNTAS.map((p, i) => (
-            <div key={i}>
+          {questions.map((p, i) => (
+            <div key={'resp-' + p + '-' + i}>
               <p className="text-xs text-text-muted mb-1">{p}</p>
               <textarea
                 value={respostas[i]}
                 onChange={e => setRespostas(prev => { const next = [...prev]; next[i] = e.target.value; return next })}
-                className="w-full bg-bg-primary border border-border rounded-lg p-2 text-sm text-text-primary resize-none focus:outline-none focus:ring-2 focus:ring-accent/50 min-h-[60px]"
+                className="w-full bg-bg-primary border border-border rounded-lg p-2 text-sm text-text-primary resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 min-h-[60px]"
                 placeholder="Digite sua reflexão..."
               />
             </div>
@@ -162,7 +241,7 @@ export default function ReflexaoTab() {
             {salvarReflexao.isPending ? 'Salvando...' : reflexaoAtual ? 'Atualizar reflexão' : 'Salvar reflexão'}
           </button>
           {salvarReflexao.isSuccess && (
-            <span className="text-xs text-success animate-fade-in">✅ Salvo!</span>
+            <span className="text-xs text-success animate-fade-in">Salvo!</span>
           )}
         </div>
       </div>

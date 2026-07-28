@@ -47,7 +47,7 @@ export default function VersionHistoryModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
       <div ref={modalRef} onClick={e => e.stopPropagation()}
         className="bg-bg-secondary rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <History size={18} className="text-accent" />
             <h2 className="text-lg font-semibold">Histórico de versões</h2>
@@ -56,7 +56,7 @@ export default function VersionHistoryModal({
         </div>
         <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {!versoes || versoes.length === 0 ? (
-            <p className="text-sm text-text-muted text-center py-8">Nenhuma versão anterior</p>
+            <p className="text-sm text-text-muted text-center py-6">Nenhuma versão anterior</p>
           ) : (
             versoes.map((v) => (
               <div key={v.id} className="bg-bg-tertiary rounded-xl overflow-hidden">
@@ -83,7 +83,7 @@ export default function VersionHistoryModal({
                     {v.propriedades && Object.keys(v.propriedades).length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {Object.entries(v.propriedades).map(([k, val]) => (
-                          <span key={k} className="text-xs bg-bg-primary rounded px-2 py-0.5 text-text-muted">{k}: {String(val)}</span>
+                          <span key={k} className="text-xs bg-bg-primary rounded px-2 py-1 text-text-muted">{k}: {String(val)}</span>
                         ))}
                       </div>
                     )}
@@ -92,7 +92,7 @@ export default function VersionHistoryModal({
                         restoreMut.mutate(v.id)
                       }
                     }} disabled={restoreMut.isPending}
-                      className="w-full mt-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent text-white text-xs rounded-lg hover:bg-accent/90 transition-colors disabled:opacity-50">
+                      className="w-full mt-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent text-accent-foreground text-xs rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-disabled">
                       <RotateCcw size={14} /> Restaurar esta versão
                     </button>
                   </div>

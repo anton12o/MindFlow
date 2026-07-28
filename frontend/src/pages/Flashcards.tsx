@@ -8,9 +8,10 @@ import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
 import ConfirmModal from '../components/ConfirmModal'
 import { useNotify } from '../store/notification'
 import { getNotas } from '../api/notas'
+import { reviewFlashcard as reviewFlashcardApi } from '../api/flashcards'
 import type { Flashcard } from '../types'
 
-const labels = ['', 'Muito difícil', 'Difícil', 'Médio', 'Fácil', 'Muito fácil']
+const labels: Record<number, string> = { 1: 'Muito difícil', 2: 'Difícil', 3: 'Médio', 4: 'Fácil', 5: 'Muito fácil' }
 const CATEGORIAS_PREDEFINIDAS = ['Conceito', 'Definição', 'Fórmula', 'Idioma', 'Código', 'Data', 'Pessoal']
 
 interface FlashcardItemProps {
@@ -55,7 +56,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
             {CATEGORIAS_PREDEFINIDAS.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
           <button onClick={() => onSave(fc.id, { pergunta: editForm.pergunta, resposta: editForm.resposta, nota_id: editForm.nota_id ? Number(editForm.nota_id) : null, categoria: editForm.categoria || null })}
-            disabled={saving} className="text-xs text-success disabled:opacity-50">{saving ? 'Salvando...' : 'Salvar'}</button>
+            disabled={saving} className="text-xs text-success disabled:opacity-disabled">{saving ? 'Salvando...' : 'Salvar'}</button>
           <button onClick={() => setEditing(false)} className="text-xs text-text-muted ml-2">Cancelar</button>
         </div>
       ) : (
@@ -66,7 +67,7 @@ const FlashcardItem = memo(function FlashcardItem({ fc, notas, onSave, onDelete,
             <p className="text-xs text-text-muted mt-1">
               {fc.categoria && <><span className="text-accent">{fc.categoria}</span> · </>}
               {fc.ultima_revisao ? <>Última revisão: {new Date(fc.ultima_revisao).toLocaleDateString('pt-BR')} · </> : 'Nunca revisado · '}
-              Próxima revisão: {new Date(fc.proxima_revisao + 'T12:00:00').toLocaleDateString('pt-BR')}
+              Próxima revisão: {fc.proxima_revisao.split('-').reverse().join('/')}
               {' · '}Facilidade: {fc.facilidade.toFixed(1)}
             </p>
           </div>
@@ -90,6 +91,7 @@ export default function Flashcards() {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ pergunta: '', resposta: '', nota_id: '', categoria: '' })
   const [formCategoriaCustom, setFormCategoriaCustom] = useState('')
+  const [formError, setFormError] = useState('')
   const [confirmDelete, setConfirmDelete] = useState<{ id: number; pergunta: string } | null>(null)
   const [searchQ, setSearchQ] = useState('')
   const [notaSearch, setNotaSearch] = useState('')
@@ -99,8 +101,9 @@ export default function Flashcards() {
   const [simuladoCards, setSimuladoCards] = useState<Flashcard[]>([])
   const [simuladoIndex, setSimuladoIndex] = useState(0)
   const [simuladoShowAnswer, setSimuladoShowAnswer] = useState(false)
-  const [simuladoResults, setSimuladoResults] = useState<{ acertou: boolean }[]>([])
+  const [simuladoResults, setSimuladoResults] = useState<{ tipo: 'acertou' | 'errou' | 'pulou' }[]>([])
   const [simuladoDone, setSimuladoDone] = useState(false)
+  const [registrandoSimulado, setRegistrandoSimulado] = useState(false)
   const [savingFlashcardId, setSavingFlashcardId] = useState<number | null>(null)
   const parentRef = useRef<HTMLDivElement>(null)
   const reviewRef = useRef<HTMLDivElement>(null)
@@ -177,7 +180,7 @@ export default function Flashcards() {
       setFormCategoriaCustom('')
       setShowForm(false)
     },
-    onError: (e) => { console.error('[Flashcards]', e); notify('Erro ao criar flashcard') },
+    onError: (e) => { console.error('[Flashcards]', e); setFormError(e instanceof Error ? e.message : 'Erro ao criar flashcard') },
   })
 
   const updateMut = useMutation({
@@ -224,28 +227,21 @@ export default function Flashcards() {
     })
   }
 
-  function handleReview(qualidade: number) {
+  const handleReview = useCallback((qualidade: number) => {
     if (!currentCard) return
     reviewMut.mutate({ id: currentCard.id, qualidade })
     if (cardIndex < total - 1) {
       setCardIndex(i => i + 1)
     }
-  }
+  }, [currentCard, cardIndex, total, reviewMut])
 
-  function handlePrevCard() {
+  const handlePrevCard = useCallback(() => {
     if (cardIndex > 0) { setCardIndex(i => i - 1); setVirado(false) }
-  }
+  }, [cardIndex])
 
-  function handleNextCard() {
+  const handleNextCard = useCallback(() => {
     if (cardIndex < total - 1) { setCardIndex(i => i + 1); setVirado(false) }
-  }
-
-  const handleReviewRef = useRef(handleReview)
-  useEffect(() => { handleReviewRef.current = handleReview })
-  const handlePrevCardRef = useRef(handlePrevCard)
-  useEffect(() => { handlePrevCardRef.current = handlePrevCard })
-  const handleNextCardRef = useRef(handleNextCard)
-  useEffect(() => { handleNextCardRef.current = handleNextCard })
+  }, [cardIndex, total])
 
   useEffect(() => {
     setCardIndex(0)
@@ -260,30 +256,30 @@ export default function Flashcards() {
         e.preventDefault()
         setVirado(v => !v)
       } else if (virado && /^[1-5]$/.test(e.key) && !reviewMut.isPending) {
-        handleReviewRef.current(Number(e.key))
+        handleReview(Number(e.key))
       } else if (e.key === 'ArrowLeft') {
-        handlePrevCardRef.current()
+        handlePrevCard()
       } else if (e.key === 'ArrowRight') {
-        handleNextCardRef.current()
+        handleNextCard()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [simuladoAtivo, currentCard, virado, reviewMut.isPending])
+  }, [simuladoAtivo, currentCard, virado, reviewMut.isPending, handleReview, handlePrevCard, handleNextCard])
 
   if (cardsLoad) {
     return <div className="p-6 max-w-4xl mx-auto text-text-muted text-sm animate-pulse">Carregando...</div>
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold">Flashcards</h1>
           <p className="text-sm text-text-muted">{total} cards para revisar hoje</p>
         </div>
         <button onClick={() => setShowForm(!showForm)}
-          className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
+          className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
           {showForm ? 'Cancelar' : '+ Novo flashcard'}
         </button>
       </div>
@@ -291,42 +287,42 @@ export default function Flashcards() {
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
-            <p className="text-2xl font-bold">{stats.total_cards}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Total</p>
+            <p className="text-lg font-bold tabular-nums">{stats.total_cards}</p>
+            <p className="text-xs font-normal text-text-muted uppercase tracking-wide">Total</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
-            <p className="text-2xl font-bold">{stats.cards_hoje}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Pendentes</p>
+            <p className="text-lg font-bold tabular-nums">{stats.cards_hoje}</p>
+            <p className="text-xs font-normal text-text-muted uppercase tracking-wide">Pendentes</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
-            <p className="text-2xl font-bold">{stats.cards_revisados_hoje}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Revisados</p>
+            <p className="text-lg font-bold tabular-nums">{stats.cards_revisados_hoje}</p>
+            <p className="text-xs font-normal text-text-muted uppercase tracking-wide">Revisados</p>
           </div>
           <div className="bg-bg-secondary rounded-xl border border-border p-3 text-center">
-            <p className="text-2xl font-bold">{stats.taxa_acerto_7d !== null ? `${Math.round(stats.taxa_acerto_7d * 100)}%` : '—'}</p>
-            <p className="text-xs text-text-muted uppercase tracking-wide">Acerto (7d)</p>
+            <p className="text-lg font-bold tabular-nums">{stats.taxa_acerto_7d !== null ? `${Math.round(stats.taxa_acerto_7d * 100)}%` : '—'}</p>
+            <p className="text-xs font-normal text-text-muted uppercase tracking-wide">Acerto (7d)</p>
           </div>
         </div>
       )}
 
       <div className="flex items-center gap-2 mb-6">
         <button onClick={() => { setSimuladoAtivo(false); setSimuladoCards([]); setSimuladoDone(false); setSimuladoResults([]); setSimuladoIndex(0); setSimuladoShowAnswer(false) }}
-className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${!simuladoAtivo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${!simuladoAtivo ? 'bg-accent text-accent-foreground' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
           Revisão
         </button>
         <button onClick={() => { setSimuladoAtivo(true); setSimuladoCards([]); setSimuladoDone(false); setSimuladoResults([]); setSimuladoIndex(0); setSimuladoShowAnswer(false) }}
-className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simuladoAtivo ? 'bg-accent text-white' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
+className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simuladoAtivo ? 'bg-accent text-accent-foreground' : 'bg-bg-tertiary text-text-muted hover:text-text-primary'}`}>
           Simulado
         </button>
       </div>
 
       {simuladoAtivo && simuladoCards.length === 0 && !simuladoDone && (
-        <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
+        <div className="bg-bg-secondary rounded-xl border border-border p-3 mb-6">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Selecionar categorias</h2>
           <div className="flex flex-wrap gap-2 mb-4">
             {categorias.map(c => (
               <button key={c} onClick={() => setSimuladoCats(p => p.includes(c) ? p.filter(x => x !== c) : [...p, c])}
-                className={`px-3 py-1 rounded-full text-sm border transition-colors ${simuladoCats.includes(c) ? 'bg-accent/10 border-accent/30 text-accent' : 'bg-bg-tertiary border-border text-text-muted hover:text-text-primary'}`}>
+                className={`px-3 py-1 rounded-full text-sm border transition-colors ${simuladoCats.includes(c) ? 'bg-bg-tertiary text-accent border-accent' : 'bg-bg-tertiary border-border text-text-muted hover:text-text-primary'}`}>
                 {c}
               </button>
             ))}
@@ -341,7 +337,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
             setSimuladoResults([])
             setSimuladoDone(false)
           }}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95" title="Iniciar simulado com cards selecionados">
+            className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95" title="Iniciar simulado com cards selecionados">
             Iniciar simulado ({simuladoCats.length ? allCardsList.filter(fc => simuladoCats.includes(fc.categoria || '')).length : allCardsList.length} cards)
           </button>
         </div>
@@ -361,7 +357,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
             onClick={() => !simuladoShowAnswer && setSimuladoShowAnswer(true)}
             className={`bg-bg-secondary rounded-xl border min-h-[200px] ${simuladoShowAnswer ? 'border-accent/30 cursor-default' : 'cursor-pointer hover:border-accent/50'} transition-colors`}
           >
-            <div className="p-8 flex items-center justify-center text-center">
+            <div className="p-6 flex items-center justify-center text-center">
               {!simuladoShowAnswer ? (
                 <div>
                   <p className="text-xs text-text-muted mb-4">{simuladoCards[simuladoIndex].categoria && <><span className="text-accent">{simuladoCards[simuladoIndex].categoria}</span> · </>}Pergunta</p>
@@ -374,15 +370,15 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
                   <p className="text-lg whitespace-pre-wrap mb-6">{simuladoCards[simuladoIndex].resposta}</p>
                   <div className="flex gap-3 justify-center">
                     <button onClick={() => {
-                      setSimuladoResults(p => [...p, { acertou: true }])
+                      setSimuladoResults(p => [...p, { tipo: 'acertou' }])
                       if (simuladoIndex < simuladoCards.length - 1) { setSimuladoIndex(i => i + 1); setSimuladoShowAnswer(false) }
                       else setSimuladoDone(true)
-                    }} className="px-5 py-2 bg-success/20 text-success rounded-lg text-sm hover:bg-success/30 transition-colors">💡 Lembrei</button>
+                    }} className="px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg text-sm hover:bg-accent/20 transition-colors">💡 Lembrei</button>
                     <button onClick={() => {
-                      setSimuladoResults(p => [...p, { acertou: false }])
+setSimuladoResults(p => [...p, { tipo: 'errou' }])
                       if (simuladoIndex < simuladoCards.length - 1) { setSimuladoIndex(i => i + 1); setSimuladoShowAnswer(false) }
                       else setSimuladoDone(true)
-                    }} className="px-5 py-2 bg-danger/20 text-danger rounded-lg text-sm hover:bg-danger/30 transition-colors">❌ Não lembrei</button>
+                    }} className="px-4 py-2 bg-bg-tertiary text-text-primary rounded-lg text-sm hover:bg-accent/20 transition-colors">❌ Não lembrei</button>
                   </div>
                 </div>
               )}
@@ -392,8 +388,8 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
             <div className="flex justify-between mt-3">
               <button onClick={() => { if (simuladoIndex > 0) { setSimuladoIndex(i => i - 1); setSimuladoShowAnswer(false) } }}
                 disabled={simuladoIndex === 0}
-                className="text-xs text-text-muted hover:text-accent disabled:opacity-30">← Anterior</button>
-              <button onClick={() => { setSimuladoResults(p => [...p, { acertou: false }]); if (simuladoIndex < simuladoCards.length - 1) { setSimuladoIndex(i => i + 1); setSimuladoShowAnswer(false) } else setSimuladoDone(true) }}
+                className="text-xs text-text-muted hover:text-accent disabled:opacity-disabled-heavy">← Anterior</button>
+              <button onClick={() => { setSimuladoResults(p => [...p, { tipo: 'pulou' }]); if (simuladoIndex < simuladoCards.length - 1) { setSimuladoIndex(i => i + 1); setSimuladoShowAnswer(false) } else setSimuladoDone(true) }}
                 className="text-xs text-text-muted hover:text-accent">Pular →</button>
             </div>
           )}
@@ -402,26 +398,55 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
 
       {simuladoAtivo && simuladoDone && simuladoResults.length > 0 && (
         <div className="bg-bg-secondary rounded-xl border border-border p-6 mb-6 text-center">
-          <p className="text-2xl font-bold mb-1">{simuladoResults.filter(r => r.acertou).length}/{simuladoResults.length}</p>
-          <p className="text-sm text-text-muted mb-4">{Math.round((simuladoResults.filter(r => r.acertou).length / simuladoResults.length) * 100)}% de acerto</p>
+          <p className="text-2xl font-bold mb-1">{simuladoResults.filter(r => r.tipo === 'acertou').length}/{simuladoResults.filter(r => r.tipo !== 'pulou').length}</p>
+          <p className="text-sm text-text-muted mb-4">{simuladoResults.filter(r => r.tipo !== 'pulou').length > 0 ? `${Math.round((simuladoResults.filter(r => r.tipo === 'acertou').length / simuladoResults.filter(r => r.tipo !== 'pulou').length) * 100)}%` : '—'} de acerto</p>
           <div className="w-full bg-bg-tertiary rounded-full h-3 mb-4">
-            <div className="bg-success h-3 rounded-full transition-all" style={{ width: `${(simuladoResults.filter(r => r.acertou).length / simuladoResults.length) * 100}%` }} />
+            <div className="bg-success h-3 rounded-full transition-all" style={{ width: `${simuladoResults.filter(r => r.tipo !== 'pulou').length > 0 ? (simuladoResults.filter(r => r.tipo === 'acertou').length / simuladoResults.filter(r => r.tipo !== 'pulou').length) * 100 : 0}%` }} />
           </div>
           <div className="flex justify-center gap-4 text-sm mb-4">
-            <span className="text-success">✅ {simuladoResults.filter(r => r.acertou).length} certas</span>
-            <span className="text-danger">❌ {simuladoResults.filter(r => !r.acertou).length} erradas</span>
+            <span className="text-success">✅ {simuladoResults.filter(r => r.tipo === 'acertou').length} certas</span>
+            <span className="text-danger">❌ {simuladoResults.filter(r => r.tipo === 'errou').length} erradas</span>
+            {simuladoResults.filter(r => r.tipo === 'pulou').length > 0 && (
+              <span className="text-text-muted">⏭️ {simuladoResults.filter(r => r.tipo === 'pulou').length} puladas</span>
+            )}
           </div>
-          <button onClick={() => { setSimuladoCards([]); setSimuladoDone(false); setSimuladoResults([]); setSimuladoIndex(0); setSimuladoShowAnswer(false); setSimuladoCats([]) }}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
-            Novo simulado
-          </button>
+          <div className="flex justify-center gap-3">
+            <button onClick={async () => {
+              setRegistrandoSimulado(true)
+              try {
+                for (let i = 0; i < simuladoCards.length; i++) {
+                  const resultado = simuladoResults[i]
+                  if (resultado.tipo === 'pulou') continue
+                  await reviewFlashcardApi(simuladoCards[i].id, resultado.tipo === 'acertou' ? 4 : 1)
+                }
+                queryClient.invalidateQueries({ queryKey: ['flashcards'] })
+                queryClient.invalidateQueries({ queryKey: ['flashcards', 'stats'] })
+                broadcastInvalidate([['flashcards']])
+                notify('Simulado registrado no SM-2')
+              } catch (e) {
+                console.error('[Flashcards]', e)
+                notify('Erro ao registrar simulado')
+              } finally {
+                setRegistrandoSimulado(false)
+              }
+            }}
+              disabled={registrandoSimulado}
+              className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95 disabled:opacity-disabled">
+              {registrandoSimulado ? 'Registrando...' : 'Registrar no SM-2'}
+            </button>
+            <button onClick={() => { setSimuladoCards([]); setSimuladoDone(false); setSimuladoResults([]); setSimuladoIndex(0); setSimuladoShowAnswer(false); setSimuladoCats([]) }}
+              className="px-4 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-accent/20 transition-all active:scale-95">
+              Novo simulado
+            </button>
+          </div>
         </div>
       )}
 
       {showForm && (
-        <form onSubmit={handleCreate} className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
+        <form onSubmit={handleCreate} className="bg-bg-secondary rounded-xl border border-border p-3 mb-6">
           <div className="space-y-3">
-            <input value={form.pergunta} onChange={e => setForm(f => ({ ...f, pergunta: e.target.value }))}
+            {formError && <p className="text-xs text-danger">{formError}</p>}
+            <input value={form.pergunta} onChange={e => { setForm(f => ({ ...f, pergunta: e.target.value })); setFormError('') }}
               placeholder="Pergunta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             <input value={form.resposta} onChange={e => setForm(f => ({ ...f, resposta: e.target.value }))}
               placeholder="Resposta" className="w-full bg-bg-tertiary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
@@ -446,7 +471,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
               )}
             </div>
             <button type="submit" disabled={!form.pergunta.trim() || !form.resposta.trim() || createMut.isPending}
-              className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50">{createMut.isPending ? 'Criando...' : 'Criar flashcard'}</button>
+              className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg transition-all active:scale-95 disabled:opacity-disabled">{createMut.isPending ? 'Criando...' : 'Criar flashcard'}</button>
           </div>
         </form>
       )}
@@ -459,9 +484,9 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
             <p className="text-xs text-text-muted">Card {cardIndex + 1} de {total}</p>
             <div className="flex gap-1">
               <button onClick={handlePrevCard} disabled={cardIndex === 0}
-                className="text-xs text-text-muted hover:text-accent disabled:opacity-30 px-2 py-1" title="Anterior (←)">← Anterior</button>
+                className="text-xs text-text-muted hover:text-accent disabled:opacity-disabled-heavy px-2 py-1" title="Anterior (←)">← Anterior</button>
               <button onClick={handleNextCard} disabled={cardIndex >= total - 1}
-                className="text-xs text-text-muted hover:text-accent disabled:opacity-30 px-2 py-1" title="Próximo (→)">Próximo →</button>
+                className="text-xs text-text-muted hover:text-accent disabled:opacity-disabled-heavy px-2 py-1" title="Próximo (→)">Próximo →</button>
             </div>
           </div>
           <div className="w-full bg-bg-tertiary rounded-full h-1.5 mb-4">
@@ -472,7 +497,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
             className="bg-bg-secondary rounded-xl border border-border min-h-[200px] cursor-pointer [perspective:600px] hover:border-accent/50 transition-colors" title="Clique ou Espaço para virar"
           >
             <div className={`relative w-full h-full transition-all duration-500 ${virado ? 'rotate-y-180' : ''}`} style={{ transformStyle: 'preserve-3d' }}>
-              <div className="backface-hidden p-8 flex items-center justify-center text-center">
+              <div className="backface-hidden p-6 flex items-center justify-center text-center">
                 <div>
                   <p className="text-xs text-text-muted mb-4">
                     {currentCard.categoria && <><span className="text-accent">{currentCard.categoria}</span> · </>}
@@ -482,7 +507,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
                   <p className="text-xs text-text-muted mt-4">Clique ou pressione Espaço para ver a resposta</p>
                 </div>
               </div>
-              <div className="backface-hidden absolute inset-0 p-8 flex items-center justify-center text-center rotate-y-180">
+              <div className="backface-hidden absolute inset-0 p-6 flex items-center justify-center text-center rotate-y-180">
                 <div>
                   <p className="text-xs text-text-muted mb-4">Resposta</p>
                   <p className="text-lg whitespace-pre-wrap">{currentCard.resposta}</p>
@@ -500,7 +525,7 @@ className={`px-3 py-1.5 text-sm rounded-lg transition-all active:scale-95 ${simu
                       onClick={() => handleReview(q)}
                       disabled={reviewMut.isPending}
                       aria-label={`Avaliar como ${labels[q].toLowerCase()}`}
-                      className="px-4 py-2 bg-bg-tertiary rounded-lg text-sm hover:bg-accent/20 hover:text-accent transition-colors disabled:opacity-50"
+                      className="px-4 py-2 bg-bg-tertiary rounded-lg text-sm hover:bg-accent/20 hover:text-accent transition-colors disabled:opacity-disabled"
                       title={`Avaliar como ${labels[q].toLowerCase()} (tecla ${q})`}
                     >
                       {reviewMut.isPending ? '...' : labels[q]}

@@ -51,17 +51,17 @@ export default function FormularioView({ query, tipo, onClose, onCreate }: Formu
   return (
     <div className="max-w-xl mx-auto p-6 bg-bg-secondary rounded-xl border border-border">
       <h3 className="text-lg font-semibold mb-4">Nova nota {tipo?.icone} {tipo?.nome}</h3>
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
-          <label className="block text-xs text-text-muted mb-1">Título *</label>
-          <input value={titulo} onChange={e => setTitulo(e.target.value)}
+          <label htmlFor="form-titulo" className="block text-xs text-text-muted mb-1">Título *</label>
+          <input id="form-titulo" value={titulo} onChange={e => setTitulo(e.target.value)}
             className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" required />
         </div>
         {Object.entries(schema).map(([key, field]) => (
           <div key={key}>
-            <label className="block text-xs text-text-muted mb-1">{key}</label>
+            <label htmlFor={`form-${key}`} className="block text-xs text-text-muted mb-1">{key}</label>
             {field.type === 'select' && field.options ? (
-              <select
+              <select id={`form-${key}`}
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent"
@@ -70,22 +70,22 @@ export default function FormularioView({ query, tipo, onClose, onCreate }: Formu
                 {field.options.map(opt => <option key={opt} value={opt}>{opt}</option>)}
               </select>
             ) : field.type === 'date' ? (
-              <input type="date"
+              <input id={`form-${key}`} type="date"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             ) : field.type === 'number' ? (
-              <input type="number"
+              <input id={`form-${key}`} type="number"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />
             ) : field.type === 'url' ? (
-              <input type="url"
+              <input id={`form-${key}`} type="url"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" placeholder="https://..." />
             ) : (
-              <input type="text"
+              <input id={`form-${key}`} type="text"
                 value={formData[key] || ''}
                 onChange={e => setFormData(f => ({ ...f, [key]: e.target.value }))}
                 className="w-full bg-bg-primary rounded px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent" />

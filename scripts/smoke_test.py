@@ -143,7 +143,7 @@ def start_server():
     env["MFLOW_DB_PATH"] = db_path
 
     # Tenta usar python do venv se existir
-    venv_python = os.path.join(ROOT, "venv", "Scripts", "python.exe")
+    venv_python = os.path.join(ROOT, "venv", "Scripts" if os.name == "nt" else "bin", "python.exe" if os.name == "nt" else "python")
     python_exe = venv_python if os.path.exists(venv_python) else sys.executable
 
     err_fd, err_path = tempfile.mkstemp(suffix=".log")

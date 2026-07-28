@@ -2,6 +2,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from database import get_session
@@ -68,9 +69,6 @@ def delete_habito(habito_id: int, session: Session = Depends(get_session)):
     h = session.get(Habito, habito_id)
     if not h:
         raise HTTPException(status_code=404, detail="Hábito não encontrado")
-    registros = session.exec(select(RegistroHabito).where(RegistroHabito.habito_id == habito_id).limit(365)).all()
-    for r in registros:
-        session.delete(r)
     session.delete(h)
     commit_with_handle(session, context="excluir hábito")
     return {"ok": True}
@@ -106,7 +104,10 @@ def create_registro(habito_id: int, r: RegistroHabitoCreate, session: Session = 
     data["habito_id"] = habito_id
     db = RegistroHabito(**data)
     session.add(db)
-    commit_with_handle(session, db, "criar registro")
+    try:
+        commit_with_handle(session, db, "criar registro")
+    except IntegrityError:
+        raise HTTPException(status_code=409, detail="Registro já existe para esta data")
     return db
 
 @router.delete("/{habito_id}/registros/{data}")

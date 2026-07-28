@@ -1,4 +1,4 @@
-# MindFlow 🧠 v1.6.0
+# MindFlow 🧠 v1.6.1
 
 [![CI](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml)
 
@@ -16,7 +16,9 @@
 - **PWA:** instalável como app nativo com service worker + cache offline
 - **Matriz de Decisão:** Eisenhower + Esforço/Impacto com sliders e classificação automática
 - **Rotina completa:** Timeline com blocos, Kanban, drag-and-drop, prioridade editável
-- **Tudo em um:** Dashboard, Rotina, Pomodoro, Notas, Flashcards, Hábitos, Insights, Consultas — integrados
+- **Reflexão semanal:** Guiada por perguntas customizáveis, salva como nota com métricas automáticas
+- **Design system consistente:** Tokens Tailwind v4 auditados (escala 4/8/12/16/24, contraste WCAG AA, fallback daltônico)
+- **Tudo em um:** Dashboard, Rotina, Pomodoro, Notas, Flashcards, Hábitos, Insights, Matriz, Consultas, Revisão — integrados
 
 ---
 
@@ -30,24 +32,25 @@
 | **Ideias** | Editor CodeMirror 6 (Markdown), `[[wikilinks]]`, backlinks, autocomplete, tooltip preview, grafo, tags, pastas, abas múltiplas, auto-save, modo leitura |
 | **Templates** | Modelos com placeholders (`{{date}}`, `{{title}}`) — locais (localStorage) ou do servidor |
 | **Anexos** | Upload de imagens/arquivos com inserção automática de Markdown |
-| **RenderConteudo** | Markdown + Mermaid + tabelas inline (`{{tabela\|...}}`) + gráficos SVG (barra/linha/pizza) + LaTeX (KaTeX) |
+| **RenderConteudo** | Markdown + Mermaid + tabelas inline (`{{tabela\|...}}`) + gráficos SVG (barra/linha/pizza) + LaTeX (KaTeX) + editor visual de tabelas |
 
 ### ⏱️ Produtividade
 
 | Módulo | Descrição |
 |--------|-----------|
 | **Dashboard** | Métricas principais (notas, tarefas, flashcards, sessões), cards de bloco/tarefas/inbox/leitura, diário automático |
-| **Rotina** | Timeline com blocos de horário, tarefas com prioridade (simples→difícil), Kanban drag-and-drop, calendário semanal, intenção diária |
-| **Pomodoro** | Timer com máquina de estados (foco/pausa/pausado), heartbeat localStorage, interrupções com envio ao Inbox, alarme 3-beep, modo livre, resumo automático |
+| **Rotina** | Timeline com blocos de horário, tarefas com prioridade (simples→difícil), Kanban drag-and-drop, calendário semanal, intenção diária, toggle ocultar concluídas |
+| **Pomodoro** | Timer com máquina de estados (foco/pausa/pausado), heartbeat localStorage, restauração automática pós-refresh, interrupções com envio ao Inbox, alarme 3-beep, modo livre, resumo automático |
 | **Hábitos** | Rastreamento binário ou quantitativo com streaks + calendário mensal + registro em lote |
-| **Matriz de Decisão** | Eisenhower (urgente vs importante) + Esforço/Impacto com sliders visuais, classificação automática em 4 quadrantes |
+| **Matriz de Decisão** | Eisenhower (urgente vs importante) + Esforço/Impacto com sliders visuais, classificação automática em 4 quadrantes, ordenação por score |
 
 ### 🧠 Revisão & Aprendizado
 
 | Módulo | Descrição |
 |--------|-----------|
-| **Flashcards** | Repetição espaçada (SM-2) para revisão ativa |
-| **Revisão** | Revisão periódica (diária/semanal/mensal) com template automático de métricas |
+| **Flashcards** | Repetição espaçada (SM-2) para revisão ativa, simulado por categoria |
+| **Revisão** | Revisão periódica (diária/semanal/mensal) com template automático de métricas, templates customizáveis |
+| **Reflexão Semanal** | Aba guiada por perguntas customizáveis, respostas salvas como nota com métricas automáticas |
 | **Insights** | Calendário heatmap multi-métrica, evolução semanal, gráficos, streak de leitura |
 | **Grafo** | Visualização interativa das conexões entre notas (algoritmo Fruchterman–Reingold custom, 120 iterações) |
 | **Notas Relacionadas** | Recomendação TF-IDF + overlap de tags no editor |
@@ -57,9 +60,9 @@
 | Módulo | Descrição |
 |--------|-----------|
 | **Tipos** | Sistema de tipos customizável (inspirado Anytype) com ícones e cores |
-| **Consultas** | Visualizações dinâmicas (grid, kanban, lista, galeria, formulário, calendário, gantt) com SQL salvo |
-| **Config** | Fonte (família/tamanho), zoom, auto-save, visibilidade de seções da sidebar, atalhos customizáveis, backup/vacuum |
-| **Tema** | Claro / escuro / sistema com toggle na sidebar |
+| **Consultas** | Visualizações dinâmicas (grid, kanban, lista, galeria, formulário, calendário, gantt) com SQL salvo, filtros avançados |
+| **Config** | Fonte (família/tamanho), zoom, auto-save, visibilidade de seções da sidebar, tema (movido da sidebar), atalhos customizáveis, backup/vacuum, reset de onboarding |
+| **Tema** | Claro / escuro / sistema (configurado em Config) |
 | **Propriedades** | Dados estruturados (JSON) dentro de notas |
 | **Export/Import** | JSON completo com todas as tabelas + `.mindflow` portátil + CSV + import com upsert e rollback |
 | **Filtros Salvos** | Persiste combinações de busca + data + pasta + tags + ordenação |
@@ -77,6 +80,7 @@
 | **Editor** | CodeMirror 6 (Markdown + Python + JavaScript + SQL) |
 | **Grafo** | Algoritmo custom Fruchterman–Reingold (120 iterações) |
 | **Diagramas** | Mermaid + SVG inline (barras/linhas/pizza) |
+| **Editor de Tabelas** | TableEditorModal — CRUD visual de tabelas inline |
 | **Cache** | TanStack React Query (frontend) + TTLCache (backend) |
 | **Sanitização** | DOMPurify |
 | **Ícones** | Lucide React |
@@ -92,7 +96,7 @@
 - **Node.js** 18+ e npm (apenas no primeiro build; depois o frontend é servido como estático)
 
 > **Linux:** `./start.sh` — detecta distro, instala Python/Node se faltar
-> **Windows:** `python start.py` ou `py start.py`
+> **Windows:** duplo-clique em `start.bat` ou `MindFlow.bat` (console + modo servidor), ou `python start.py`
 > **Make:** `make run` (Linux), `make build`, `make setup`
 
 ---
@@ -162,6 +166,17 @@ python build_exe.py    # compila MindFlow.exe (~40 MB) em dist/
 # ou baixe o .exe pronto na página de releases
 ```
 
+### Windows — iniciadores rápidos
+
+Dois arquivos `*.bat` na raiz do projeto para Windows:
+
+| Arquivo | Descrição |
+|---------|-----------|
+| **start.bat** | Abre terminal, ativa venv, sobe servidor. Útil para primeiro uso ou debug. |
+| **MindFlow.bat** | Mesmo que `start.bat` mas com `-NoExit` — mantém console aberto após execução. Ideal para duplo-clique. |
+
+Ambos detectam automaticamente Node.js e Python, criam venv se necessário, e abrem o navegador em `http://localhost:8000`.
+
 ---
 
 ## ⌨️ Atalhos
@@ -169,6 +184,7 @@ python build_exe.py    # compila MindFlow.exe (~40 MB) em dist/
 | Atalho | Ação |
 |--------|------|
 | `Ctrl+K` | Paleta de comandos |
+| `Ctrl+Shift+K` | Fechar aba |
 | `Ctrl+I` | Captura rápida (Inbox) |
 | `/` (no editor) | Menu de comandos |
 | `[[título]]` | Criar wikilink para outra nota |
@@ -187,17 +203,22 @@ cd backend && python -m pytest -q
 # Lint — ruff
 cd backend && ruff check .
 
-# Frontend — vitest (416 testes, 39 arquivos)
+# Frontend — vitest (486 testes, 45 arquivos)
 cd frontend && npx vitest run
 
 # TypeScript
 cd frontend && node node_modules/typescript/bin/tsc --noEmit
 
 # Build produção
-cd frontend && npm run build
+cd frontend && node node_modules/typescript/bin/tsc -b && npx vite build
 
 # E2E — Playwright (3 specs)
 cd frontend && npx playwright test
+
+# Validação visual programática (requer servidor rodando)
+node scripts/validate_visual.cjs
+node scripts/audit_design.cjs
+python scripts/check_contrast.py
 ```
 
 ---
@@ -207,6 +228,8 @@ cd frontend && npx playwright test
 ```
 mindflow/
 ├── start.py                 # Entry point único (produção)
+├── start.bat                # Iniciador Windows (terminal + servidor)
+├── MindFlow.bat             # Iniciador Windows (console persistente)
 ├── build_exe.py             # Compila .exe portátil via PyInstaller
 ├── backend/
 │   ├── main.py              # FastAPI + startup/shutdown
@@ -240,7 +263,7 @@ mindflow/
 │   └── tests/               # 15 test files
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/           # 14 páginas
+│   │   ├── pages/           # 14 páginas (+ Reflexão como aba em Insights)
 │   │   │   ├── Dashboard.tsx
 │   │   │   ├── Rotina.tsx   # Timeline + Kanban + tarefas + intenção
 │   │   │   ├── Pomodoro.tsx
@@ -255,7 +278,7 @@ mindflow/
 │   │   │   ├── TagsPage.tsx
 │   │   │   ├── Config.tsx   # Fonte, zoom, auto-save, atalhos
 │   │   │   └── RevisaoSemanal.tsx
-│   │   ├── components/      # 30+ componentes
+│   │   ├── components/      # 35+ componentes
 │   │   │   ├── rotina/      # BlocoCard, TarefaItem, TarefaForm, KanbanView, BannerResumo
 │   │   │   ├── matriz/      # EisenhowerView, EsforcoImpactoView, MatrixSelector, TaskCard
 │   │   │   ├── Sidebar.tsx  # Navegação + tema + inbox + redimensionável
@@ -265,22 +288,29 @@ mindflow/
 │   │   │   ├── PomodoroTimer.tsx # Timer + máquina de estados
 │   │   │   ├── PomodoroConfigPanel.tsx
 │   │   │   ├── PomodoroResumoForm.tsx
+│   │   │   ├── PomodoroRestoreBanner.tsx  # Restaura sessão após refresh
 │   │   │   ├── CommandPalette.tsx# Ctrl+K
 │   │   │   ├── InboxModal.tsx
-│   │   │   └── ... (TabBar, TourModal, ConfirmModal, etc.)
+│   │   │   ├── TableEditorModal.tsx       # Editor visual de tabelas
+│   │   │   ├── cm6-table-preview.ts       # Preview de tabelas no CodeMirror
+│   │   │   ├── DiasSemanaPicker.tsx       # Seletor visual de dias
+│   │   │   ├── TourModal.tsx              # Onboarding interativo (10 passos)
+│   │   │   └── ... (TabBar, ConfirmModal, SearchOverlay, ImportModal, EmptyState, SimpleTimer, Stopwatch, etc.)
 │   │   ├── api/             # 17 clientes HTTP
 │   │   ├── store/           # 5 stores (tema, pomodoro, notificação, config, atalhos)
-│   │   ├── hooks/           # 12 hooks (useDebounce, useFocusTrap, useTabState...)
+│   │   ├── hooks/           # 15 hooks (useDebounce, useFocusTrap, useTabState, useAmbientSound, useDebouncedCallback, useReflexaoQuestions...)
 │   │   ├── utils/           # scoring.ts, prioridade.ts, date.ts
 │   │   └── types/           # Interfaces TypeScript
-│   ├── e2e/                 # 3 specs Playwright
+│   ├── e2e/                 # 3 specs Playwright (dashboard, fluxo básico, visual regression)
 │   └── package.json
+├── AGENTS.md                # Orquestração Cérebro ↔ Máquina (autoria IA)
 ├── docs/
 │   ├── adr/                 # Decisões arquiteturais (SQLModel, local-first, monolito)
-│   ├── memoria/             # Estado quente + erros resolvidos
-│   ├── session/             # Histórico de sessões
+│   ├── memoria/             # Estado quente (hot.md) + erros resolvidos (erros.md)
+│   ├── session/             # Histórico de sessões (SESSION.md)
+│   ├── design-tokens.md     # Regras universais de design system
 │   └── workflow/            # Kanban + XP Lite
-└── scripts/                 # check_all.py, smoke_test.py, validate_bat...
+└── scripts/                 # check_all.py, check_contrast.py, validate_visual.cjs, audit_design.cjs, smoke_test.py, release.ps1...
 ```
 
 ---
@@ -358,10 +388,12 @@ Antes de enviar um PR, certifique-se de que:
 
 1. `ruff check .` — zero erros no backend
 2. `python -m pytest -q` — 123 testes passando
-3. `npx vitest run` — 416 testes passando no frontend
+3. `npx vitest run` — 486 testes passando no frontend
 4. `node node_modules/typescript/bin/tsc --noEmit` — zero erros
 5. `npm run build` — build limpo
 6. `npx playwright test` — 3 specs E2E passando
+7. `node scripts/validate_visual.cjs` — validação visual programática
+8. `node scripts/audit_design.cjs` — auditoria de design (se servidor rodando)
 
 ---
 

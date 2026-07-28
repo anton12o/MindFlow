@@ -3,9 +3,11 @@ import { BrowserRouter, MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, type RenderOptions } from '@testing-library/react'
 import { ThemeProvider } from '../store/theme'
+import { ConfigProvider } from '../store/config'
 import { PomodoroProvider } from '../store/pomodoro'
 import { NotificationProvider } from '../store/notification'
 import { KeybindingsProvider } from '../store/keybindings'
+import { ZenModeProvider } from '../contexts/ZenModeContext'
 
 function createTestQueryClient() {
   return new QueryClient({
@@ -37,16 +39,20 @@ export function renderWithProviders(
     const Router = useMemoryRouter ? MemoryRouter : BrowserRouter
     return (
       <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
+          <ThemeProvider>
+          <ConfigProvider>
           <KeybindingsProvider>
             <Router initialEntries={[initialRoute]}>
               <PomodoroProvider>
                 <NotificationProvider>
-                  {children}
+                  <ZenModeProvider>
+                    {children}
+                  </ZenModeProvider>
                 </NotificationProvider>
               </PomodoroProvider>
             </Router>
           </KeybindingsProvider>
+          </ConfigProvider>
         </ThemeProvider>
       </QueryClientProvider>
     )

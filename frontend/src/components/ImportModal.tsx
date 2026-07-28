@@ -71,7 +71,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
               <h3 className="text-base font-semibold">Importar dados</h3>
             </div>
             <div
-              className={`p-8 m-4 rounded-lg border-2 border-dashed transition-colors cursor-pointer text-center
+              className={`p-6 m-4 rounded-lg border-2 border-dashed transition-colors cursor-pointer text-center
                 ${dragOver ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/50'}`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
@@ -90,7 +90,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 Arraste um arquivo <span className="text-accent">.json</span> aqui ou clique para selecionar
               </p>
             </div>
-            <div className="flex justify-end px-5 pb-4">
+            <div className="flex justify-end px-4 pb-4">
               <button onClick={handleClose}
                 className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
                 Cancelar
@@ -112,13 +112,13 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 Os dados existentes serão mesclados. Nenhum dado ser? apagado.
               </div>
             </div>
-            <div className="flex justify-end gap-2 px-5 pb-4">
+            <div className="flex justify-end gap-2 px-4 pb-4">
               <button onClick={() => { setStep('select'); setFile(null) }}
                 className="px-4 py-1.5 text-sm rounded-lg bg-bg-tertiary hover:bg-bg-hover transition-colors">
                 Voltar
               </button>
               <button onClick={handleImport} disabled={isLoading}
-                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors disabled:opacity-50">
+                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover transition-colors disabled:opacity-disabled">
                 {isLoading ? 'Importando...' : 'Importar'}
               </button>
             </div>
@@ -133,7 +133,7 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
             </div>
             <div className="p-4">
               {isLoading && (
-                <div className="flex items-center justify-center py-8">
+                <div className="flex items-center justify-center py-6">
                   <div className="animate-spin h-6 w-6 border-2 border-accent border-t-transparent rounded-full" />
                 </div>
               )}
@@ -165,9 +165,9 @@ export default function ImportModal({ onClose, onSuccess }: Props) {
                 </table>
               )}
             </div>
-            <div className="flex justify-end px-5 pb-4">
+            <div className="flex justify-end px-4 pb-4">
               <button onClick={handleResultClose}
-                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-white hover:bg-accent-hover transition-colors">
+                className="px-4 py-1.5 text-sm rounded-lg bg-accent text-accent-foreground hover:bg-accent-hover transition-colors">
                 {resultado?.sucesso ? 'OK' : 'Fechar'}
               </button>
             </div>

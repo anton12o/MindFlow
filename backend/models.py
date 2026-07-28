@@ -11,7 +11,7 @@ def now():
 
 # ─── Inbox ───
 class InboxItemBase(SQLModel):
-    conteudo: str = Field(min_length=1)
+    conteudo: str = Field(min_length=1, max_length=10000)
     tipo_destino: str | None = None
     destino_id: int | None = Field(default=None, foreign_key="notas.id", ondelete="SET NULL", index=True)
     arquivado: bool = Field(default=False, index=True)
@@ -78,7 +78,7 @@ class HabitoRead(HabitoBase):
 class RegistroHabitoBase(SQLModel):
     habito_id: int = Field(foreign_key="habitos.id", ondelete="CASCADE", index=True)
     data: str
-    valor: float | None = None
+    valor: float | None = Field(default=None, ge=0)
     justificativa: str | None = None
     excecao_justificada: bool = False
 
@@ -128,7 +128,7 @@ class BlocoRotinaRead(BlocoRotinaBase):
 class TarefaBase(SQLModel):
     titulo: str = Field(min_length=1)
     prioridade: str = "normal"
-    tempo_estimado: int | None = None
+    tempo_estimado: int | None = Field(default=None, ge=0)
     status: str = "pendente"
 
     @field_validator('prioridade')
@@ -211,7 +211,7 @@ class TarefaRead(TarefaBase):
 class SessaoPomodoroBase(SQLModel):
     contexto_tipo: str | None = None
     contexto_id: int | None = None
-    duracao_min: int = 25
+    duracao_min: int = Field(default=25, ge=1)
     finalizado_em: str | None = Field(default=None, index=True)
     resumo_nota_id: int | None = Field(default=None, foreign_key="notas.id", ondelete="SET NULL", index=True)
 
@@ -229,7 +229,7 @@ class SessaoPomodoroRead(SessaoPomodoroBase):
 
 # ─── Notas ───
 class PastaBase(SQLModel):
-    nome: str
+    nome: str = Field(min_length=1, max_length=200)
     pai_id: int | None = Field(default=None, foreign_key="pastas.id", ondelete="CASCADE", index=True)
 
 class Pasta(PastaBase, table=True):
@@ -243,7 +243,7 @@ class PastaRead(PastaBase):
     id: int
 
 class TagBase(SQLModel):
-    nome: str
+    nome: str = Field(min_length=1)
     cor: str | None = None
 
 class Tag(TagBase, table=True):
@@ -448,6 +448,14 @@ class QuerySalvaCreate(SQLModel):
     campo_agrupamento: str | None = None
     filtros: dict[str, Any] = {}
     ordem: str = "criado_em DESC"
+
+class QuerySalvaUpdate(SQLModel):
+    nome: str | None = None
+    tipo_objeto_id: int | None = None
+    visualizacao: str | None = None
+    campo_agrupamento: str | None = None
+    filtros: dict[str, Any] | None = None
+    ordem: str | None = None
 
 class QuerySalvaRead(SQLModel):
     id: int

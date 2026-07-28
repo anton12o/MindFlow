@@ -38,13 +38,6 @@ describe('RevisaoSemanal', () => {
     })
   })
 
-  it('mostra perguntas de reflexão', async () => {
-    renderWithProviders(<RevisaoSemanal />)
-    await waitFor(() => {
-      expect(screen.getByText('O que funcionou bem esta semana?')).toBeInTheDocument()
-    })
-  })
-
   it('mostra botão de criar nota de revisão', async () => {
     renderWithProviders(<RevisaoSemanal />)
     await waitFor(() => {

@@ -54,10 +54,10 @@ export default function GanttView({ query, result, resLoad, resErr, errorMsg }: 
   const { min, max } = getDateRange()
   const daysDiff = Math.ceil((max.getTime() - min.getTime()) / (1000 * 60 * 60 * 24))
   const dayWidth = scale === 'day' ? 40 : scale === 'week' ? 200 : 600
-  if (resLoad) return <p className="text-text-muted text-sm text-center py-8 animate-pulse">Carregando...</p>
-  if (resErr) return <p className="text-danger text-sm text-center py-8">{errorMsg || 'Erro ao executar consulta'}</p>
-  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-8">Selecione um campo de agrupamento (campo_agrupamento) na consulta</p>
-  if (!result?.dados?.length) return <p className="text-text-muted text-center py-8">Nenhum item com data_inicio e data_fim</p>
+  if (resLoad) return <p className="text-text-muted text-sm text-center py-6 animate-pulse">Carregando...</p>
+  if (resErr) return <p className="text-danger text-sm text-center py-6">{errorMsg || 'Erro ao executar consulta'}</p>
+  if (!query.campo_agrupamento) return <p className="text-text-muted text-center py-6">Selecione um campo de agrupamento (campo_agrupamento) na consulta</p>
+  if (!result?.dados?.length) return <p className="text-text-muted text-center py-6">Nenhum item com data_inicio e data_fim</p>
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
@@ -140,14 +140,17 @@ export default function GanttView({ query, result, resLoad, resErr, errorMsg }: 
                 }}
               >
                 <div
-                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-elevation-2"
+                  className="absolute top-1 bg-accent rounded h-8 transition-all cursor-grab hover:shadow-[--elevation-2]"
                   style={{ left, width, minWidth: 40 }}
                   draggable
                   onDragStart={() => {
                     dragRef.current = { itemId: item.id as number, type: 'move', inicio, fim, left, width }
                   }}
                 >
-                  <div className="px-2 py-1 text-xs text-accent-foreground truncate" title={item.titulo}>{item.titulo}</div>
+                  <div className="px-2 py-1 text-xs text-accent-foreground truncate" title={`${item.titulo} (${inicio} — ${fim})`}>
+                    <span className="font-medium">{item.titulo}</span>
+                    <span className="ml-2 opacity-disabled text-[10px]">{inicio} — {fim}</span>
+                  </div>
                 </div>
                 <div className="absolute left-0 top-1 w-1 h-8 bg-transparent border-l-2 border-white/50 cursor-w-resize"
                   draggable

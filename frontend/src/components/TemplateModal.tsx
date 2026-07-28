@@ -67,9 +67,9 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
               {[1,2,3,4].map(i => <div key={i} className="h-24 bg-bg-tertiary rounded-lg animate-pulse" />)}
             </div>
           )}
-          {isError && <p className="text-sm text-danger text-center py-8">Erro ao carregar templates</p>}
+          {isError && <p className="text-sm text-danger text-center py-6">Erro ao carregar templates</p>}
           {!isLoading && !isError && filtered.length === 0 && (
-            <p className="text-sm text-text-muted text-center py-8">{search ? 'Nenhum template encontrado' : 'Nenhum template disponível'}</p>
+            <p className="text-sm text-text-muted text-center py-6">{search ? 'Nenhum template encontrado' : 'Nenhum template disponível'}</p>
           )}
           {!isLoading && !isError && filtered.length > 0 && (
             <div className="grid grid-cols-2 gap-3">
@@ -78,7 +78,7 @@ export default function TemplateModal({ onClose, onSelect }: Props) {
                   key={t.id}
                   onClick={() => { setAplicandoId(t.id); aplicarMut.mutate(t.id, { onSettled: () => setAplicandoId(null) }) }}
                   disabled={aplicandoId !== null}
-                  className="text-left p-4 rounded-xl bg-bg-tertiary hover:bg-bg-hover border border-border/50 hover:border-accent/30 transition-all disabled:opacity-50"
+                  className="text-left p-4 rounded-xl bg-bg-tertiary hover:bg-bg-hover border border-border/50 hover:border-accent/30 transition-all disabled:opacity-disabled"
                 >
                   <div className="text-sm font-medium text-text-primary">{aplicandoId === t.id ? 'Criando...' : t.nome}</div>
                   {t.descricao && <div className="text-xs text-text-muted mt-1 line-clamp-2">{t.descricao}</div>}

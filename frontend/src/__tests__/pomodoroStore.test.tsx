@@ -223,11 +223,11 @@ describe('PomodoroProvider', () => {
   })
 
   describe('distracoes', () => {
-    it('registra listener de blur quando screen=running', () => {
-      const addSpy = vi.spyOn(window, 'addEventListener')
+    it('registra listener de visibilitychange quando screen=running', () => {
+      const addSpy = vi.spyOn(document, 'addEventListener')
       const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
       act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
-      expect(addSpy).toHaveBeenCalledWith('blur', expect.any(Function))
+      expect(addSpy).toHaveBeenCalledWith('visibilitychange', expect.any(Function))
       addSpy.mockRestore()
     })
 

@@ -41,7 +41,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
             <span>{n.message}</span>
             {n.action && (
               <button onClick={() => { n.action!.onClick(); setNotifications(prev => prev.filter(x => x.id !== n.id)) }}
-                className="shrink-0 px-2 py-0.5 rounded bg-white/20 text-white text-xs font-medium hover:bg-white/30 transition-colors"
+                className="shrink-0 px-2 py-1 rounded bg-white/20 text-white text-xs font-medium hover:bg-white/30 transition-colors"
               >
                 {n.action.label}
               </button>

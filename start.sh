@@ -18,18 +18,29 @@ fi
 auto_install() {
   local pkg="$1"
   info "Precisa de ${C_b}$pkg${C_n} — tentando instalar..."
+  if ! sudo -n apt-get update -qq 2>/dev/null; then
+    echo ""
+    warn "Instalacao automatica requer sudo sem senha."
+    echo "  Rode manualmente: sudo apt install $pkg"
+    echo "  Depois execute ./start.sh novamente."
+    return 1
+  fi
   case "$DISTRO" in
     ubuntu|debian|pop|mint|zorin)
-      sudo apt-get update -qq && sudo apt-get install -y -qq "$pkg" 2>/dev/null
+      sudo -n apt-get install -y -qq "$pkg" 2>/dev/null
+      return $?
       ;;
     fedora|centos|rhel)
-      sudo dnf install -y "$pkg" 2>/dev/null
+      sudo -n dnf install -y "$pkg" 2>/dev/null
+      return $?
       ;;
     arch|manjaro|endeavour)
-      sudo pacman -S --noconfirm "$pkg" 2>/dev/null
+      sudo -n pacman -S --noconfirm "$pkg" 2>/dev/null
+      return $?
       ;;
     opensuse*|suse)
-      sudo zypper install -y "$pkg" 2>/dev/null
+      sudo -n zypper install -y "$pkg" 2>/dev/null
+      return $?
       ;;
     *)
       fail "Nao sei instalar $pkg no $DISTRO. Instale manualmente e tente de novo."
@@ -39,7 +50,7 @@ auto_install() {
 
 # ── Python ──────────────────────────────────────────────────
 PYTHON=""
-for cmd in python3.12 python3.11 python3.10 python3; do
+for cmd in python3 python3.12 python3.11 python3.10; do
   if command -v "$cmd" >/dev/null 2>&1; then
     PY_VER=$("$cmd" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
     if [ "$(echo "$PY_VER" | cut -d. -f1)" -ge 3 ] && [ "$(echo "$PY_VER" | cut -d. -f2)" -ge 10 ]; then
@@ -52,7 +63,7 @@ done
 if [ -z "$PYTHON" ]; then
   warn "Python 3.10+ nao encontrado"
   auto_install python3
-  for cmd in python3.12 python3.11 python3.10 python3; do
+  for cmd in python3 python3.12 python3.11 python3.10; do
     if command -v "$cmd" >/dev/null 2>&1; then
       PYTHON="$cmd"
       break
@@ -79,9 +90,13 @@ if [ -z "$NODE_CMD" ]; then
   warn "Node.js 18+ nao encontrado"
   case "$DISTRO" in
     ubuntu|debian|pop|mint|zorin)
-      info "Instalando via NodeSource..."
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - 2>/dev/null
-      sudo apt-get install -y -qq nodejs 2>/dev/null
+      if ! sudo -n apt-get install -y -qq nodejs 2>/dev/null; then
+        echo ""
+        info "Node.js pode ser instalado manualmente:"
+        echo "  curl -fsSL https://deb.nodesource.com/setup_22.x | sudo bash"
+        echo "  sudo apt install -y nodejs"
+        echo "  Depois execute ./start.sh novamente."
+      fi
       ;;
     fedora|centos|rhel)
       auto_install nodejs
@@ -91,11 +106,18 @@ if [ -z "$NODE_CMD" ]; then
       ;;
     *)
       fail "Instale Node.js 18+ manualmente: https://nodejs.org"
+      echo "  Depois execute ./start.sh novamente."
       ;;
   esac
   if command -v node >/dev/null 2>&1; then
-    NODE_CMD="node"
     NODE_VER=$(node -v | sed 's/v//' | cut -d. -f1)
+    if [ "$NODE_VER" -ge 18 ]; then
+      NODE_CMD="node"
+    fi
+  fi
+  if [ -z "$NODE_CMD" ]; then
+    warn "Node.js 18+ ainda nao disponivel."
+    echo "  Instale manualmente e execute ./start.sh novamente."
   fi
 fi
 

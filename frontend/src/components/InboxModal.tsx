@@ -103,7 +103,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
             </div>
             <div className="flex gap-2">
               {saved && <span className="text-xs text-success">Capturado!</span>}
-              <button type="submit" disabled={createMut.isPending} className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50">
+              <button type="submit" disabled={createMut.isPending} className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-disabled">
                 {createMut.isPending ? 'Capturando...' : 'Capturar'}
               </button>
             </div>
@@ -127,7 +127,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
                     <span className="text-xs text-text-muted">{selectedIds.size} selecionado(s)</span>
                     <button onClick={() => setSelectedIds(new Set())} className="text-xs text-text-muted hover:text-text-primary transition-colors">Limpar</button>
                     <button onClick={() => archiveMut.mutate()} disabled={archiveMut.isPending}
-                      className="px-3 py-1 text-xs bg-accent text-white rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-50">
+                      className="px-3 py-1 text-xs bg-accent text-accent-foreground rounded-lg hover:bg-accent-hover transition-colors disabled:opacity-disabled">
                       {archiveMut.isPending ? 'Arquivando...' : `Arquivar (${selectedIds.size})`}
                     </button>
                   </>
@@ -145,7 +145,7 @@ export default function InboxModal({ isOpen, onClose }: { isOpen: boolean; onClo
                   <div className="min-w-0">
                     <span className="text-sm block truncate">{item.conteudo}</span>
                     {item.tipo_destino && (
-                      <span className="text-[10px] text-accent/70 mt-0.5 block">📥 {item.tipo_destino}</span>
+                      <span className="text-xs text-accent/70 mt-0.5 block">📥 {item.tipo_destino}</span>
                     )}
                   </div>
                 </label>

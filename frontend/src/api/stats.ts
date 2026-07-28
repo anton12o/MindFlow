@@ -87,8 +87,33 @@ export interface FlashcardStats {
 export const getFlashcardStats = () =>
   request<FlashcardStats>('/stats/flashcards')
 
-export const getWeeklyStats = (offset = 0) =>
-  request<WeeklyStats>(`/stats/weekly?offset=${offset}`)
+export interface ScoreConfig {
+  primeiroDia?: number
+  pesoFoco?: number
+  pesoTarefas?: number
+  pesoHabitos?: number
+  pesoNotas?: number
+  metaFocoMin?: number
+  metaTarefas?: number
+  metaNotas?: number
+  streakGrace?: number
+}
+
+export const getWeeklyStats = (offset = 0, config?: ScoreConfig) => {
+  const params = new URLSearchParams({ offset: String(offset) })
+  if (config) {
+    if (config.primeiroDia !== undefined) params.set('primeiro_dia', String(config.primeiroDia))
+    if (config.pesoFoco !== undefined) params.set('peso_foco', String(config.pesoFoco))
+    if (config.pesoTarefas !== undefined) params.set('peso_tarefas', String(config.pesoTarefas))
+    if (config.pesoHabitos !== undefined) params.set('peso_habitos', String(config.pesoHabitos))
+    if (config.pesoNotas !== undefined) params.set('peso_notas', String(config.pesoNotas))
+    if (config.metaFocoMin !== undefined) params.set('meta_foco_min', String(config.metaFocoMin))
+    if (config.metaTarefas !== undefined) params.set('meta_tarefas', String(config.metaTarefas))
+    if (config.metaNotas !== undefined) params.set('meta_notas', String(config.metaNotas))
+    if (config.streakGrace !== undefined) params.set('streak_grace', String(config.streakGrace))
+  }
+  return request<WeeklyStats>(`/stats/weekly?${params}`)
+}
 
 export interface LeituraStats {
   total_acessos: number

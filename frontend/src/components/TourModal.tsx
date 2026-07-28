@@ -8,9 +8,11 @@ const TOUR_STEPS = [
   { icon: '📋', titulo: 'Rotina + Hábitos', descricao: 'Blocos de horário organizam seu dia. Tarefas com prioridade alta/média/baixa. Hábitos: um clique por dia pra marcar — streak mostra quantos dias seguidos.', atalhos: '', rota: '/rotina' },
   { icon: '🍅', titulo: 'Pomodoro', descricao: 'Timer de foco com ciclos automáticos. Pause, resume, modo livre. Alarme sonoro. Ideal pra manter a concentração sem pensar no relógio.', atalhos: '', rota: '/pomodoro' },
   { icon: '🎴', titulo: 'Flashcards', descricao: 'Revisão espaçada (SM-2) pra aprender de verdade. Categorias, busca, navegação por teclado (1 a 5). A análise semanal mostra seu progresso.', atalhos: '', rota: '/flashcards' },
+  { icon: '📐', titulo: 'Matriz', descricao: 'Matriz Eisenhower e Esforço×Impacto pra priorizar tarefas. Arraste cartões entre quadrantes, ajuste notas de 1 a 5, filtre por categoria e veja o score de cada tarefa.', atalhos: '', rota: '/matriz' },
   { icon: '📊', titulo: 'Dashboard', descricao: 'Visão geral do dia: saudação personalizada, barras de progresso de tarefas e foco, streak de hábitos, próximo bloco da rotina. Tudo num só lugar.', atalhos: '', rota: '/' },
   { icon: '📈', titulo: 'Insights', descricao: 'Gráficos de desempenho semanal, distribuição de notas por categoria, evolução dos flashcards (SM-2), taxas de conclusão de tarefas.', atalhos: '', rota: '/insights' },
   { icon: '🔍', titulo: 'Consultas', descricao: 'Visualização avançada de dados personalizada. Busca textual em todas as entidades, filtra por tipo e data, exporta resultados em CSV ou JSON.', atalhos: '', rota: '/consultas' },
+  { icon: '🔄', titulo: 'Revisão', descricao: 'Revisão diária, semanal e mensal com métricas de tarefas, notas, pomodoros e foco. Cria notas de revisão com modelos customizáveis e templates.', atalhos: '', rota: '/revisao' },
   { icon: '⚙️', titulo: 'Config', descricao: 'Personalize tudo: tema claro/escuro, cor de destaque, fonte e zoom, som ambiente, atalhos de teclado, PIN de bloqueio, backup e restauração.', atalhos: '', rota: '/config' },
 ]
 

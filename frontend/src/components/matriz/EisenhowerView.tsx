@@ -50,7 +50,7 @@ function Quadrante({ quadrante, tarefas, onToggleStatus, onDelete, onLimparQuadr
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-primary">{quadrante.titulo}</span>
         {tarefas.length > 0 && (
-          <span className={`text-xs font-bold px-2 py-1 rounded-full min-w-[18px] text-center leading-none ${quadrante.badgeText} ${quadrante.badge}`}>
+          <span className={`text-xs font-bold px-2 py-1 rounded-full min-w-4 text-center leading-none ${quadrante.badgeText} ${quadrante.badge}`}>
             {tarefas.length}
           </span>
         )}
@@ -179,8 +179,9 @@ export default function EisenhowerView({ tarefas, isLoading, dataInicio, dataFim
         <h2 className="text-base font-bold text-text-primary">Eisenhower</h2>
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-muted tabular-nums">{tarefas?.length || 0} tarefa{(tarefas?.length || 0) !== 1 ? 's' : ''}</span>
+          {(() => { const nc = tarefas?.filter(t => !t.quadrante).length || 0; return nc > 0 ? <span className="text-xs font-bold px-2 py-1 rounded-full bg-bg-tertiary text-text-muted">{nc} sem classif.</span> : null })()}
             <select value={filtro} onChange={e => setFiltro(e.target.value as typeof filtro)} aria-label="Filtrar tarefas"
-            className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors">
+            className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus-visible:ring-1 focus-visible:ring-accent/20 transition-colors">
             <option value="all">Todas</option>
             <option value="avaliadas">Classificadas</option>
             <option value="pendentes">N\u00E3o classificadas</option>

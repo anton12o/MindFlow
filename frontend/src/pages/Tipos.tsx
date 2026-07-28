@@ -37,10 +37,10 @@ export default function Tipos({ compact }: { compact?: boolean }) {
     onError: (e) => { console.error('[Tipos] delete', e); notify('Erro ao excluir tipo') },
   })
   return (
-    <div className={compact ? '' : 'p-6 max-w-4xl mx-auto animate-fade-in'}>
+    <div className={compact ? '' : 'p-6 animate-fade-in'}>
       <h1 className="text-xl font-bold mb-6">Tipos de Objeto</h1>
       {!editing && (
-      <div className="bg-bg-secondary rounded-xl border border-border p-4 mb-6">
+      <div className="bg-bg-secondary rounded-xl border border-border p-3 mb-6">
         <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-3">Novo tipo</h2>
         <div className="flex items-center gap-2">
           <select value={form.icone} onChange={e => setForm(f => ({ ...f, icone: e.target.value }))}
@@ -51,7 +51,7 @@ export default function Tipos({ compact }: { compact?: boolean }) {
             placeholder="Nome do tipo" className={`flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${formError ? 'ring-1 ring-danger border-danger' : ''}`} />
           {formError && <p className="text-xs text-danger">{formError}</p>}
           <button onClick={() => { if (!form.nome.trim()) { setFormError('Informe o nome do tipo'); return }; setFormError(''); createMut.mutate() }} disabled={createMut.isPending}
-            className="px-4 py-1.5 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50 hover:bg-accent-hover">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
+            className="px-4 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg transition-all active:scale-95 disabled:opacity-disabled hover:bg-accent-hover">{createMut.isPending ? 'Criando...' : 'Criar'}</button>
         </div>
       </div>
       )}
@@ -62,7 +62,7 @@ export default function Tipos({ compact }: { compact?: boolean }) {
           <p className="text-sm text-text-muted py-4 text-center">Nenhum tipo criado ainda</p>
         )}
         {!isLoading && !isError && (tipos || []).map(t => (
-          <div key={t.id} className="bg-bg-secondary rounded-xl border border-border p-4">
+          <div key={t.id} className="bg-bg-secondary rounded-xl border border-border p-3">
             {editing === t.id ? (
               <div className="flex items-center gap-2">
                 <select value={form.icone} onChange={e => setForm(f => ({ ...f, icone: e.target.value }))}
@@ -73,7 +73,7 @@ export default function Tipos({ compact }: { compact?: boolean }) {
                   className={`flex-1 bg-bg-primary rounded px-3 py-1.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-accent ${editError ? 'ring-1 ring-danger border-danger' : ''}`} />
                 {editError && <p className="text-xs text-danger">{editError}</p>}
                 <button onClick={() => { if (!form.nome.trim()) { setEditError('Informe o nome do tipo'); return }; setEditError(''); updateMut.mutate({ id: t.id, data: form }) }}
-                  disabled={updateMut.isPending} className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg transition-all active:scale-95 disabled:opacity-50 hover:bg-accent-hover">{updateMut.isPending ? 'Salvando...' : 'Salvar'}</button>
+                  disabled={updateMut.isPending} className="px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg transition-all active:scale-95 disabled:opacity-disabled hover:bg-accent-hover">{updateMut.isPending ? 'Salvando...' : 'Salvar'}</button>
                 <button onClick={() => setEditing(null)}
                   className="px-3 py-1.5 bg-bg-tertiary text-text-primary text-sm rounded-lg hover:bg-bg-hover transition-colors">Cancelar</button>
               </div>

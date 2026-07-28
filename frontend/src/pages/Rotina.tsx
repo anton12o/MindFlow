@@ -330,20 +330,20 @@ export default function Rotina() {
   const bannerLoading = blocosLoad || tarefasLoad || pLoad
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Rotina Diária</h1>
         <div className="flex rounded-lg border border-border overflow-hidden">
           <button onClick={() => setView('lista')}
-            className={`px-3 py-1 text-[10px] transition-all active:scale-95 ${view === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
+            className={`px-3 py-1 text-xs transition-all active:scale-95 ${view === 'lista' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
             Lista
           </button>
           <button onClick={() => setView('semana')}
-            className={`px-3 py-1 text-[10px] transition-all active:scale-95 ${view === 'semana' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
+            className={`px-3 py-1 text-xs transition-all active:scale-95 ${view === 'semana' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
             Semana
           </button>
           <button onClick={() => setView('kanban')}
-            className={`px-3 py-1 text-[10px] transition-all active:scale-95 ${view === 'kanban' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
+            className={`px-3 py-1 text-xs transition-all active:scale-95 ${view === 'kanban' ? 'bg-accent text-accent-foreground' : 'bg-bg-secondary text-text-muted hover:text-text-primary'}`}>
             Kanban
           </button>
         </div>
@@ -361,7 +361,7 @@ export default function Rotina() {
       ) : (
         <div className="flex flex-col gap-6">
           {bannerLoading ? (
-            <div className="bg-bg-secondary rounded-xl border border-border p-4 space-y-3">
+            <div className="bg-bg-secondary rounded-xl border border-border p-3 space-y-3">
               <div className="h-5 bg-bg-tertiary rounded w-1/3 animate-pulse" />
               <div className="h-4 bg-bg-tertiary rounded w-2/3 animate-pulse" />
               <div className="h-4 bg-bg-tertiary rounded w-1/2 animate-pulse" />
@@ -395,7 +395,7 @@ export default function Rotina() {
                   <div key={t.id} className="flex items-center gap-2 text-sm">
                     <span className="text-xs font-mono text-text-muted w-4 shrink-0">{i + 1}.</span>
                     <span className="flex-1 truncate">{t.titulo}</span>
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${badgePrioridade(t.prioridade)}`}>{labelPrioridade(t.prioridade)}</span>
+                    <span className={`text-xs font-bold px-2 py-1 rounded ${badgePrioridade(t.prioridade)}`}>{labelPrioridade(t.prioridade)}</span>
                   </div>
                 ))}
               </div>
@@ -488,7 +488,7 @@ export default function Rotina() {
             )}
 
             {!blocosLoad && !blocosErr && blocosOrdenados.length === 0 && (
-              <div className="ml-6 py-8 text-center">
+              <div className="ml-6 py-6 text-center">
                 <EmptyState icon="📋" mensagem="Nenhum bloco definido para hoje" />
                 <button onClick={() => setShowBlocoForm(true)} className="text-sm text-accent hover:underline">+ Criar primeiro bloco</button>
               </div>

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _calcular_streak(session: Session) -> int:
+def _calcular_streak(session: Session, streak_grace: int = 0) -> int:
     desde = (date.today() - timedelta(days=365)).isoformat()
     notas = session.exec(
         select(func.substr(Nota.criado_em, 1, 10)).where(Nota.criado_em >= desde).distinct()
@@ -37,10 +37,15 @@ def _calcular_streak(session: Session) -> int:
     dias_ativos.update(registros)
 
     streak = 0
+    perdidos = 0
     d = date.today()
     while True:
-        if d.isoformat() in dias_ativos:
+        ds = d.isoformat()
+        if ds in dias_ativos:
             streak += 1
+            d -= timedelta(days=1)
+        elif perdidos < streak_grace:
+            perdidos += 1
             d -= timedelta(days=1)
         else:
             break
@@ -202,13 +207,21 @@ def pomodoro_stats(session: Session = Depends(get_session)):
 @router.get("/stats/weekly", response_model=WeeklyStats)
 def weekly_stats(
     offset: int = Query(0, description="0=semana atual, -1=semana passada, 1=próxima semana"),
+    primeiro_dia: int = Query(0, description="0=segunda, 6=domingo"),
+    peso_foco: int = Query(25, ge=0, le=100),
+    peso_tarefas: int = Query(25, ge=0, le=100),
+    peso_habitos: int = Query(25, ge=0, le=100),
+    peso_notas: int = Query(25, ge=0, le=100),
+    meta_foco_min: int = Query(300, ge=1),
+    meta_tarefas: int = Query(20, ge=1),
+    meta_notas: int = Query(10, ge=1),
+    streak_grace: int = Query(0, ge=0, le=7),
     session: Session = Depends(get_session),
 ):
     hoje = date.today()
-    # Shift by offset weeks
     alvo = hoje + timedelta(weeks=offset)
-    dias_desde_segunda = alvo.weekday()
-    inicio_semana = alvo - timedelta(days=dias_desde_segunda)
+    dias_desde_inicio = (alvo.weekday() - primeiro_dia) % 7
+    inicio_semana = alvo - timedelta(days=dias_desde_inicio)
     fim_semana = inicio_semana + timedelta(days=6)
 
     # Semana anterior
@@ -289,13 +302,12 @@ def weekly_stats(
 
     semana = _stats_periodo(inicio_semana, fim_semana)
     semana_passada = _stats_periodo(inicio_semana_passada, fim_semana_passada)
-    streak = _calcular_streak(session)
+    streak = _calcular_streak(session, streak_grace)
 
-    # Score composto (0-100)
-    score_foco = min(25, round(semana["total_minutos_foco"] / 300 * 25))  # 5h = 25
-    score_tarefas = min(25, round(semana["total_tarefas"] / 20 * 25))  # 20 = 25
-    score_habitos = round(semana["taxa_habitos"] * 25)  # 100% = 25
-    score_notas = min(25, round(semana["total_notas"] / 10 * 25))  # 10 = 25
+    score_foco = min(peso_foco, round(semana["total_minutos_foco"] / meta_foco_min * peso_foco))
+    score_tarefas = min(peso_tarefas, round(semana["total_tarefas"] / meta_tarefas * peso_tarefas))
+    score_habitos = round(semana["taxa_habitos"] * peso_habitos)
+    score_notas = min(peso_notas, round(semana["total_notas"] / meta_notas * peso_notas))
     score_total = score_foco + score_tarefas + score_habitos + score_notas
 
     return {

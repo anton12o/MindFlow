@@ -50,7 +50,7 @@ export function BlocoCard({
         {isEditing ? (
           <div className="flex items-center gap-2 flex-wrap">
             <input value={editTitulo} onChange={e => onEditTitleChange(e.target.value)}
-              className="bg-bg-primary rounded px-2 py-1 text-sm w-28 outline-none focus:ring-1 focus:ring-accent" />
+              className="bg-bg-primary rounded px-2 py-1 text-sm w-28 outline-none focus-visible:ring-1 focus-visible:ring-accent" />
             <input type="time" value={editHoraInicio} onChange={e => onEditHoraInicioChange(e.target.value)}
               className="bg-bg-primary rounded px-2 py-1 text-sm outline-none" />
             <input type="time" value={editHoraFim} onChange={e => onEditHoraFimChange(e.target.value)}
@@ -66,7 +66,7 @@ export function BlocoCard({
                 <span className="text-xs font-mono text-text-secondary shrink-0">{horaInicio}→{horaFim}</span>
                 <span className="text-sm font-medium truncate" style={{ color: cor || undefined }}>{titulo}</span>
                 {statusLabel && isCurrent && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor}`}>{statusLabel}</span>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full ${statusColor}`}>{statusLabel}</span>
                 )}
               </div>
               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">

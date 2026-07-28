@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DndContext, DragOverlay, useDroppable, useDraggable, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { updateTarefa, type TarefasMatrizResponse } from '../../api/rotina'
+import { updateTarefa } from '../../api/rotina'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { formatDataRange, type MatrizViewProps } from './types'
 import { useNotify } from '../../store/notification'
@@ -11,6 +11,7 @@ import KebabMenu from './KebabMenu'
 import { sliderGradient } from './types'
 import type { Tarefa } from '../../types'
 import type { EIScore } from './types'
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback'
 import { QUADRANTES, getEI, classificar } from '../../utils/scoring'
 
 const SCORE_POR_QUADRANTE: Record<string, EIScore> = {
@@ -62,30 +63,30 @@ function EISlider({ label, value, onChange, onCommit }: { label: string; value: 
   )
 }
 
-function DraggableEICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onLimparQuadrante }: {
-  tarefa: Tarefa; onSave: (id: number, score: EIScore) => void; collapseVersion: number;
-  onToggleStatus: (id: number) => void; onDelete: (id: number) => void; onLimparQuadrante?: (id: number) => void
+function DraggableEICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimparQuadrante }: {
+  tarefa: Tarefa; onSave: (id: number, score: EIScore, propriedades?: Record<string, unknown>) => void; allExpanded: boolean | null;
+  onToggleStatus: (id: number) => void; onDelete: (id: number) => void; onLimparQuadrante?: (id: number, propriedades?: Record<string, unknown>) => void
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: tarefa.id })
   const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 } : undefined
   const moveItems = QUADRANTES.map(q => ({
     label: <><span className="mr-1">{q.acao.icone}</span>{q.titulo}</>,
-    onClick: () => { const s = SCORE_POR_QUADRANTE[q.key]; if (s) onSave(tarefa.id, s) },
+    onClick: () => { const s = SCORE_POR_QUADRANTE[q.key]; if (s) onSave(tarefa.id, s, tarefa.propriedades) },
   }))
   return (
     <div ref={setNodeRef} style={style} {...listeners} {...attributes}
       className={`cursor-grab active:cursor-grabbing transition-shadow hover:shadow-[--elevation-1] ${isDragging ? 'opacity-50 shadow-lg' : ''}`}>
-      <EICard tarefa={tarefa} onSave={onSave} collapseVersion={collapseVersion}
+      <EICard tarefa={tarefa} onSave={onSave} allExpanded={allExpanded}
         onToggleStatus={onToggleStatus} onDelete={onDelete} onLimparQuadrante={onLimparQuadrante}
         extraKebabItems={moveItems} />
     </div>
   )
 }
 
-function QuadranteEI({ quadrante, tarefas, collapseVersion, onSave, onToggleStatus, onDelete, onLimparQuadrante }: {
-  quadrante: typeof QUADRANTES[0]; tarefas: Tarefa[]; collapseVersion: number;
-  onSave: (id: number, score: EIScore) => void; onToggleStatus: (id: number) => void;
-  onDelete: (id: number) => void; onLimparQuadrante?: (id: number) => void
+function QuadranteEI({ quadrante, tarefas, allExpanded, onSave, onToggleStatus, onDelete, onLimparQuadrante }: {
+  quadrante: typeof QUADRANTES[0]; tarefas: Tarefa[]; allExpanded: boolean | null;
+  onSave: (id: number, score: EIScore, propriedades?: Record<string, unknown>) => void; onToggleStatus: (id: number) => void;
+  onDelete: (id: number) => void; onLimparQuadrante?: (id: number, propriedades?: Record<string, unknown>) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: quadrante.key })
   return (
@@ -94,7 +95,7 @@ function QuadranteEI({ quadrante, tarefas, collapseVersion, onSave, onToggleStat
       <div className="flex items-center gap-2 mb-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-primary">{quadrante.titulo}</span>
         {tarefas.length > 0 && (
-          <span className={`text-xs font-bold px-2 py-1 rounded-full min-w-[18px] text-center leading-none ${quadrante.badge} ${quadrante.badgeText}`}>
+          <span className={`text-xs font-bold px-2 py-1 rounded-full min-w-4 text-center leading-none ${quadrante.badge} ${quadrante.badgeText}`}>
             {tarefas.length}
           </span>
         )}
@@ -109,7 +110,7 @@ function QuadranteEI({ quadrante, tarefas, collapseVersion, onSave, onToggleStat
           <p className="text-xs text-text-muted italic">Nenhuma tarefa</p>
         ) : (
           tarefas.map(t => <DraggableEICard key={t.id} tarefa={t} onSave={onSave}
-            collapseVersion={collapseVersion}
+            allExpanded={allExpanded}
             onToggleStatus={onToggleStatus} onDelete={onDelete} onLimparQuadrante={onLimparQuadrante} />)
         )}
       </div>
@@ -117,9 +118,9 @@ function QuadranteEI({ quadrante, tarefas, collapseVersion, onSave, onToggleStat
   )
 }
 
-function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onLimparQuadrante, extraKebabItems }: {
-  tarefa: Tarefa; onSave: (id: number, score: EIScore) => void; collapseVersion: number;
-  onToggleStatus: (id: number) => void; onDelete: (id: number) => void; onLimparQuadrante?: (id: number) => void;
+function EICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimparQuadrante, extraKebabItems }: {
+  tarefa: Tarefa; onSave: (id: number, score: EIScore, propriedades?: Record<string, unknown>) => void; allExpanded: boolean | null;
+  onToggleStatus: (id: number) => void; onDelete: (id: number) => void; onLimparQuadrante?: (id: number, propriedades?: Record<string, unknown>) => void;
   extraKebabItems?: { label: ReactNode; onClick: () => void; danger?: boolean }[]
 }) {
   const existing = getEI(tarefa)
@@ -128,8 +129,9 @@ function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onL
   const [expanded, setExpanded] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setExpanded(false) }, [collapseVersion])
+  useEffect(() => {
+    if (allExpanded !== null) setExpanded(allExpanded)
+  }, [allExpanded])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -139,27 +141,21 @@ function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onL
 
   const label = existing ? (QUADRANTES.find(q => q.key === classificar(esforco, impacto))?.titulo ?? '—') : 'N\u00E3o classificado'
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const touched = useRef({ esforco: false, impacto: false })
-  useEffect(() => {
-    if (!expanded) { touched.current = { esforco: false, impacto: false } }
-  }, [expanded])
-  useEffect(() => { return () => { clearTimeout(debounceRef.current) } }, [])
-  const commit = useCallback(() => {
-    if (!touched.current.esforco || !touched.current.impacto) return
-    clearTimeout(debounceRef.current)
-    debounceRef.current = setTimeout(() => {
-      onSave(tarefa.id, { esforco, impacto })
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
-    }, 300)
-  }, [onSave, tarefa.id, esforco, impacto])
+  const debouncedSave = useDebouncedCallback((e: number, i: number) => {
+    onSave(tarefa.id, { esforco: e, impacto: i }, tarefa.propriedades)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 1500)
+  }, 300)
+
+  const handleSliderChange = useCallback(() => {
+    debouncedSave(esforco, impacto)
+  }, [debouncedSave, esforco, impacto])
 
   const handleToggle = useCallback(() => setExpanded(v => !v), [])
 
   return (
     <div className="space-y-1 group/card">
-      <TaskCard tarefa={tarefa} onToggleStatus={onToggleStatus} onDelete={onDelete} onLimparQuadrante={onLimparQuadrante ? () => onLimparQuadrante(tarefa.id) : undefined} extraKebabItems={extraKebabItems}>
+      <TaskCard tarefa={tarefa} onToggleStatus={onToggleStatus} onDelete={onDelete} onLimparQuadrante={onLimparQuadrante ? () => onLimparQuadrante(tarefa.id, tarefa.propriedades) : undefined} extraKebabItems={extraKebabItems}>
         <button onClick={handleToggle} className="w-full flex items-center justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 rounded">
           <span className="text-xs font-normal text-text-muted">{label || 'Sem classifica\u00E7\u00E3o'}</span>
           {!expanded && !existing && (
@@ -167,8 +163,8 @@ function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onL
           )}
         </button>
         <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-          <EISlider label="Esfor\u00E7o" value={esforco} onChange={v => { setEsforco(v); touched.current.esforco = true }} onCommit={commit} />
-          <EISlider label="Impacto" value={impacto} onChange={v => { setImpacto(v); touched.current.impacto = true }} onCommit={commit} />
+          <EISlider label="Esfor\u00E7o" value={esforco} onChange={setEsforco} onCommit={handleSliderChange} />
+          <EISlider label="Impacto" value={impacto} onChange={setImpacto} onCommit={handleSliderChange} />
           {(() => {
             const q = QUADRANTES.find(q => q.key === classificar(esforco, impacto))
             if (!q) return null
@@ -189,18 +185,15 @@ function EICard({ tarefa, onSave, collapseVersion, onToggleStatus, onDelete, onL
 export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dataFim, offset, onOffsetChange }: MatrizViewProps) {
   const queryClient = useQueryClient()
   const notify = useNotify()
-  const [collapseVersion, setCollapseVersion] = useState(0)
+  const [allExpanded, setAllExpanded] = useState<boolean | null>(null)
   const [sortDir, setSortDir] = useState<'desc' | 'asc'>('desc')
   const [filtro, setFiltro] = useState<'all' | 'avaliadas' | 'pendentes'>('all')
   const [activeId, setActiveId] = useState<number | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   const salvarEI = useMutation({
-    mutationFn: ({ id, score }: { id: number; score: EIScore }) => {
-      const all = queryClient.getQueriesData<TarefasMatrizResponse>({ queryKey: ['tarefas-matriz', dataInicio, dataFim] })
-      const t = all.flatMap((pair) => (pair[1] as TarefasMatrizResponse | undefined)?.items || []).find(t => t.id === id)
-      const existingProps = t?.propriedades || {}
-      return updateTarefa(id, { propriedades: { ...existingProps, matriz_ei: score } })
+    mutationFn: ({ id, score, propriedades }: { id: number; score: EIScore; propriedades?: Record<string, unknown> }) => {
+      return updateTarefa(id, { propriedades: { ...(propriedades || {}), matriz_ei: score } })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] })
@@ -208,8 +201,8 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
     onError: (e) => { console.error('[EIView]', e); notify('Erro ao salvar') },
   })
 
-  const handleSave = useCallback((id: number, score: EIScore) => {
-    salvarEI.mutate({ id, score })
+  const handleSave = useCallback((id: number, score: EIScore, propriedades?: Record<string, unknown>) => {
+    salvarEI.mutate({ id, score, propriedades })
   }, [salvarEI])
 
   const toggleStatus = useMutation({
@@ -235,12 +228,9 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
   }, [excluir])
 
   const limparScore = useMutation({
-    mutationFn: (id: number) => {
-      const all = queryClient.getQueriesData<TarefasMatrizResponse>({ queryKey: ['tarefas-matriz', dataInicio, dataFim] })
-      const t = all.flatMap((pair) => (pair[1] as TarefasMatrizResponse | undefined)?.items || []).find(t => t.id === id)
-      const existingProps = t?.propriedades || {}
+    mutationFn: ({ id, propriedades }: { id: number; propriedades?: Record<string, unknown> }) => {
       const rest: Record<string, unknown> = {}
-      for (const [k, v] of Object.entries(existingProps)) {
+      for (const [k, v] of Object.entries(propriedades || {})) {
         if (k !== 'matriz_ei') rest[k] = v
       }
       return updateTarefa(id, { propriedades: Object.keys(rest).length > 0 ? rest : {} })
@@ -249,8 +239,8 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
     onError: (e) => { console.error('[EIView] limpar', e); notify('Erro ao remover classificação') },
   })
 
-  const handleLimparQuadrante = useCallback((id: number) => {
-    limparScore.mutate(id)
+  const handleLimparQuadrante = useCallback((id: number, propriedades?: Record<string, unknown>) => {
+    limparScore.mutate({ id, propriedades })
   }, [limparScore])
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -268,7 +258,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
     if (!t) return
     const existing = getEI(t)
     if (existing && existing.esforco === score.esforco && existing.impacto === score.impacto) return
-    handleSave(tarefaId, score)
+    handleSave(tarefaId, score, t.propriedades)
   }, [tarefas, handleSave, salvarEI])
 
   const draggedTarefa = activeId ? tarefas?.find(t => t.id === activeId) : undefined
@@ -309,7 +299,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
           <h2 className="text-base font-bold text-text-primary">Esforço x Impacto</h2>
           <span className="text-xs text-text-muted tabular-nums">{tarefas?.length || 0} tarefa{(tarefas?.length || 0) !== 1 ? 's' : ''}</span>
           <select value={filtro} onChange={e => setFiltro(e.target.value as typeof filtro)} aria-label="Filtrar tarefas"
-            className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus:ring-1 focus:ring-accent/20 transition-colors">
+            className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus-visible:ring-1 focus-visible:ring-accent/20 transition-colors">
             <option value="all">Todas</option>
             <option value="avaliadas">Classificadas</option>
             <option value="pendentes">N\u00E3o classificadas</option>
@@ -326,7 +316,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
             <ChevronRight size={14} />
           </button>
           <KebabMenu items={[
-            { label: <>Colapsar todos</>, onClick: () => setCollapseVersion(v => v + 1) },
+            { label: <>{allExpanded ? '\u2191' : '\u2193'} {allExpanded ? 'Colapsar' : 'Expandir'} todos</>, onClick: () => setAllExpanded(v => !v) },
             { label: <>{'\u2191'} Score {sortDir === 'desc' ? '\u2193' : '\u2191'}</>, onClick: () => setSortDir(d => d === 'desc' ? 'asc' : 'desc') },
           ]} />
         </div>
@@ -349,13 +339,13 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
           ))}
         </div>
       ) : !tarefas || tarefas.length === 0 ? (
-        <p className="text-sm text-text-muted text-center py-8 italic">Nenhuma tarefa nesta semana</p>
+        <p className="text-sm text-text-muted text-center py-6 italic">Nenhuma tarefa nesta semana</p>
       ) : (
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDragCancel={() => setActiveId(null)}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {QUADRANTES.map(q => {
               const lista = agrupadas?.[q.key] || []
-              return <QuadranteEI key={q.key} quadrante={q} tarefas={lista} collapseVersion={collapseVersion}
+              return <QuadranteEI key={q.key} quadrante={q} tarefas={lista} allExpanded={allExpanded}
                 onSave={handleSave} onToggleStatus={handleToggleStatus} onDelete={handleDelete}
                 onLimparQuadrante={handleLimparQuadrante} />
             })}
@@ -364,14 +354,14 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
             <div className="rounded-xl border-2 border-dashed border-border bg-bg-secondary/30 p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sem classifica\u00E7\u00E3o</span>
-                <span className="text-xs font-bold px-2 py-1 rounded-full min-w-[18px] text-center leading-none bg-bg-tertiary text-text-muted">
+                <span className="text-xs font-bold px-2 py-1 rounded-full min-w-4 text-center leading-none bg-bg-tertiary text-text-muted">
                   {agrupadas.semClassificacao.length}
                 </span>
                 <span className="text-xs text-text-muted ml-auto">Arraste para um quadrante acima</span>
               </div>
               <div className="space-y-2 overflow-y-auto max-h-96 scrollbar-gutter-stable">
                 {agrupadas.semClassificacao.map(t => <DraggableEICard key={t.id} tarefa={t}
-                  onSave={handleSave} collapseVersion={collapseVersion}
+                  onSave={handleSave} allExpanded={allExpanded}
                   onToggleStatus={handleToggleStatus} onDelete={handleDelete} onLimparQuadrante={handleLimparQuadrante} />)}
               </div>
             </div>

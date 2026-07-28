@@ -293,8 +293,17 @@ def ensure_venv():
         return
     if not VENV_DIR.exists():
         info("Criando ambiente virtual...")
-        subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True, text=True)
+        try:
+            subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError:
+            warn("Modulo 'venv' nao disponivel neste Python.")
+            info("Instale o pacote python3-venv (Linux) ou selecione 'venv' na instalacao do Python (Windows).")
+            info("Continuando sem ambiente virtual...")
+            return
     venv_python = VENV_DIR / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+    if not venv_python.exists():
+        warn("Ambiente virtual incompleto — continuando sem venv")
+        return
     marker = VENV_DIR / ".mindflow_installed"
     if not marker.exists():
         info("Instalando dependências...")
@@ -383,6 +392,13 @@ def start_server_bundled(host: str, port: int):
     server = uvicorn.Server(config=config)
     _main._uvicorn_server = server
     server.run()
+    cold_backup()
+    if is_bundled() and sys.platform == "win32":
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(0, "MindFlow foi encerrado com seguranca.", "MindFlow", 0)
+        except Exception:
+            pass
     print(f"\n  {C.g}✓{C.n} Servidor encerrado com segurança. Até logo! \U0001F44B")
     input("   Pressione Enter para fechar... ")
 
@@ -563,8 +579,12 @@ def main():
         try:
             proc.wait()
         except KeyboardInterrupt:
-            proc.terminate()
-            proc.wait()
+            print(f"  {C.y}⚙{C.n} Encerrando servidor (checkpoint + backup)...")
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.terminate()
+                proc.wait()
         finally:
             print(f"\n  {C.g}✓{C.n} MindFlow encerrado. Até logo! \U0001F44B")
             input("\n   Pressione Enter para fechar... ")

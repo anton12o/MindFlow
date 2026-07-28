@@ -66,7 +66,7 @@ export function BannerResumo({
           onBlur={onIntencaoBlur}
           onKeyDown={onIntencaoKeyDown}
           placeholder="🎯 Qual seu foco hoje?"
-          className="w-full bg-bg-primary rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-accent" />
+          className="w-full bg-bg-primary rounded-lg px-3 py-2 text-sm outline-none focus-visible:ring-1 focus-visible:ring-accent" />
         {intencao && <p className="text-xs text-text-muted mt-1 flex items-center gap-1"><span className="text-success">✓</span> {intencao.length}/280</p>}
       </div>
     </div>

@@ -95,15 +95,15 @@ function VisaoMensal() {
               {heatmap.por_dia[String(new Date().getDate()).padStart(2, '0')]?.[metrica as keyof typeof heatmap.por_dia[string]] || 0} hoje
             </span>
           )}
-          {stats && metrica === 'notas' && (
-            <span className="text-success font-semibold ml-2">🔥 {stats.streak} dias</span>
+          {stats && (
+            <span className="text-success font-semibold ml-2">🔥 {stats?.streak ?? 0} dias</span>
           )}
         </div>
       </div>
 
       <div className="flex items-center justify-between mb-4">
         <button onClick={mesAnterior} aria-label="Mês anterior" className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover active:scale-95 transition-all"><ChevronLeft size={16} /></button>
-        <span className="text-lg font-semibold">
+        <span className="text-sm font-semibold uppercase tracking-wide">
           {new Date(ano, mes - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
         </span>
         <button onClick={mesSeguinte} aria-label="Mês seguinte" className="px-3 py-1 text-sm bg-bg-tertiary rounded-lg hover:bg-bg-hover active:scale-95 transition-all"><ChevronRight size={16} /></button>
@@ -145,7 +145,7 @@ function VisaoMensal() {
         </>
       )}
 
-      {diaSelecionado && metrica === 'notas' && (
+      {diaSelecionado && (
         <div>
           <h2 className="text-sm font-semibold mb-2">Notas de {diaSelecionado}</h2>
           <div className="space-y-1">
@@ -172,7 +172,7 @@ export default function Insights() {
   const [aba, setAba] = useState<'mensal' | 'semanal' | 'reflexao'>(tabFromUrl === 'semanal' ? 'semanal' : tabFromUrl === 'reflexao' ? 'reflexao' : 'mensal')
 
   return (
-    <div className="p-6 max-w-4xl mx-auto animate-fade-in space-y-8">
+    <div className="p-6 animate-fade-in space-y-8">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold">Insights</h1>
       </div>

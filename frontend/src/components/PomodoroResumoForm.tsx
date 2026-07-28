@@ -23,7 +23,7 @@ const PomodoroResumoForm = memo(function PomodoroResumoForm({ resumo, setResumo,
           <p className="font-medium mb-0.5">Distra\u00E7\u00F5es registradas:</p>
           <ul className="space-y-0.5">
             {interrupcoes.map((item, i) => (
-              <li key={i} className="flex items-start gap-1">• {item}</li>
+              <li key={item + '-' + i} className="flex items-start gap-1">• {item}</li>
             ))}
           </ul>
         </div>
