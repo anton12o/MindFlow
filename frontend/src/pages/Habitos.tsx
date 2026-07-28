@@ -8,7 +8,6 @@ import HabitoCard from '../components/HabitoCard'
 import { hojeLocal } from '../utils/date'
 import { useNotify } from '../store/notification'
 import { broadcastInvalidate } from '../hooks/useBroadcastInvalidate'
-import type { Habito } from '../types'
 
 export default function Habitos() {
   const navigate = useNavigate()

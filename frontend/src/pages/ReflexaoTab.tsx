@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useState, useEffect, startTransition } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getReflexoes, createNota, updateNota } from '../api/notas'
@@ -98,7 +99,7 @@ export default function ReflexaoTab() {
       const r = extractRespostasPorOrdem(reflexaoAtual.conteudo || '', questions.length)
       startTransition(() => setRespostas(r))
     } else {
-      setRespostas(new Array(questions.length).fill(''))
+      startTransition(() => setRespostas(new Array(questions.length).fill('')))
     }
   }, [reflexaoAtual, questions])
 

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, useMemo, useState, useEffect, type ReactNode } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DndContext, DragOverlay, useDroppable, useDraggable, type DragEndEvent, type DragStartEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { updateTarefa } from '../../api/rotina'
@@ -130,6 +130,7 @@ function EICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimpa
   const [saved, setSaved] = useState(false)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (allExpanded !== null) setExpanded(allExpanded)
   }, [allExpanded])
 

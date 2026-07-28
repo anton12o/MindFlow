@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { act, renderHook } from '@testing-library/react'
 import { ZenModeProvider, useZenMode } from '../contexts/ZenModeContext'
-import { ConfigProvider, useConfig } from '../store/config'
+import { ConfigProvider } from '../store/config'
 
 const STORAGE_KEY = 'mindflow_zen_mode'
 

@@ -16,12 +16,12 @@ function loadQuestions(): string[] {
       const parsed = JSON.parse(raw)
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
     }
-  } catch {}
+  } catch { /* JSON inválido ou localStorage indisponível */ }
   return [...DEFAULT_QUESTIONS]
 }
 
 function saveQuestions(q: string[]) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(q)) } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(q)) } catch { /* localStorage cheio ou indisponível */ }
 }
 
 export function useReflexaoQuestions() {

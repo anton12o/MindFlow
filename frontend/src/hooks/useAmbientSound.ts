@@ -6,7 +6,7 @@ export function useAmbientSound(screen: string, somAmbiente: boolean, audioCtxRe
 
   useEffect(() => {
     if (!somAmbiente) {
-      if (ambientOn) { stopAmbient(); setAmbientOn(false) }
+      if (ambientOn) { stopAmbient(); setAmbientOn(false) } // eslint-disable-line react-hooks/set-state-in-effect
       return
     }
     if (screen === 'running' || screen === 'livre') {
