@@ -210,6 +210,11 @@ def alembic_upgrade():
     if not has_files:
         ok("Nenhuma migration pendente")
         return
+    if DB_PATH.exists() and not os.access(str(DB_PATH), os.W_OK):
+        warn("Banco de dados sem permissao de escrita.")
+        info("Foi criado como root (sudo)? Rode:")
+        info(f"  sudo chown -R $(whoami):$(whoami) {DATA_ROOT}")
+        sys.exit(1)
     info("Verificando migrations...")
     alembic_cwd = str(CODE_ROOT) if is_bundled() else str(BACKEND)
     r = subprocess.run(
@@ -217,6 +222,20 @@ def alembic_upgrade():
         cwd=alembic_cwd, capture_output=True, text=True,
     )
     if r.returncode != 0:
+        if "readonly" in r.stderr.lower() or "read-only" in r.stderr.lower():
+            warn("Banco de dados readonly — foi criado como root (sudo)?")
+            info(f"  sudo chown -R $(whoami):$(whoami) {DATA_ROOT}")
+            sys.exit(1)
+        if "already exists" in r.stderr:
+            warn("Tabelas ja existem — tentando stamp alembic...")
+            r2 = subprocess.run(
+                [sys.executable, "-m", "alembic", "stamp", "head"],
+                cwd=alembic_cwd, capture_output=True, text=True,
+            )
+            if r2.returncode == 0:
+                ok("Banco atualizado (stampado)")
+                return
+            render_error(r2.stderr)
         render_error(r.stderr)
         fail("Migration falhou")
         sys.exit(1)
