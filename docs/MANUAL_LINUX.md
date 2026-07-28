@@ -9,6 +9,8 @@ Bem-vindo ao MindFlow, seu segundo cérebro local-first. Este manual cobre desde
 - [Parte I — Instalação](#parte-i--instalação)
 - [Parte II — Primeiros Passos](#parte-ii--primeiros-passos)
 - [Parte III — Funcionalidades](#parte-iii--funcionalidades)
+  - [Capítulo 7 — Matriz de Decisão](#capítulo-7--matriz-de-decisão-matriz)
+  - [Capítulo 11 — Revisão](#capítulo-11--revisão-revisao)
 - [Parte IV — Avançado](#parte-iv--avançado)
 - [Parte V — Manutenção](#parte-v--manutenção)
 
@@ -206,8 +208,10 @@ A sidebar é seu **menu de navegação principal**. Cada ícone leva a uma seç�
 | 💡 | **Notas** | Editor de notas com Markdown |
 | 📚 | **Flashcards** | Repetição espaçada (SM-2) |
 | ✅ | **Hábitos** | Rastreie hábitos diários |
-| 📈 | **Insights** | Estatísticas e heatmap |
+| 📐 | **Matriz** | Matriz Eisenhower + Esforço/Impacto |
+| 📈 | **Insights** | Estatísticas, heatmap e reflexão semanal |
 | 📋 | **Consultas** | Visualizações personalizadas |
+| 🔄 | **Revisão** | Revisão diária/semanal/mensal |
 | ⚙️ | **Config** | Configurações do app |
 
 **Dicas:**
@@ -381,7 +385,7 @@ graph TD
 - **Auto-save** — configurável (2s a 60s). Vá em Config > Auto-save
 - **Contagem de palavras** — mostrada no rodapé do editor, junto com o tempo estimado de leitura
 - **Favoritar** — clique na estrela ⭐ para marcar uma nota como favorita
-- **Tipo de objeto** — associe um tipo à nota (veja Capítulo 10)
+- **Tipo de objeto** — associe um tipo à nota (veja Capítulo 12)
 - **Tags** — adicione ou remova tags da nota diretamente no editor
 - **Conexões** — veja quais notas linkam para esta (backlinks) e para quais esta nota linka
 - **Visualizar / Editar** — alterne entre o modo de edição e o modo de visualização (renderizado)
@@ -695,7 +699,55 @@ Hábitos que você não pratica mais vão para "Arquivados". Você pode:
 
 ---
 
-## Capítulo 7 — Insights e Revisão (`/insights`)
+## Capítulo 7 — Matriz de Decisão (`/matriz`)
+
+Priorize tarefas usando duas matrizes visuais: Eisenhower e Esforço/Impacto.
+
+### Matriz Eisenhower (Urgente × Importante)
+
+As tarefas são organizadas em 4 quadrantes:
+
+```
+                     Urgente          Não Urgente
+                  ┌─────────────┬──────────────────┐
+     Importante   │  FAZER      │  AGENDAR         │
+                  │  Agora!     │  Planejar        │
+                  ├─────────────┼──────────────────┤
+  Não Importante  │  DELEGAR    │  ELIMINAR        │
+                  │  Rápido     │  Questionar      │
+                  └─────────────┴──────────────────┘
+```
+
+- **Arraste** cartões entre quadrantes para reclassificar
+- Use o **Kebab Menu (⋮)** para ações rápidas (editar, excluir, mudar prioridade)
+- O score de cada tarefa é calculado automaticamente
+
+### Matriz Esforço × Impacto
+
+Avalie tarefas com sliders visuais de 1 a 5:
+
+| Eixo | Descrição |
+|------|-----------|
+| **Esforço** | Quanto trabalho dá — 1 (mínimo) a 5 (máximo) |
+| **Impacto** | Quanto retorno gera — 1 (mínimo) a 5 (máximo) |
+
+Classificação automática:
+
+- 🟢 **Quick Wins** (baixo esforço, alto impacto) — faça primeiro
+- 🔵 **Projetos** (alto esforço, alto impacto) — planeje com cuidado
+- 🟡 **Preenchimento** (baixo esforço, baixo impacto) — faça quando sobrar tempo
+- 🔴 **Armadilhas** (alto esforço, baixo impacto) — evite ou repense
+
+### Recursos comuns
+
+- **Filtro por categoria** — mostre apenas tarefas de uma categoria
+- **Ordenação por score** — classifique do maior para o menor
+- **Expandir/Colapsar** — veja todos os cartões ou apenas os títulos
+- **Badges** — prioridade (🔴 alta, 🟡 média, 🟢 baixa) e status (feito/pendente)
+
+---
+
+## Capítulo 8 — Insights e Reflexão Semanal (`/insights`)
 
 Acompanhe seu progresso com gráficos e estatísticas.
 
@@ -770,21 +822,9 @@ A barra de progresso muda de cor:
 
 **Exportar como .md** — baixe o relatório completo em Markdown.
 
-### Revisão (`/revisao`)
-
-Uma versão mais simples e rápida, acessível pelo botão "Ver Revisão" nos Insights.
-
-Escolha o período:
-
-- **Diária** — métricas do dia atual
-- **Semanal** — métricas da semana, com barras por dia
-- **Mensal** — totais do mês, dias com atividade, detalhamento por dia
-
-Clique em **"Criar nota de revisão"** para gerar uma nota com template automático contendo os dados.
-
 ---
 
-## Capítulo 8 — Inbox (Captura Rápida)
+## Capítulo 9 — Inbox (Captura Rápida)
 
 O Inbox é sua **caixa de entrada** para capturar ideias rapidamente sem interromper o que está fazendo.
 
@@ -809,7 +849,7 @@ Selecione um texto em qualquer nota e pressione **Ctrl+Shift+I** — o texto sel
 
 ---
 
-## Capítulo 9 — Consultas (`/consultas`)
+## Capítulo 10 — Consultas (`/consultas`)
 
 Visualizações personalizadas dos seus dados. Pense como "relatórios" que você pode criar e salvar.
 
@@ -845,7 +885,46 @@ Consultas com muitos resultados mostram até 500 itens, com um aviso "Mostrando 
 
 ---
 
-## Capítulo 10 — Tipos de Objeto (`/config` > aba "Tipos")
+## Capítulo 11 — Revisão (`/revisao`)
+
+Revisão periódica do seu progresso. Gere notas automáticas com métricas consolidadas.
+
+### Períodos disponíveis
+
+| Período | O que mostra |
+|---------|-------------|
+| **Diária** | Métricas do dia atual (notas, tarefas, pomodoros, foco) + barras por dia da semana |
+| **Semanal** | Métricas da semana com barras de atividade por dia da semana + streak atual |
+| **Mensal** | Totais do mês (notas, tarefas, pomodoros, foco), dias com atividade, detalhamento por dia |
+
+### Criar nota de revisão
+
+1. Escolha o período (diário/semanal/mensal)
+2. Clique em **"Criar nota de revisão"**
+3. O MindFlow gera uma nota com os dados do período + template de reflexão
+4. Personalize o conteúdo e salve
+
+### Templates customizáveis
+
+Você pode criar seus próprios templates de revisão:
+
+1. No seletor de templates, escolha **"Salvar como modelo"**
+2. Dê um nome ao template
+3. Use placeholders: `{{notas}}`, `{{tarefas}}`, `{{pomodoros}}`, `{{foco_min}}`, `{{streak}}`, `{{periodo_inicio}}`, `{{periodo_fim}}`, `{{data}}`
+4. O template fica disponível no seletor para uso futuro
+
+### Reflexão semanal (aba em Insights)
+
+Além da Revisão, o MindFlow tem uma **Reflexão Semanal guiada** dentro da página de Insights:
+
+- 4 perguntas pré-definidas (ou customizáveis em Config)
+- Cada resposta vira parte de uma nota com métricas automáticas da semana
+- Botão "Salvar reflexão" cria ou atualiza a nota de reflexão
+- Painel "Gerenciar perguntas" para adicionar, remover ou reordenar
+
+---
+
+## Capítulo 12 — Tipos de Objeto (`/config` > aba "Tipos")
 
 Os tipos permitem categorizar notas com uma estrutura semântica, inspirado pelo Anytype.
 
@@ -873,7 +952,7 @@ Nas notas (Ideias > editor), você pode associar um tipo à nota. Isso ajuda a:
 
 ---
 
-## Capítulo 11 — Configurações (`/config`)
+## Capítulo 13 — Configurações (`/config`)
 
 Todas as configurações do MindFlow em um lugar só.
 
@@ -962,6 +1041,7 @@ O `RenderConteudo` processa Markdown com segurança:
 | Atalho | Ação |
 |---|---|
 | `Ctrl+K` | Paleta de comandos |
+| `Ctrl+Shift+K` | Fechar aba |
 | `Ctrl+P` | Buscar notas rapidamente |
 | `Ctrl+I` | Captura rápida (Inbox) |
 | `Ctrl+Shift+F` | Modo zen (distração zero) |

@@ -246,8 +246,10 @@ A sidebar é seu **menu de navegação principal**. Cada ícone leva a uma seç�
 | 💡 | **Notas** | Editor de notas com Markdown |
 | 📚 | **Flashcards** | Repetição espaçada (SM-2) |
 | ✅ | **Hábitos** | Rastreie hábitos diários |
-| 📈 | **Insights** | Estatísticas e heatmap |
+| 📐 | **Matriz** | Matriz Eisenhower + Esforço/Impacto |
+| 📈 | **Insights** | Estatísticas, heatmap e reflexão semanal |
 | 📋 | **Consultas** | Visualizações personalizadas |
+| 🔄 | **Revisão** | Revisão diária/semanal/mensal |
 | ⚙️ | **Config** | Configurações do app |
 
 **Dicas:**
@@ -296,18 +298,20 @@ Agora vamos transformar isso em uma nota:
 Para referência rápida, as seções disponíveis são:
 
 | Capítulo | Seção | Descrição concisa |
-|---|---|---|
+|---|---|---|---|
 | 1 | **Dashboard** | Visão geral: métricas, inbox, tarefas, leitura, foco |
 | 2 | **Notas** | Editor Markdown, wikilinks, pastas, tags, grafo, templates |
 | 3 | **Rotina** | Blocos de horário, tarefas, calendário semanal |
 | 4 | **Foco (Pomodoro)** | Timer foco/pausa, ciclos, auto-start, heartbeat |
 | 5 | **Flashcards** | Repetição SM-2, revisão diária, simulado |
 | 6 | **Hábitos** | Binário ou quantitativo, streak, calendário |
-| 7 | **Insights** | Heatmap, score semanal, evolução, reflexão |
-| 8 | **Inbox** | Captura rápida (Ctrl+I), arquivar em lote |
-| 9 | **Consultas** | Grid, Kanban, Calendário, Gantt, Lista, Galeria |
-| 10 | **Tipos** | Categorias com ícone e cor |
-| 11 | **Config** | Tema, fonte, zoom, atalhos, backup, pomodoro |
+| 7 | **Matriz** | Eisenhower (urgente vs importante) + Esforço/Impacto |
+| 8 | **Insights** | Heatmap, score semanal, evolução, reflexão semanal |
+| 9 | **Inbox** | Captura rápida (Ctrl+I), arquivar em lote |
+| 10 | **Consultas** | Grid, Kanban, Calendário, Gantt, Lista, Galeria |
+| 11 | **Revisão** | Revisão diária/semanal/mensal com templates |
+| 12 | **Tipos** | Categorias com ícone e cor |
+| 13 | **Config** | Tema, fonte, zoom, atalhos, backup, pomodoro |
 
 **Leia o [MANUAL_LINUX.md](MANUAL_LINUX.md) para a descrição detalhada de cada funcionalidade.** O uso é idêntico no Windows.
 
@@ -344,6 +348,7 @@ O `RenderConteudo` processa Markdown com segurança:
 | Atalho | Ação |
 |---|---|
 | `Ctrl+K` | Paleta de comandos |
+| `Ctrl+Shift+K` | Fechar aba |
 | `Ctrl+P` | Buscar notas rapidamente |
 | `Ctrl+I` | Captura rápida (Inbox) |
 | `Ctrl+Shift+F` | Modo zen (distração zero) |
