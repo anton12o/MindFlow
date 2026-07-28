@@ -227,15 +227,18 @@ def alembic_upgrade():
             info(f"  sudo chown -R $(whoami):$(whoami) {DATA_ROOT}")
             sys.exit(1)
         if "already exists" in r.stderr:
-            warn("Tabelas ja existem — tentando stamp alembic...")
+            warn("Banco com tabelas existentes — estampando (start.py)")
             r2 = subprocess.run(
                 [sys.executable, "-m", "alembic", "stamp", "head"],
                 cwd=alembic_cwd, capture_output=True, text=True,
             )
             if r2.returncode == 0:
                 ok("Banco atualizado (stampado)")
-                return
-            render_error(r2.stderr)
+            else:
+                render_error(r2.stderr)
+                fail("Migration falhou")
+                sys.exit(1)
+            return
         render_error(r.stderr)
         fail("Migration falhou")
         sys.exit(1)

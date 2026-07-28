@@ -52,14 +52,6 @@ def run_migrations():
             if "alembic_version" not in tables and tables:
                 logger.info("Banco existente sem controle de versão — estampando como head")
                 command.stamp(ALEMBIC_CFG, "head")
-            try:
-                command.upgrade(ALEMBIC_CFG, "head")
-            except Exception as e2:
-                if "already exists" in str(e2):
-                    logger.warning("Tabelas ja existem — estampando alembic")
-                    command.stamp(ALEMBIC_CFG, "head")
-                else:
-                    raise
         logger.info("Migrations aplicadas com sucesso")
     except Exception as e:
         logger.error("Erro ao executar migrations: %s", e)
