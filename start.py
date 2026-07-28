@@ -69,12 +69,15 @@ def _npm_cmd():
     return "npm.cmd" if os.name == "nt" else "npm"
 
 
-def save_log(content: str, prefix: str = "error") -> Path:
-    LOGS_DIR.mkdir(parents=True, exist_ok=True)
-    ts = time.strftime("%Y-%m-%d_%H-%M-%S")
-    p = LOGS_DIR / f"{prefix}-{ts}.log"
-    p.write_text(content, encoding="utf-8")
-    return p
+def save_log(content: str, prefix: str = "error") -> Path | None:
+    try:
+        LOGS_DIR.mkdir(parents=True, exist_ok=True)
+        ts = time.strftime("%Y-%m-%d_%H-%M-%S")
+        p = LOGS_DIR / f"{prefix}-{ts}.log"
+        p.write_text(content, encoding="utf-8")
+        return p
+    except (PermissionError, OSError):
+        return None
 
 
 def render_error(stderr: str):
@@ -90,7 +93,8 @@ def render_error(stderr: str):
         for l in tail:
             print(f"   {l}")
     p = save_log(stderr)
-    print(f"   Log completo: {p}")
+    if p:
+        print(f"   Log completo: {p}")
 
 
 def check_python():
@@ -310,6 +314,14 @@ def ensure_venv():
     if not venv_python.exists():
         warn("Ambiente virtual incompleto — continuando sem venv")
         return
+    pip_check = subprocess.run([str(venv_python), "-m", "pip", "--version"], capture_output=True, text=True)
+    if pip_check.returncode != 0:
+        info("pip nao disponivel — tentando ensurepip...")
+        subprocess.run([str(venv_python), "-m", "ensurepip", "--upgrade"], capture_output=True, text=True)
+        pip_check = subprocess.run([str(venv_python), "-m", "pip", "--version"], capture_output=True, text=True)
+        if pip_check.returncode != 0:
+            fail("pip nao disponivel. Instale python3-pip (Linux) ou selecione 'pip' na instalacao do Python (Windows).")
+            sys.exit(1)
     marker = VENV_DIR / ".mindflow_installed"
     if not marker.exists():
         info("Instalando dependências...")

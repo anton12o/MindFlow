@@ -87,6 +87,11 @@ if ! "$PYTHON" -c "import ensurepip" 2>/dev/null; then
   auto_install "$VENV_VER" || auto_install "$VENV_VER" || \
     fail "Rode: sudo apt install ${VENV_VER}"
 fi
+# pip pode vir em pacote separado (Debian/Ubuntu)
+if ! "$PYTHON" -m pip --version >/dev/null 2>&1; then
+  auto_install python3-pip || auto_install python3-pip || \
+    info "pip nao encontrado. Rode: sudo apt install python3-pip"
+fi
 
 # ── Node.js ─────────────────────────────────────────────────
 NODE_CMD=""
