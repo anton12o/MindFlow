@@ -44,6 +44,12 @@ docs/.doc-legado/
 docs/Skills/
 docs/imagemapp/
 docs/cerebro.md
+IDEA.md
+docs/README.md
+docs/analise-matrizes-completa.md
+docs/ideas/
+docs/Hermes\ ideias/
+docs/workflow/WORKFLOW.md
 
 # Build output + temporários
 build/
