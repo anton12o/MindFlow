@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import DiasSemanaPicker from './DiasSemanaPicker'
 import HabitoCalendario from './HabitoCalendario'
 import type { Habito } from '../types'
@@ -25,7 +24,6 @@ interface Props {
 }
 
 export default function HabitoCard({ habit, onCheck, onSave, onDelete, onPomodoro, isCheckPending, isSavePending }: Props) {
-  const navigate = useNavigate()
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState<EditFormState>({ nome: '', tipo: '', categoria: '', meta: '', dias_semana: '' })
   const [editError, setEditError] = useState('')

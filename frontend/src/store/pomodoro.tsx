@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useReducer, useEffect, useRef, useMemo, useCallback, startTransition, type ReactNode, type Dispatch } from 'react'
 import { useBroadcastSync } from '../hooks/useBroadcastSync'
 import { usePushNotifications } from '../hooks/usePushNotifications'
+import { canTransition } from '../utils/canTransition'
 
 export type Fase = 'foco' | 'pausa_curta' | 'pausa_longa'
 export type PomodoroScreen = 'idle' | 'running' | 'pausado' | 'foco_end' | 'pausa_end' | 'livre'
@@ -119,18 +120,6 @@ export type PomodoroAction =
   | { type: 'ADVANCE_PHASE'; ciclosAtePausaLonga: number }
   | { type: 'RESET_TIMER'; durations: Record<Fase, number> }
   | { type: 'OVERWRITE_STATE'; state: Partial<PomodoroState> }
-
-export function canTransition(de: PomodoroScreen, para: PomodoroScreen): boolean {
-  const valid: Record<PomodoroScreen, PomodoroScreen[]> = {
-    idle: ['running', 'livre'],
-    running: ['idle', 'pausado', 'foco_end', 'pausa_end'],
-    pausado: ['idle', 'running'],
-    livre: ['idle'],
-    foco_end: ['idle', 'running'],
-    pausa_end: ['idle', 'running'],
-  }
-  return valid[de].includes(para)
-}
 
 function pomodoroReducer(state: PomodoroState, action: PomodoroAction): PomodoroState {
   switch (action.type) {

@@ -125,7 +125,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
             .then(r => {
               setShutdownCountdown(null)
               if (r.ok) {
-                try { localStorage.setItem('mindflow_shutdown_done', 'true') } catch {}
+                try { localStorage.setItem('mindflow_shutdown_done', 'true') } catch { /* localStorage cheio ou indisponível */ }
                 if ('Notification' in window && Notification.permission === 'granted') {
                   new Notification('MindFlow', { body: 'Servidor encerrado com segurança.' })
                 }
@@ -184,7 +184,7 @@ const Sidebar = memo(function Sidebar({ onToggleInbox }: {
         const id = setTimeout(() => setPrevShutdown(false), 8000)
         return () => clearTimeout(id)
       }
-    } catch {}
+    } catch { /* localStorage indisponível */ }
   }, [])
 
   return (

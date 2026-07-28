@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getWeeklyStats, getHeatmapStats, type WeeklyStats, type HeatmapStats, type ScoreConfig } from '../api/stats'
+import { getWeeklyStats, getHeatmapStats, type WeeklyStats, type HeatmapStats, type ScoreConfig, type DiaStats, type HeatmapDia } from '../api/stats'
 import { createNota } from '../api/notas'
 import { useNotify } from '../store/notification'
 import { hojeLocal } from '../utils/date'
@@ -59,7 +59,7 @@ function getVars(periodo: string, weekly: WeeklyStats | undefined, heatmap: Heat
     periodo_fim: '',
   }
   if (periodo === 'diaria' && weekly) {
-    const dia = weekly.semana.dias.find((d: any) => d.data === hojeStr)
+    const dia = weekly.semana.dias.find((d: DiaStats) => d.data === hojeStr)
     vars.notas = String(dia?.notas || 0)
     vars.tarefas = String(dia?.tarefas || 0)
     vars.pomodoros = String(dia?.pomodoros || 0)
@@ -76,7 +76,7 @@ function getVars(periodo: string, weekly: WeeklyStats | undefined, heatmap: Heat
     vars.periodo_inicio = weekly.semana.inicio
     vars.periodo_fim = weekly.semana.fim
   } else if (periodo === 'mensal' && heatmap) {
-    const dias = Object.values(heatmap.por_dia || {}) as any[]
+    const dias = Object.values(heatmap.por_dia || {}) as HeatmapDia[]
     const totalNotas = dias.reduce((s: number, d) => s + d.notas, 0)
     const totalTarefas = dias.reduce((s: number, d) => s + d.tarefas, 0)
     const totalPomodoros = dias.reduce((s: number, d) => s + d.pomodoros, 0)
