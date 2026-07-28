@@ -295,9 +295,15 @@ def ensure_venv():
         info("Criando ambiente virtual...")
         try:
             subprocess.run([sys.executable, "-m", "venv", str(VENV_DIR)], check=True, capture_output=True, text=True)
-        except subprocess.CalledProcessError:
-            warn("Modulo 'venv' nao disponivel neste Python.")
-            info("Instale o pacote python3-venv (Linux) ou selecione 'venv' na instalacao do Python (Windows).")
+        except subprocess.CalledProcessError as e:
+            stderr = (e.stderr or "").strip()
+            if stderr:
+                for line in stderr.split("\n"):
+                    if line.strip():
+                        warn(line.strip())
+            py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+            info(f"Linux: sudo apt install python{py_ver}-venv")
+            info("Windows: selecione 'venv' na instalacao do Python ou adicione via 'Manage Optional Features'")
             info("Continuando sem ambiente virtual...")
             return
     venv_python = VENV_DIR / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
