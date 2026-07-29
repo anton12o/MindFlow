@@ -60,8 +60,15 @@ ALEMBIC_CFG = Config(Path(__file__).parent / "alembic.ini")
 ALEMBIC_CFG.set_main_option("sqlalchemy.url", str(engine.url))
 
 
+def _column_exists(conn, table, column):
+    try:
+        conn.execute(text(f"SELECT {column} FROM {table} LIMIT 0"))
+        return True
+    except Exception:
+        return False
+
+
 def _critical_columns_exist():
-    """Verifica se colunas críticas existem (schema vs versionamento)."""
     cols = [
         ("notas", "ordem"),
         ("tarefas", "quadrante"),
@@ -70,9 +77,7 @@ def _critical_columns_exist():
     try:
         with engine.connect() as conn:
             for table, column in cols:
-                try:
-                    conn.execute(text(f"SELECT {column} FROM {table} LIMIT 0"))
-                except Exception:
+                if not _column_exists(conn, table, column):
                     return False
         return True
     except Exception:
@@ -80,12 +85,6 @@ def _critical_columns_exist():
 
 
 def _repair_migrations():
-    """Reparo de migrations — 3 abordagens em cascata.
-
-    1. Drop alembic_version + upgrade head (Alembic resolve DAG, merge heads inclusive)
-    2. Stamp base + upgrade head (tabelas existentes)
-    3. Per-revision: merge heads são estampadas e o upgrade final resolve
-    """
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(ALEMBIC_CFG)
@@ -93,6 +92,7 @@ def _repair_migrations():
     if not base_rev:
         return False
 
+    # Tentativa 1: drop + upgrade (banco novo ou sem tabelas existentes)
     logger.info("Reparo: drop + upgrade (1/3)")
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
@@ -103,6 +103,7 @@ def _repair_migrations():
     except Exception:
         pass
 
+    # Tentativa 2: stamp base + upgrade (alem_bic sabe que tabelas existem)
     logger.info("Reparo: stamp base + upgrade (2/3)")
     command.stamp(ALEMBIC_CFG, base_rev)
     try:
@@ -111,24 +112,20 @@ def _repair_migrations():
     except Exception:
         pass
 
-    logger.info("Reparo: per-revision (3/3)")
-    revisions = list(script.walk_revisions(base_rev, "head"))
-    revisions.reverse()
+    # Tentativa 3: adiciona colunas faltantes via SQL direto + stamp head
+    logger.info("Reparo: colunas direto + stamp head (3/3)")
+    with engine.connect() as conn:
+        if not _column_exists(conn, "notas", "ordem"):
+            conn.execute(text("ALTER TABLE notas ADD COLUMN ordem INTEGER DEFAULT 0"))
+        if not _column_exists(conn, "tarefas", "quadrante"):
+            conn.execute(text("ALTER TABLE tarefas ADD COLUMN quadrante VARCHAR DEFAULT ''"))
+        if not _column_exists(conn, "notas", "acessos"):
+            conn.execute(text("ALTER TABLE notas ADD COLUMN acessos INTEGER DEFAULT 0"))
+        conn.commit()
 
-    for rev in revisions:
-        if rev.revision == base_rev:
-            continue
-        # Merge revisions (multi-parent) — stamp and let final upgrade resolve
-        parents = rev.down_revision or []
-        if isinstance(parents, (tuple, list)) and len(parents) > 1:
-            command.stamp(ALEMBIC_CFG, rev.revision)
-            continue
-        try:
-            command.upgrade(ALEMBIC_CFG, rev.revision)
-        except Exception:
-            command.stamp(ALEMBIC_CFG, rev.revision)
-
-    command.upgrade(ALEMBIC_CFG, "head")
+    head_rev = script.get_current_head()
+    if head_rev:
+        command.stamp(ALEMBIC_CFG, head_rev)
     return _critical_columns_exist()
 
 
