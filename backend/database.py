@@ -6,7 +6,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import event, inspect, text
-from sqlmodel import SQLModel, Session, create_engine
+from sqlmodel import Session, SQLModel, create_engine
 
 logger = logging.getLogger(__name__)
 
