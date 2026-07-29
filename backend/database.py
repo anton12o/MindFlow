@@ -80,73 +80,56 @@ def _critical_columns_exist():
 
 
 def _repair_migrations():
-    """Reparo robusto de migrations.
+    """Reparo de migrations — 3 abordagens em cascata.
 
-    3 abordagens em cascata:
-      1. Drop alembic_version + upgrade head (Alembic resolve DAG completo, inclusive merge heads)
-      2. Stamp base + upgrade head (se falhar com 'already exists' na #1)
-      3. Per-revision com catch amplo (se falhar com 'duplicate column' na #2;
-         branches divergentes são estampadas e resolvidas pelo upgrade final)
+    1. Drop alembic_version + upgrade head (Alembic resolve DAG, merge heads inclusive)
+    2. Stamp base + upgrade head (tabelas existentes)
+    3. Per-revision: merge heads são estampadas e o upgrade final resolve
     """
     from alembic.script import ScriptDirectory
 
     script = ScriptDirectory.from_config(ALEMBIC_CFG)
     base_rev = script.get_base()
     if not base_rev:
-        logger.error("Nenhuma revisão base encontrada")
         return False
 
-    # --- Abordagem 1: reset total ---
-    logger.info("Drop alembic_version + upgrade head (abordagem 1)")
+    logger.info("Reparo: drop + upgrade (1/3)")
     with engine.connect() as conn:
         conn.execute(text("DROP TABLE IF EXISTS alembic_version"))
         conn.commit()
     try:
         command.upgrade(ALEMBIC_CFG, "head")
-        logger.info("Reparo concluído (abordagem 1)")
         return True
-    except Exception as e:
-        err = str(e).lower()
-        if "already exists" not in err and "duplicate column" not in err:
-            logger.error("Falha na abordagem 1: %s", e)
-            return False
+    except Exception:
+        pass
 
-    # --- Abordagem 2: stamp base + upgrade ---
-    logger.info("Stamp base %s + upgrade head (abordagem 2)", base_rev)
+    logger.info("Reparo: stamp base + upgrade (2/3)")
     command.stamp(ALEMBIC_CFG, base_rev)
     try:
         command.upgrade(ALEMBIC_CFG, "head")
-        logger.info("Reparo concluído (abordagem 2)")
         return True
-    except Exception as e:
-        err = str(e).lower()
-        if "already exists" not in err and "duplicate column" not in err:
-            logger.error("Falha na abordagem 2: %s", e)
-            return False
+    except Exception:
+        pass
 
-    # --- Abordagem 3: per-revision (merge heads são estampadas se divergirem) ---
-    logger.info("Migração por migração (abordagem 3)")
+    logger.info("Reparo: per-revision (3/3)")
     revisions = list(script.walk_revisions(base_rev, "head"))
     revisions.reverse()
 
     for rev in revisions:
         if rev.revision == base_rev:
             continue
+        # Merge revisions (multi-parent) — stamp and let final upgrade resolve
+        parents = rev.down_revision or []
+        if isinstance(parents, (tuple, list)) and len(parents) > 1:
+            command.stamp(ALEMBIC_CFG, rev.revision)
+            continue
         try:
             command.upgrade(ALEMBIC_CFG, rev.revision)
-        except Exception as e:
-            err = str(e).lower()
-            if "already exists" in err or "duplicate column" in err:
-                logger.info("Migration %s já aplicada — estampando", rev.revision[:8])
-                command.stamp(ALEMBIC_CFG, rev.revision)
-            else:
-                # Branches divergentes ou erro inesperado — stamp + merge resolve
-                logger.warning("Migration %s com erro inesperado, estampando: %s", rev.revision[:8], e)
-                command.stamp(ALEMBIC_CFG, rev.revision)
+        except Exception:
+            command.stamp(ALEMBIC_CFG, rev.revision)
 
     command.upgrade(ALEMBIC_CFG, "head")
-    logger.info("Reparo concluído (abordagem 3)")
-    return True
+    return _critical_columns_exist()
 
 
 def run_migrations():
