@@ -256,6 +256,12 @@ function KeybindingsEditor({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null)
   useFocusTrap(ref, true)
   useEffect(() => {
+    if (listening) return
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [listening, onClose])
+  useEffect(() => {
     if (!listening) return
     const handler = (e: KeyboardEvent) => {
       e.preventDefault()

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, startTransition } from 'react'
 import { getLogs, clearLogs, type LogEntryResponse } from '../api/logs'
 import { useFocusTrap } from '../hooks/useFocusTrap'
+import { useNotify } from '../store/notification'
 import ConfirmModal from './ConfirmModal'
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function LogsModal({ onClose }: Props) {
+  const notify = useNotify()
   const [entries, setEntries] = useState<LogEntryResponse[]>([])
   const [levelFilter, setLevelFilter] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -19,7 +21,7 @@ export default function LogsModal({ onClose }: Props) {
     setLoading(true)
     getLogs(50, levelFilter || undefined)
       .then(r => setEntries(r.entries))
-      .catch(e => { console.error('[LogsModal]', e); setEntries([]) })
+      .catch(e => { console.error('[LogsModal]', e); setEntries([]); notify('Erro ao carregar logs') })
       .finally(() => setLoading(false))
   }
 

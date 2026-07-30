@@ -7,7 +7,7 @@ import { useNotify } from '../store/notification'
 import { useKeybindings, comboLabel, KEYBINDING_LABELS } from '../store/keybindings'
 import { useReflexaoQuestions } from '../hooks/useReflexaoQuestions'
 import { usePomodoroContext } from '../store/pomodoro'
-import { exportAll, exportCSV, exportTarefasFeitas, vacuumDB, backupDB, listBackups, downloadBackup } from '../api/export'
+import { exportAll, exportCSV, exportTarefasFeitas, vacuumDB, backupDB, listBackups, downloadBackup, restoreDB } from '../api/export'
 import { importFile } from '../api/import_export'
 import { formatDateLocal } from '../utils/date'
 import ToggleSwitch from '../components/ToggleSwitch'
@@ -599,12 +599,37 @@ export default function Config() {
             <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Backup</h2>
             <p className="text-xs text-text-muted">Backups são salvos automaticamente ao encerrar (máx. 6).</p>
             <div className="flex gap-2">
-              <button onClick={async () => { await backupDB(); setRefreshBackupKey(k => k + 1); notify('Backup iniciado', 'success') }}
+              <button onClick={async () => { try { await backupDB(); setRefreshBackupKey(k => k + 1); notify('Backup iniciado', 'success') } catch (e) { console.error('[Config] backup', e); notify('Erro ao fazer backup', 'error') } }}
                 className="px-3 py-1.5 bg-accent text-accent-foreground text-sm rounded-lg hover:bg-accent-hover transition-all active:scale-95">
                 Fazer backup agora
               </button>
             </div>
             <BackupListComponent refreshKey={refreshBackupKey} />
+          </div>
+          )}
+
+          {mostrar('sistema') && (
+          <div className="bg-bg-secondary rounded-xl border border-border p-3 space-y-4">
+            <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Restaurar</h2>
+            <p className="text-xs text-text-muted">Substitui o banco atual por um arquivo .db anterior. Um backup automático é criado antes.</p>
+            <input
+              type="file"
+              accept=".db,.sqlite,.sqlite3"
+              onChange={async (e) => {
+                const f = e.target.files?.[0]
+                if (!f) return
+                if (!confirm('Tem certeza? O banco atual será substituído. Um backup será criado automaticamente.')) return
+                try {
+                  await restoreDB(f)
+                  notify('Banco restaurado! Recarregue a página.', 'success')
+                } catch (err) {
+                  console.error('[Config] restore', err)
+                  notify('Erro ao restaurar banco', 'error')
+                }
+                e.target.value = ''
+              }}
+              className="block text-sm text-text-muted file:mr-2 file:px-3 file:py-1.5 file:text-sm file:bg-accent file:text-accent-foreground file:rounded-lg file:border-0 file:cursor-pointer file:hover:bg-accent-hover file:transition-all"
+            />
           </div>
           )}
 

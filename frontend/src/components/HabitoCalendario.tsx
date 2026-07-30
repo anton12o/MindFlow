@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getRegistros, createRegistro, deleteRegistro } from '../api/habitos'
 import { useNotify } from '../store/notification'
@@ -12,8 +12,13 @@ interface Props {
 export default function HabitoCalendario({ habitoId, cor }: Props) {
   const queryClient = useQueryClient()
   const notify = useNotify()
-  const hoje = new Date()
+  const [now, setNow] = useState(() => Date.now())
   const [monthOffset, setMonthOffset] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60000)
+    return () => clearInterval(id)
+  }, [])
+  const hoje = new Date(now)
   const ano = hoje.getFullYear()
   const mes = hoje.getMonth() + monthOffset
   // Normalize month to prevent going too far

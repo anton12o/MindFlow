@@ -132,6 +132,52 @@ class TestDownloadBackup:
             assert r.status_code == 404
 
 
+class TestDbRestore:
+    def test_arquivo_invalido_nao_sqlite_400(self, client):
+        r = client.post("/api/db/restore", files={"file": b"not a sqlite database"})
+        assert r.status_code == 400
+
+    def test_restore_com_db_valido(self, client, tmp_path):
+        import sqlite3
+        db_path = tmp_path / "restore_test.db"
+        conn = sqlite3.connect(str(db_path))
+        conn.execute("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)")
+        conn.execute("INSERT INTO test VALUES (1, 'ok')")
+        conn.commit()
+        conn.close()
+        blob = db_path.read_bytes()
+        with patch("routers.shutdown.DB_PATH", tmp_path / "target.db"):
+            with patch("routers.shutdown.engine"):
+                r = client.post("/api/db/restore", files={"file": blob})
+                assert r.status_code == 200
+                data = r.json()
+                assert data["ok"] is True
+
+    def test_restore_cria_backup_antes(self, client, tmp_path):
+        import sqlite3
+        target = tmp_path / "target.db"
+        conn = sqlite3.connect(str(target))
+        conn.execute("CREATE TABLE t (x int)")
+        conn.execute("INSERT INTO t VALUES (1)")
+        conn.commit()
+        conn.close()
+        src = tmp_path / "src.db"
+        conn2 = sqlite3.connect(str(src))
+        conn2.execute("CREATE TABLE t (x int)")
+        conn2.commit()
+        conn2.close()
+        backup_dir = tmp_path / "backups"
+        backup_dir.mkdir()
+        blob = src.read_bytes()
+        with patch("routers.shutdown.DB_PATH", target):
+            with patch("routers.shutdown.engine"):
+                with patch("routers.shutdown.BACKUP_DIR", backup_dir):
+                    r = client.post("/api/db/restore", files={"file": blob})
+                    assert r.status_code == 200
+        backups = list(backup_dir.glob("*.db"))
+        assert len(backups) == 1
+
+
 class TestDbVacuum:
     def test_vacuum_retorna_ok(self, client):
         r = client.post("/api/db/vacuum")

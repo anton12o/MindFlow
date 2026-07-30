@@ -10,9 +10,10 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
+from pydantic import Field as PydanticField
 from sqlalchemy import cast, func, text
 from sqlalchemy.types import String
-from sqlmodel import Session, SQLModel, delete, or_, select
+from sqlmodel import Field, Session, SQLModel, delete, or_, select
 
 from cache import cache_clear, cache_get, cache_set
 from database import get_session
@@ -55,7 +56,7 @@ from .common import commit_with_handle
 
 
 class BatchDeleteRequest(BaseModel):
-    ids: list[int]
+    ids: list[int] = PydanticField(max_length=500)
 
 logger = logging.getLogger(__name__)
 
@@ -417,7 +418,11 @@ def explore_nota(nota_id: int, session: Session = Depends(get_session)):
     body = inject_frontmatter(n.conteudo or '', frontmatter)
     safe_name = (n.titulo or '(sem titulo)').replace('/', '_').replace('\\', '_')[:100]
     tmp = Path(tempfile.gettempdir()) / f"{safe_name}.md"
-    tmp.write_text(body, encoding='utf-8')
+    try:
+        tmp.write_text(body, encoding='utf-8')
+    except OSError as e:
+        logger.error("[explore] erro ao escrever temp file: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao criar arquivo temporário")
     import asyncio
     async def cleanup():
         await asyncio.sleep(300)
@@ -659,7 +664,7 @@ def limpar_versoes_antigas(nota_id: int, manter: int = Query(default=50, ge=1, l
 
 
 class ExtrairInput(SQLModel):
-    trecho: str
+    trecho: str = Field(min_length=1, max_length=100000)
     tipo_id: int | None = None
 
 @router.post("/{nota_id}/extrair", response_model=NotaRead)

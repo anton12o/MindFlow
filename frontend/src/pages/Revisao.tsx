@@ -315,7 +315,7 @@ export default function Revisao() {
           {weekly?.semana?.dias?.length > 0 && (
             <div>
               <h3 className="text-sm font-semibold text-text-muted uppercase tracking-wide mb-2">Dias da semana</h3>
-              {weekly.semana.dias.map(dia => (
+              {weekly!.semana!.dias.map(dia => (
                 <div key={dia.data} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${dia.data === hojeLocal() ? 'bg-accent/10' : dia.notas || dia.tarefas || dia.pomodoros ? 'bg-bg-secondary' : ''}`}>
                   <span className="w-20 shrink-0 text-text-muted">{formatData(dia.data)}</span>
                   <MiniBar value={dia.notas} max={maxDia.notas} color="bg-accent" label="notas" />

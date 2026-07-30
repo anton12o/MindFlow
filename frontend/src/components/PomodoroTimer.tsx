@@ -217,7 +217,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         try {
           await request(`/${contexto.tipo}s/${contexto.id}`)
         } catch {
-          notify('Contexto não encontrado — iniciando sessão livre', 'warning')
+          notify('Contexto não encontrado — iniciando sessão livre', 'error')
           createSessaoMut.mutate({ contexto_tipo: taskInputRef.current.trim() ? 'tarefa' : 'livre', contexto_id: null, duracao_min: duracao }, { onSuccess })
           return
         }
@@ -309,7 +309,7 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
         <div className="flex items-center gap-2">
           {screen === 'idle' && (
             <>
-              <button onClick={handleStart}
+              <button onClick={() => handleStart()}
                 className="px-4 py-2 bg-accent text-accent-foreground text-sm rounded-lg font-semibold hover:bg-accent-hover transition-colors">
                 Iniciar
               </button>

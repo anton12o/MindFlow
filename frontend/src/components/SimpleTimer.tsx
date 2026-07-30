@@ -31,12 +31,12 @@ export default function SimpleTimer() {
 
   function iniciar() {
     if (ativo) return
-    const total = minutos * 60
-    setTempo(total)
+    const segundos = sessaoId !== null ? tempo : minutos * 60
+    setTempo(segundos)
     const ts = agora()
-    fimRef.current = ts + total * 1000
+    fimRef.current = ts + segundos * 1000
     setAtivo(true)
-    createMut.mutate(total)
+    if (sessaoId === null) createMut.mutate(segundos)
     intervalRef.current = setInterval(() => {
       const restante = Math.max(0, Math.round((fimRef.current - agora()) / 1000))
       setTempo(restante)

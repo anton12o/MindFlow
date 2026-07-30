@@ -33,17 +33,17 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     for p in pragmas:
         try:
             cursor.execute(p)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("PRAGMA falhou: %s — %s", p, e)
     try:
         cursor.execute("PRAGMA auto_vacuum=INCREMENTAL")
         cursor.execute("PRAGMA incremental_vacuum(100)")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("auto_vacuum falhou: %s", e)
     try:
         cursor.execute("PRAGMA mmap_size=268435456")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("mmap_size falhou: %s", e)
     JOURNAL_MODES = frozenset({"WAL", "DELETE", "TRUNCATE", "PERSIST", "MEMORY", "OFF"})
     journal = os.environ.get("MFLOW_JOURNAL_MODE", "WAL")
     if journal not in JOURNAL_MODES:
@@ -52,8 +52,8 @@ def set_sqlite_pragma(dbapi_conn, connection_record):
     if journal != "WAL":
         try:
             cursor.execute(f"PRAGMA journal_mode={journal}")
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning("journal_mode=%s falhou: %s", journal, e)
     cursor.close()
 
 ALEMBIC_CFG = Config(Path(__file__).parent / "alembic.ini")
@@ -113,8 +113,8 @@ def _ensure_indexes():
         for index in table.indexes:
             try:
                 index.create(engine)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.warning("Indice %s.%s ja existe: %s", table.name, index.name, e)
 
 
 def _stamp_head():
@@ -124,8 +124,8 @@ def _stamp_head():
         head = script.get_current_head()
         if head:
             command.stamp(ALEMBIC_CFG, head)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Alembic stamp falhou: %s", e)
 
 def check_db_integrity():
     try:

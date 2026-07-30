@@ -2,6 +2,10 @@ let source: AudioBufferSourceNode | null = null
 let gainNode: GainNode | null = null
 let ctx: AudioContext | null = null
 
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => { stopAmbient() })
+}
+
 function createNoiseBuffer(ctx: AudioContext, duration: number) {
   const sampleRate = ctx.sampleRate
   const length = sampleRate * duration

@@ -69,6 +69,8 @@ def delete_habito(habito_id: int, session: Session = Depends(get_session)):
     h = session.get(Habito, habito_id)
     if not h:
         raise HTTPException(status_code=404, detail="Hábito não encontrado")
+    for r in session.exec(select(RegistroHabito).where(RegistroHabito.habito_id == habito_id)).all():
+        session.delete(r)
     session.delete(h)
     commit_with_handle(session, context="excluir hábito")
     return {"ok": True}

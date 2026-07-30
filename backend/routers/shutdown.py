@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException
 from fastapi.responses import FileResponse
 from sqlmodel import Session, text
 
@@ -21,6 +21,7 @@ BACKUP_DIR = Path(__file__).parent.parent / "data" / "backups"
 DB_PATH = Path(__file__).parent.parent / "mindflow.db"
 
 _pending_shutdown: dict[str, datetime] = {}
+_pending_shutdown_lock = threading.Lock()
 _PENDING_TIMEOUT = timedelta(seconds=30)
 
 
@@ -72,6 +73,39 @@ def _backup_async():
         logger.error("[db.backup] %s", e)
 
 
+@router.post("/db/restore")
+def db_restore(file: bytes = File(...)):
+    if len(file) < 100 or file[:16] != b'SQLite format 3\0':
+        raise HTTPException(status_code=400, detail="Arquivo inválido — não é um banco SQLite")
+    import tempfile
+    tmp = Path(tempfile.mktemp(suffix='.db'))
+    try:
+        tmp.write_bytes(file)
+        import sqlite3
+        conn = sqlite3.connect(str(tmp))
+        try:
+            integrity = conn.execute("PRAGMA quick_check").fetchone()[0]
+        finally:
+            conn.close()
+        if integrity != "ok":
+            raise HTTPException(status_code=400, detail=f"Banco corrompido: {integrity}")
+        if DB_PATH.exists():
+            cold_backup()
+            DB_PATH.unlink()
+        tmp.replace(DB_PATH)
+        engine.dispose()
+        logger.info("Banco restaurado com sucesso de %d bytes", len(file))
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("[db.restore] %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao restaurar banco")
+    finally:
+        if tmp.exists():
+            tmp.unlink(missing_ok=True)
+    return {"ok": True, "mensagem": "Banco restaurado com sucesso"}
+
+
 @router.get("/db/backups")
 def list_backups():
     if not BACKUP_DIR.exists():
@@ -85,7 +119,7 @@ def download_backup(filename: str):
     from urllib.parse import unquote
     safe = os.path.basename(unquote(filename))
     full = os.path.realpath(os.path.join(str(BACKUP_DIR), safe))
-    if not full.startswith(str(os.path.realpath(str(BACKUP_DIR))) + os.sep):
+    if os.path.commonpath([full, str(os.path.realpath(str(BACKUP_DIR)))]) != str(os.path.realpath(str(BACKUP_DIR))):
         raise HTTPException(status_code=400, detail="Acesso negado")
     if not os.path.isfile(full):
         raise HTTPException(status_code=404, detail="Backup não encontrado")
@@ -117,24 +151,27 @@ def shutdown(_rl: None = Depends(shutdown_limiter)):
 @router.post("/shutdown/init")
 def shutdown_init():
     token = str(uuid.uuid4())
-    _pending_shutdown[token] = datetime.now()
-    now = datetime.now()
-    expired = [k for k, v in list(_pending_shutdown.items()) if now - v > _PENDING_TIMEOUT]
-    for k in expired:
-        del _pending_shutdown[k]
+    with _pending_shutdown_lock:
+        _pending_shutdown[token] = datetime.now()
+        now = datetime.now()
+        expired = [k for k, v in list(_pending_shutdown.items()) if now - v > _PENDING_TIMEOUT]
+        for k in expired:
+            del _pending_shutdown[k]
     return {"token": token}
 
 
 @router.post("/shutdown/confirm")
 def shutdown_confirm(token: str):
-    if token not in _pending_shutdown:
-        raise HTTPException(status_code=404, detail="Token não encontrado ou expirado")
-    del _pending_shutdown[token]
+    with _pending_shutdown_lock:
+        if token not in _pending_shutdown:
+            raise HTTPException(status_code=404, detail="Token não encontrado ou expirado")
+        del _pending_shutdown[token]
     _execute_shutdown()
     return {"ok": True}
 
 
 @router.post("/shutdown/cancel")
 def shutdown_cancel(token: str):
-    _pending_shutdown.pop(token, None)
+    with _pending_shutdown_lock:
+        _pending_shutdown.pop(token, None)
     return {"ok": True}
