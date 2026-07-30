@@ -183,7 +183,10 @@ def install_backend_deps():
 def ensure_pre_commit():
     if is_bundled():
         return
-    git_hooks = DATA_ROOT / ".git" / "hooks" / "pre-commit"
+    git_dir = DATA_ROOT / ".git"
+    if not git_dir.exists():
+        return
+    git_hooks = git_dir / "hooks" / "pre-commit"
     if git_hooks.exists():
         return
     try:
