@@ -291,7 +291,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
   }, [state.screen, config.autoStart, config.timerContinuo, advancePhase, clearHeartbeat])
 
   const saveHeartbeatRef = useRef(saveHeartbeat)
-  saveHeartbeatRef.current = saveHeartbeat
+  useEffect(() => { saveHeartbeatRef.current = saveHeartbeat }, [saveHeartbeat])
   useEffect(() => {
     if (!state.ativo || (state.screen !== 'running' && state.screen !== 'livre')) return
 
