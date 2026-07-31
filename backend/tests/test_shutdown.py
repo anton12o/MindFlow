@@ -1,4 +1,6 @@
 import sqlite3
+import threading
+import time
 from pathlib import Path
 from unittest.mock import patch
 
@@ -63,28 +65,37 @@ class TestColdBackup:
 class TestShutdownEndpoint:
     def test_chama_checkpoint_e_backup(self, client):
         with patch("routers.shutdown._wal_checkpoint") as mock_wal, \
-             patch("routers.shutdown.cold_backup") as mock_backup:
+             patch("routers.shutdown.cold_backup") as mock_backup, \
+             patch("routers.shutdown.os._exit") as mock_exit:
             r = client.post("/api/shutdown")
             assert r.status_code == 200
             assert r.json() == {"ok": True}
+            time.sleep(0.6)
             mock_wal.assert_called_once()
             mock_backup.assert_called_once()
+            mock_exit.assert_called_once()
 
     def test_nao_explode_com_funcoes_reais(self, client):
-        with patch("routers.shutdown.os._exit"):
+        with patch("routers.shutdown.os._exit") as mock_exit:
             r = client.post("/api/shutdown")
             assert r.status_code == 200
+            time.sleep(0.6)
+            mock_exit.assert_called_once()
 
 
 class TestDbBackup:
     def test_backup_inicia_e_retorna_ok(self, client):
-        r = client.post("/api/db/backup")
-        assert r.status_code == 200
-        assert r.json()["ok"] is True
+        with patch("routers.shutdown.cold_backup") as mock_cb:
+            r = client.post("/api/db/backup")
+            assert r.status_code == 200
+            assert r.json()["ok"] is True
+            time.sleep(0.2)
+            mock_cb.assert_called_once()
 
     def test_backup_cria_arquivo(self, tmp_path, client):
         with patch("routers.shutdown.BACKUP_DIR", tmp_path / "backups"), \
-             patch("routers.shutdown.DB_PATH", tmp_path / "mindflow.db"):
+             patch("routers.shutdown.DB_PATH", tmp_path / "mindflow.db"), \
+             patch("services.backup._backup_lock", threading.Lock()):
             import sqlite3
             conn = sqlite3.connect(str(tmp_path / "mindflow.db"))
             conn.execute("CREATE TABLE t (x)")

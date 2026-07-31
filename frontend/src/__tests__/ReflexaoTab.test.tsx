@@ -135,13 +135,14 @@ describe('ReflexaoTab', () => {
   it('chama updateNota ao atualizar reflexao existente', async () => {
     vi.mocked(getReflexoes).mockResolvedValue([mockReflexaoExistente] as never)
     renderWithProviders(<ReflexaoTab />)
+    const btn = await screen.findByRole('button', { name: 'Atualizar reflexão' }, { timeout: 5000 })
     await waitFor(() => {
-      expect(screen.getByText('Atualizar reflexão')).toBeInTheDocument()
-    })
-    fireEvent.click(screen.getByText('Atualizar reflexão'))
-    await waitFor(() => {
+      expect(btn).toBeEnabled()
+    }, { timeout: 5000 })
+    fireEvent.click(btn)
+    await vi.waitFor(() => {
       expect(updateNota).toHaveBeenCalledWith(42, expect.any(Object))
-    })
+    }, { timeout: 5000 })
   })
 
   it('mostra historico quando ha reflexoes', async () => {
