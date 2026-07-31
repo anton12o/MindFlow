@@ -120,9 +120,11 @@ def list_backups():
 def download_backup(filename: str):
     from urllib.parse import unquote
     backup_dir = Path(BACKUP_DIR).resolve()
-    safe = Path(unquote(filename)).name
+    safe = os.path.basename(unquote(filename))
+    if safe in ("", ".", ".."):
+        raise HTTPException(status_code=400, detail="Acesso negado")
     full = (backup_dir / safe).resolve()
-    if not full.is_relative_to(backup_dir):
+    if backup_dir not in full.parents:
         raise HTTPException(status_code=400, detail="Acesso negado")
     if not full.is_file():
         raise HTTPException(status_code=404, detail="Backup não encontrado")

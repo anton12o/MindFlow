@@ -12,7 +12,13 @@ from models import (
 )
 
 
-def test_dashboard_vazio(client):
+def test_dashboard_vazio(client, tmp_path, monkeypatch):
+    import routers.stats as stats_module
+
+    db_file = tmp_path / "db.sqlite"
+    db_file.write_bytes(b"\x00" * (1024 * 1024))
+    monkeypatch.setattr(stats_module, "DB_PATH", db_file)
+
     r = client.get("/api/stats/dashboard")
     assert r.status_code == 200
     data = r.json()
