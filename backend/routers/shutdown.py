@@ -78,7 +78,9 @@ def db_restore(file: bytes = File(...)):
     if len(file) < 100 or file[:16] != b'SQLite format 3\0':
         raise HTTPException(status_code=400, detail="Arquivo inválido — não é um banco SQLite")
     import tempfile
-    tmp = Path(tempfile.mktemp(suffix='.db'))
+    fd, tmp_name = tempfile.mkstemp(suffix='.db')
+    os.close(fd)
+    tmp = Path(tmp_name)
     try:
         tmp.write_bytes(file)
         import sqlite3
@@ -117,11 +119,12 @@ def list_backups():
 @router.get("/db/backups/{filename}")
 def download_backup(filename: str):
     from urllib.parse import unquote
-    safe = os.path.basename(unquote(filename))
-    full = os.path.realpath(os.path.join(str(BACKUP_DIR), safe))
-    if os.path.commonpath([full, str(os.path.realpath(str(BACKUP_DIR)))]) != str(os.path.realpath(str(BACKUP_DIR))):
+    backup_dir = Path(BACKUP_DIR).resolve()
+    safe = Path(unquote(filename)).name
+    full = (backup_dir / safe).resolve()
+    if not full.is_relative_to(backup_dir):
         raise HTTPException(status_code=400, detail="Acesso negado")
-    if not os.path.isfile(full):
+    if not full.is_file():
         raise HTTPException(status_code=404, detail="Backup não encontrado")
     return FileResponse(full, filename=safe, media_type="application/octet-stream")
 

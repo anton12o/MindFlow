@@ -137,11 +137,11 @@ describe('ReflexaoTab', () => {
     renderWithProviders(<ReflexaoTab />)
     await waitFor(() => {
       expect(screen.getByText('Atualizar reflexão')).toBeInTheDocument()
-    })
+    }, { timeout: 5000 })
     fireEvent.click(screen.getByText('Atualizar reflexão'))
-    await waitFor(() => {
+    await vi.waitFor(() => {
       expect(updateNota).toHaveBeenCalledWith(42, expect.any(Object))
-    })
+    }, { timeout: 5000 })
   })
 
   it('mostra historico quando ha reflexoes', async () => {

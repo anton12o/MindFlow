@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { X, Plus, Table } from 'lucide-react'
 
-const escPipe = (s: string) => s.replace(/\|/g, '\\|')
+const escPipe = (s: string) => s.replace(/\\/g, '\\\\').replace(/\|/g, '\\|')
 
 interface Props {
   isOpen: boolean
