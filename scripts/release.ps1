@@ -85,7 +85,7 @@ function Main {
     if ($st -and $st.Trim()) {
         if ($DryRun) { Log "[DRY-RUN] git stash push -u" }
         else {
-            & git stash push -u -m "release: $(Get-Date -Format yyyy-MM-dd HH:mm)" 2>$null | Out-Null
+            & git stash push -u -m "release: $(Get-Date -Format 'yyyy-MM-dd HH:mm')" 2>$null | Out-Null
             $script:Stashed = $true
             Ok "Working tree sujo -> stash salvo"
         }
