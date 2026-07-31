@@ -13,6 +13,7 @@ export async function importFile(file: File): Promise<ImportResult> {
   const res = await fetch(API_BASE + '/import', {
     method: 'POST',
     body: formData,
+    signal: AbortSignal.timeout(30000),
   })
 
   const text = await res.text()

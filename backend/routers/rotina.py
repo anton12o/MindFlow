@@ -4,8 +4,6 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import func
-from sqlalchemy.exc import DataError, IntegrityError, OperationalError
-from sqlalchemy.orm.exc import StaleDataError
 from sqlmodel import Session, and_, select
 
 from database import get_session
@@ -210,27 +208,21 @@ def update_tarefa(tarefa_id: int, t: TarefaUpdate, session: Session = Depends(ge
     for field, value in data.items():
         setattr(db, field, value)
     session.add(db)
-    try:
-        if data.get("status") == "feito" and db.recorrente and db.recorrencia_tipo:
-            nova_data = _proxima_data(db.data, db.recorrencia_tipo, db.recorrencia_intervalo)
-            nova = Tarefa(
-                titulo=db.titulo,
-                prioridade=db.prioridade,
-                status="pendente",
-                data=nova_data,
-                descricao=db.descricao,
-                recorrente=True,
-                recorrencia_tipo=db.recorrencia_tipo,
-                recorrencia_intervalo=db.recorrencia_intervalo,
-            )
-            session.add(nova)
+    if data.get("status") == "feito" and db.recorrente and db.recorrencia_tipo:
+        nova_data = _proxima_data(db.data, db.recorrencia_tipo, db.recorrencia_intervalo)
+        nova = Tarefa(
+            titulo=db.titulo,
+            prioridade=db.prioridade,
+            status="pendente",
+            data=nova_data,
+            descricao=db.descricao,
+            recorrente=True,
+            recorrencia_tipo=db.recorrencia_tipo,
+            recorrencia_intervalo=db.recorrencia_intervalo,
+        )
+        session.add(nova)
 
-        session.commit()
-        session.refresh(db)
-    except (DataError, IntegrityError, OperationalError, StaleDataError) as e:
-        session.rollback()
-        logger.error("[rotina.update_tarefa] %s", e)
-        raise HTTPException(status_code=500, detail="Erro ao atualizar tarefa")
+    commit_with_handle(session, db, "atualizar tarefa")
     return db
 
 @router.post("/tarefas/gerar-recorrentes")

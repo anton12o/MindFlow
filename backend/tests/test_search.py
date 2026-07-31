@@ -49,3 +49,41 @@ def test_search_por_conteudo_nota(client):
     r = client.get("/api/search", params={"q": "secreta"})
     assert r.status_code == 200
     assert len(r.json()["notas"]) == 1
+
+
+def test_search_fts_syntax_erro_fallback_like(client):
+    client.post("/api/notas", json={"titulo": "Nota com asterisco", "conteudo": "conteudo especial"})
+    r = client.get("/api/search", params={"q": "invalido*"})
+    assert r.status_code == 200
+
+
+def test_search_fts_unclosed_quotes(client):
+    client.post("/api/notas", json={"titulo": "Nota entre aspas", "conteudo": "conteudo"})
+    r = client.get("/api/search", params={"q": '"teste'})
+    assert r.status_code == 200
+
+
+def test_search_fts_long_query(client):
+    client.post("/api/notas", json={"titulo": "Nota longa", "conteudo": "busca com query muito extensa"})
+    q = "a " * 500
+    r = client.get("/api/search", params={"q": q.strip()})
+    assert r.status_code == 200
+
+
+def test_search_fts_emoji(client):
+    client.post("/api/notas", json={"titulo": "Nota 🧠", "conteudo": "emoji no conteudo 🔥"})
+    r = client.get("/api/search", params={"q": "🧠"})
+    assert r.status_code == 200
+
+
+def test_search_fts_strip_special_chars(client):
+    client.post("/api/notas", json={"titulo": "Nota segura", "conteudo": "teste"})
+    r = client.get("/api/search", params={"q": "~^teste\"()*+-"})
+    assert r.status_code == 200
+    assert len(r.json()["notas"]) == 1
+
+
+def test_search_fts_termo_unico_apos_sanitize(client):
+    client.post("/api/notas", json={"titulo": "Unico termo", "conteudo": "so uma palavra"})
+    r = client.get("/api/search", params={"q": "*"})
+    assert r.status_code == 200

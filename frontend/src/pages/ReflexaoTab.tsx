@@ -75,13 +75,13 @@ export default function ReflexaoTab() {
     streakGrace: config.toleranciaStreak,
   }
 
-  const { data: stats } = useQuery({
+  const { data: stats, isError: statsError } = useQuery({
     queryKey: ['stats-weekly', offset],
     queryFn: () => getWeeklyStats(offset, sc),
     staleTime: 60_000,
   })
 
-  const { data: todasReflexoes } = useQuery({
+  const { data: todasReflexoes, isError: reflexoesError } = useQuery({
     queryKey: ['reflexoes'],
     queryFn: () => getReflexoes(),
     staleTime: 30_000,
@@ -133,6 +133,16 @@ export default function ReflexaoTab() {
     if (!t) return
     addQuestion(t)
     setNovaPergunta('')
+  }
+
+  if (statsError) {
+    return (
+      <div className="space-y-4">
+        <div className="bg-danger/10 border border-danger/20 rounded-xl p-4 text-sm text-danger">
+          Erro ao carregar dados da semana
+        </div>
+      </div>
+    )
   }
 
   if (!stats) {
@@ -247,7 +257,12 @@ export default function ReflexaoTab() {
         </div>
       </div>
 
-      {todasReflexoes && todasReflexoes.length > 0 && (
+      {reflexoesError && (
+        <div className="text-sm text-danger/70 text-center py-4">
+          Erro ao carregar histórico de reflexões
+        </div>
+      )}
+      {!reflexoesError && todasReflexoes && todasReflexoes.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-text-muted uppercase tracking-wide">Histórico</h2>
           {todasReflexoes.map(r => <ReflexaoItem key={r.id} r={r} />)}

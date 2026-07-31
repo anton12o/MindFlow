@@ -36,7 +36,7 @@ class InboxItemRead(InboxItemBase):
 
 # ─── Hábitos ───
 class HabitoBase(SQLModel):
-    nome: str = Field(min_length=1)
+    nome: str = Field(min_length=1, max_length=200)
     tipo: str = "binario"
 
     @field_validator('tipo')
@@ -98,9 +98,9 @@ class RegistroHabitoRead(RegistroHabitoBase):
 
 # ─── Rotina ───
 class BlocoRotinaBase(SQLModel):
-    titulo: str = Field(min_length=1)
-    hora_inicio: str
-    hora_fim: str
+    titulo: str = Field(min_length=1, max_length=200)
+    hora_inicio: str = Field(regex=r'^\d{2}:\d{2}$')
+    hora_fim: str = Field(regex=r'^\d{2}:\d{2}$')
     cor: str | None = None
     recorrente: bool = False
     dias_semana: str | None = None
@@ -243,7 +243,7 @@ class PastaRead(PastaBase):
     id: int
 
 class TagBase(SQLModel):
-    nome: str = Field(min_length=1)
+    nome: str = Field(min_length=1, max_length=200)
     cor: str | None = None
 
 class Tag(TagBase, table=True):

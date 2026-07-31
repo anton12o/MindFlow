@@ -16,7 +16,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from _version import VERSION
-from database import check_db_integrity, get_session, run_migrations, setup_fts
+from database import Session, check_db_integrity, engine, run_migrations, setup_fts
 from exceptions import AppException, BadRequestException, ConflictException, NotFoundException
 from logging_config import setup_logging
 from rate_limiter import attachments_limiter, crud_limiter
@@ -54,9 +54,8 @@ ALLOWED_MIME_PREFIXES = ('image/', 'application/pdf')
 
 def _build_index():
     try:
-        db = next(get_session())
-        metadata_index.build(db)
-        db.close()
+        with Session(engine) as db:
+            metadata_index.build(db)
     except Exception as e:
         logger.warning("metadata_index nao carregado (fallback para cache): %s", e)
 
@@ -179,13 +178,17 @@ async def upload_attachment(file: UploadFile = File(...), _rl: None = Depends(at
         raise HTTPException(status_code=400, detail=f"Arquivo excede limite de {MAX_ATTACHMENT_SIZE // (1024*1024)}MB")
     unique_name = f"{uuid.uuid4().hex}.{ext}"
     dest = ATTACHMENTS_DIR / unique_name
-    dest.write_bytes(contents)
+    try:
+        dest.write_bytes(contents)
+    except OSError as e:
+        logger.error("[upload] erro ao salvar anexo: %s", e)
+        raise HTTPException(status_code=500, detail="Erro ao salvar arquivo")
     return {"url": f"/api/attachments/{unique_name}", "nome_original": file.filename, "tamanho": len(contents)}
 
 @app.get("/api/attachments/{filepath:path}")
 def get_attachment(filepath: str):
     full = (ATTACHMENTS_DIR / filepath).resolve()
-    if not str(full).startswith(str(ATTACHMENTS_DIR.resolve())):
+    if os.path.commonpath([str(full), str(ATTACHMENTS_DIR.resolve())]) != str(ATTACHMENTS_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Acesso negado")
     if not full.exists() or not full.is_file():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
@@ -194,7 +197,7 @@ def get_attachment(filepath: str):
 @app.delete("/api/attachments/{filepath:path}")
 def delete_attachment(filepath: str):
     full = (ATTACHMENTS_DIR / filepath).resolve()
-    if not str(full).startswith(str(ATTACHMENTS_DIR.resolve())):
+    if os.path.commonpath([str(full), str(ATTACHMENTS_DIR.resolve())]) != str(ATTACHMENTS_DIR.resolve()):
         raise HTTPException(status_code=400, detail="Acesso negado")
     if not full.exists() or not full.is_file():
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")

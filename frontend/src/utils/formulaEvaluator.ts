@@ -36,9 +36,7 @@ export class FormulaParser {
   }
 
   parse(expr: string): unknown {
-    if (this.depth > 10) {
-      throw new FormulaError('Profundidade máxima excedida')
-    }
+    this.depth = 0
     this.tokens = tokenize(expr)
     this.pos = 0
     const result = this._parseExpr()

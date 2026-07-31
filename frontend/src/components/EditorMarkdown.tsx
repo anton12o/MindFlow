@@ -253,7 +253,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
 
   const [tableModalOpen, setTableModalOpen] = useState(false)
   const [editTableTarget, setEditTableTarget] = useState<{ from: number; to: number; markdown: string } | null>(null)
-  const editTableRef = useRef<(from: number, to: number, markdown: string) => void>()
+  const editTableRef = useRef<(from: number, to: number, markdown: string) => void>(undefined)
 
   editTableRef.current = (from: number, to: number, markdown: string) => {
     setEditTableTarget({ from, to, markdown })

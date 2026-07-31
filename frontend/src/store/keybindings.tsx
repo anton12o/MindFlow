@@ -38,7 +38,7 @@ function loadBindings(): KeybindingMap {
 }
 
 function saveBindings(b: KeybindingMap) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(b))
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(b)) } catch { /* silent */ }
 }
 
 interface KeybindingsCtx {

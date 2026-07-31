@@ -1,4 +1,4 @@
-# MindFlow 🧠 v1.6.1
+# MindFlow 🧠 v1.6.6
 
 [![CI](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml)
 
@@ -19,6 +19,7 @@
 - **Reflexão semanal:** Guiada por perguntas customizáveis, salva como nota com métricas automáticas
 - **Design system consistente:** Tokens Tailwind v4 auditados (escala 4/8/12/16/24, contraste WCAG AA, fallback daltônico)
 - **Tudo em um:** Dashboard, Rotina, Pomodoro, Notas, Flashcards, Hábitos, Insights, Matriz, Consultas, Revisão — integrados
+- **Estabilidade:** strict mode TypeScript ativado, rate limiting thread-safe, cache com lock, path traversal sanitizado, validação Pydantic em todos os modelos
 
 ---
 

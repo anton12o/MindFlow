@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react'
 import { useConfig } from '../store/config'
 
 interface ZenModeContextType {
@@ -8,6 +8,8 @@ interface ZenModeContextType {
 }
 
 const ZenModeContext = createContext<ZenModeContextType | null>(null)
+
+const NOOP = () => {}
 
 export function ZenModeProvider({ children }: { children: ReactNode }) {
   const { config } = useConfig()
@@ -32,7 +34,10 @@ export function ZenModeProvider({ children }: { children: ReactNode }) {
     setInternalZen(p => !p)
   }, [])
 
-  const value = { zenMode, toggleZen: disabled ? (() => {}) : toggleZen }
+  const value = useMemo(() => ({
+    zenMode,
+    toggleZen: disabled ? NOOP : toggleZen,
+  }), [zenMode, disabled, toggleZen])
 
   return (
     <ZenModeContext.Provider value={value}>

@@ -99,13 +99,14 @@ export default function IdeiasEditor({
   }, [notify])
   useEffect(() => {
     if (!editando || !notaAtual.conteudo?.trim()) { startTransition(() => setSugestoes([])); return }
+    let ignore = false
     const timer = setTimeout(async () => {
       try {
         const result = await sugerirTags(notaAtual.id)
-        setSugestoes(result.filter(s => !notaTagsData?.some(t => t.id === s.tag_id)))
-      } catch { /* silent */ }
+        if (!ignore) setSugestoes(result.filter(s => !notaTagsData?.some(t => t.id === s.tag_id)))
+      } catch (e) { console.error('[IdeiasEditor] sugerirTags', e) }
     }, 500)
-    return () => clearTimeout(timer)
+    return () => { ignore = true; clearTimeout(timer) }
   }, [editando, notaAtual.id, notaAtual.conteudo, notaTagsData])
   useEffect(() => {
     let ignore = false

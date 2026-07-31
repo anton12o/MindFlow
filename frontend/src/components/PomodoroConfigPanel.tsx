@@ -1,7 +1,7 @@
 import { memo } from 'react'
 
 interface Props {
-  config: { focoMin: number; pausaCurtaMin: number; pausaLongaMin: number; ciclosAtePausaLonga: number; dailyFocusMin: number; autoStart: boolean; dnd: boolean; descansoMin: number }
+  config: { focoMin: number; pausaCurtaMin: number; pausaLongaMin: number; ciclosAtePausaLonga: number; dailyFocusMin: number; autoStart: boolean; dnd: boolean; descansoMin: number; timerContinuo: boolean }
   setConfig: (fn: (prev: Props['config']) => Props['config']) => void
   ativo: boolean
   showConfig: boolean

@@ -19,21 +19,24 @@ export default function Stopwatch() {
   const inicioRef = useRef(0)
   const elapsedPreRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const lapStartRef = useRef(0)
+  const lapElapsedRef = useRef(0)
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [])
 
+  function totalElapsed(): number {
+    return elapsedPreRef.current + (inicioRef.current > 0 ? agora() - inicioRef.current : 0)
+  }
+
   function iniciar() {
     if (ativo) return
     const ts = agora()
     inicioRef.current = ts
-    if (lapStartRef.current === 0) lapStartRef.current = ts
     setAtivo(true)
-    createMut.mutate()
+    if (sessaoId === null) createMut.mutate()
     intervalRef.current = setInterval(() => {
-      setElapsed(elapsedPreRef.current + (agora() - inicioRef.current))
+      setElapsed(totalElapsed())
     }, 50)
   }
 
@@ -41,7 +44,8 @@ export default function Stopwatch() {
     if (!ativo) return
     clearInterval(intervalRef.current!)
     intervalRef.current = null
-    elapsedPreRef.current += agora() - inicioRef.current
+    elapsedPreRef.current = totalElapsed()
+    inicioRef.current = 0
     setAtivo(false)
   }
 
@@ -52,7 +56,8 @@ export default function Stopwatch() {
     setElapsed(0)
     setLaps([])
     elapsedPreRef.current = 0
-    lapStartRef.current = 0
+    inicioRef.current = 0
+    lapElapsedRef.current = 0
     if (sessaoId) {
       finalizarMut.mutate(sessaoId)
       setSessaoId(null)
@@ -61,11 +66,10 @@ export default function Stopwatch() {
 
   function registrarVolta() {
     if (!ativo) return
-    const now = agora()
-    const totalElapsed = elapsedPreRef.current + (now - inicioRef.current)
-    const split = lapStartRef.current === 0 ? totalElapsed : totalElapsed - (elapsedPreRef.current + (lapStartRef.current - inicioRef.current))
-    setLaps(p => [...p, { index: p.length + 1, elapsed: totalElapsed, split: Math.max(0, split) }])
-    lapStartRef.current = now
+    const now = totalElapsed()
+    const split = now - lapElapsedRef.current
+    setLaps(p => [...p, { index: p.length + 1, elapsed: now, split: Math.max(0, split) }])
+    lapElapsedRef.current = now
   }
 
   const createMut = useMutation({

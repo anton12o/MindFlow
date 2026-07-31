@@ -273,8 +273,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         contextoNome: state.contexto?.nome || null,
       }))
     } catch (e) { console.error('[pomodoro.saveHeartbeat]', e) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.screen, state.fase, state.cicloAtual, state.sessaoId, state.distracoes, state.minutos, state.segundos, state.contexto, config])
+  }, [state.screen, state.fase, state.cicloAtual, state.sessaoId, state.distracoes, state.minutos, state.segundos, state.interrupcoes, state.contexto, config])
 
   useEffect(() => {
     if (!config.autoStart && !config.timerContinuo) return
@@ -291,6 +290,8 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     }
   }, [state.screen, config.autoStart, config.timerContinuo, advancePhase, clearHeartbeat])
 
+  const saveHeartbeatRef = useRef(saveHeartbeat)
+  useEffect(() => { saveHeartbeatRef.current = saveHeartbeat }, [saveHeartbeat])
   useEffect(() => {
     if (!state.ativo || (state.screen !== 'running' && state.screen !== 'livre')) return
 
@@ -301,7 +302,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
         if (totalSec !== lastDisplaySecRef.current) {
           lastDisplaySecRef.current = totalSec
           dispatch({ type: 'SET_TIMER', minutos: Math.floor(totalSec / 60), segundos: totalSec % 60 })
-          saveHeartbeat()
+          saveHeartbeatRef.current()
         }
       }
       checkTimer()
@@ -319,7 +320,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
       if (totalSec !== lastDisplaySecRef.current) {
         lastDisplaySecRef.current = totalSec
         dispatch({ type: 'SET_TIMER', minutos: Math.max(0, Math.floor(totalSec / 60)), segundos: Math.max(0, totalSec % 60) })
-        saveHeartbeat()
+        saveHeartbeatRef.current()
       }
 
       if (elapsed >= phaseMs) {
@@ -337,8 +338,7 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     checkTimer()
     const interval = setInterval(checkTimer, 200)
     return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.ativo, state.screen, state.fase, config, state.interrupcoes, state.contexto])
+  }, [state.ativo, state.screen, state.fase, config, state.interrupcoes, state.contexto, clearHeartbeat, notify])
 
   const broadcastState = useMemo(() => ({
     sessaoId: state.sessaoId, minutos: state.minutos, segundos: state.segundos,

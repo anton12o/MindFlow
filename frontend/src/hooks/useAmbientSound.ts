@@ -1,30 +1,17 @@
-import { useEffect, useState, type MutableRefObject } from 'react'
+import { useEffect, type MutableRefObject } from 'react'
 import { startAmbient, stopAmbient } from '../utils/ambientSound'
 
 export function useAmbientSound(screen: string, somAmbiente: boolean, audioCtxRef: MutableRefObject<AudioContext | null>) {
-  const [ambientOn, setAmbientOn] = useState(false)
+  const ambientOn = (screen === 'running' || screen === 'livre') && somAmbiente
 
   useEffect(() => {
-    if (!somAmbiente) {
-      if (ambientOn) { stopAmbient(); setAmbientOn(false) } // eslint-disable-line react-hooks/set-state-in-effect
-      return
+    if (!ambientOn) { stopAmbient(); return }
+    const aCtx = audioCtxRef.current
+    if (aCtx && aCtx.state !== 'closed') {
+      startAmbient(aCtx)
     }
-    if (screen === 'running' || screen === 'livre') {
-      if (!ambientOn) {
-        const aCtx = audioCtxRef.current
-        if (aCtx && aCtx.state !== 'closed') {
-          startAmbient(aCtx)
-          setAmbientOn(true)
-        }
-      }
-    } else {
-      if (ambientOn) {
-        stopAmbient()
-        setAmbientOn(false)
-      }
-    }
-    return () => { if (ambientOn) { stopAmbient(); setAmbientOn(false) } }
-  }, [screen, somAmbiente, ambientOn, audioCtxRef])
+    return () => stopAmbient()
+  }, [ambientOn, audioCtxRef])
 
   return { ambientOn }
 }

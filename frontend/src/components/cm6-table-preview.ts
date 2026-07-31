@@ -28,13 +28,14 @@ class HiddenWidget extends WidgetType {
 }
 
 class TableWidget extends WidgetType {
+  html: string
+  from: number
+  to: number
+  markdown: string
+  onEdit: EditHandler
   constructor(
-    readonly html: string,
-    readonly from: number,
-    readonly to: number,
-    readonly markdown: string,
-    readonly onEdit: EditHandler,
-  ) { super() }
+    html: string, from: number, to: number, markdown: string, onEdit: EditHandler,
+  ) { super(); this.html = html; this.from = from; this.to = to; this.markdown = markdown; this.onEdit = onEdit }
 
   toDOM() {
     const el = document.createElement('div')
@@ -59,7 +60,7 @@ class TableWidget extends WidgetType {
 }
 
 function compute(view: EditorView, onEdit: EditHandler) {
-  const decorations: Decoration[] = []
+  const decorations: Range<Decoration>[] = []
   const doc = view.state.doc
 
   for (let lineNo = 1; lineNo <= doc.lines; lineNo++) {

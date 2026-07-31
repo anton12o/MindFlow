@@ -89,8 +89,8 @@ export default function Dashboard() {
     if (d) { startTransition(() => setDiarioId(d.id)); return }
     diarioCreating.current = true
     const dataBR = hojeLocal()
-    createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { if (!ignore) { setDiarioId(n.id); diarioCreating.current = false } }).catch(e => { console.error('[Dashboard]', e); if (!ignore) diarioCreating.current = false })
-    return () => { ignore = true }
+      createNota({ titulo: `Diário 📓 ${dataBR}`, conteudo: '' }).then(n => { if (!ignore) { setDiarioId(n.id); diarioCreating.current = false } }).catch(e => { console.error('[Dashboard]', e); if (!ignore) diarioCreating.current = false })
+    return () => { ignore = true; diarioCreating.current = false }
   }, [dash, diarioId])
 
   const toggleTarefaMut = useMutation({

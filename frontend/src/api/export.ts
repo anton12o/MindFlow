@@ -35,8 +35,21 @@ export const backupDB = () =>
 export const listBackups = () =>
   request<{ nome: string; tamanho: number; modificado: number }[]>('/db/backups')
 
+const _fetch = (url: string, init?: RequestInit) =>
+  fetch(url, { signal: AbortSignal.timeout(10000), ...init })
+
+export const restoreDB = async (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  const res = await _fetch(API_BASE + '/db/restore', { method: 'POST', body: formData })
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(text || 'Falha ao restaurar banco')
+  }
+}
+
 export const downloadBackup = async (nome: string) => {
-  const res = await fetch(API_BASE + `/db/backups/${encodeURIComponent(nome)}`)
+  const res = await _fetch(API_BASE + `/db/backups/${encodeURIComponent(nome)}`)
   if (!res.ok) throw new Error('Falha ao baixar backup')
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
@@ -48,7 +61,7 @@ export const downloadBackup = async (nome: string) => {
 }
 
 export const exportCSV = async () => {
-  const res = await fetch(API_BASE + '/export/csv')
+  const res = await _fetch(API_BASE + '/export/csv')
   if (!res.ok) throw new Error('Falha ao exportar CSV')
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)
@@ -60,7 +73,7 @@ export const exportCSV = async () => {
 }
 
 export const exportTarefasFeitas = async () => {
-  const res = await fetch(API_BASE + '/export/tarefas-feitas')
+  const res = await _fetch(API_BASE + '/export/tarefas-feitas')
   if (!res.ok) throw new Error('Falha ao exportar tarefas')
   const blob = await res.blob()
   const url = URL.createObjectURL(blob)

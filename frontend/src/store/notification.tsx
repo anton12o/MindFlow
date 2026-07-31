@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react'
 
 interface Notification {
   id: number
@@ -17,14 +17,19 @@ const NotificationContext = createContext<NotificationContextType | null>(null)
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [dndActive, setDndActive] = useState(false)
+  const timeoutsRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
+
+  useEffect(() => () => { timeoutsRef.current.forEach(clearTimeout) }, [])
 
   const notify = useCallback((message: string, type: 'error' | 'success' = 'error', action?: { label: string; onClick: () => void }) => {
     if (dndActive) return
     const id = Date.now()
     setNotifications(prev => [...prev, { id, message, type, action }])
-    setTimeout(() => {
+    const tid = setTimeout(() => {
+      timeoutsRef.current.delete(tid)
       setNotifications(prev => prev.filter(n => n.id !== id))
     }, action ? 3000 : 4000)
+    timeoutsRef.current.add(tid)
   }, [dndActive])
 
   return (

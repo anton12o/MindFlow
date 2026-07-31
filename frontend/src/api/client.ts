@@ -4,13 +4,15 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10000)
 
+  let onAbort: (() => void) | null = null
   const externalSignal = options?.signal
   if (externalSignal) {
     if (externalSignal.aborted) {
       clearTimeout(timeout)
       throw new DOMException('Aborted', 'AbortError')
     }
-    externalSignal.addEventListener('abort', () => controller.abort(), { once: true })
+    onAbort = () => controller.abort()
+    externalSignal.addEventListener('abort', onAbort, { once: true })
   }
 
   try {
@@ -41,6 +43,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     throw err
   } finally {
     clearTimeout(timeout)
+    if (onAbort && externalSignal) externalSignal.removeEventListener('abort', onAbort)
   }
 }
 
