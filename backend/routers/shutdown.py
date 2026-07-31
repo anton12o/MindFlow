@@ -119,14 +119,14 @@ def list_backups():
 @router.get("/db/backups/{filename}")
 def download_backup(filename: str):
     from urllib.parse import unquote
-    backup_dir = Path(BACKUP_DIR).resolve()
+    backup_dir = str(Path(BACKUP_DIR).resolve())
     safe = os.path.basename(unquote(filename))
     if safe in ("", ".", ".."):
         raise HTTPException(status_code=400, detail="Acesso negado")
-    full = (backup_dir / safe).resolve()
-    if backup_dir not in full.parents:
+    full = os.path.normpath(os.path.join(backup_dir, safe))
+    if not full.startswith(backup_dir):
         raise HTTPException(status_code=400, detail="Acesso negado")
-    if not full.is_file():
+    if not os.path.isfile(full):
         raise HTTPException(status_code=404, detail="Backup não encontrado")
     return FileResponse(full, filename=safe, media_type="application/octet-stream")
 
