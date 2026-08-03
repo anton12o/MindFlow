@@ -208,14 +208,23 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
   const insertLinePrefix = useCallback((prefix: string) => {
     const view = viewRef.current
     if (!view) return
-    const pos = view.state.selection.main.from
-    const line = view.state.doc.lineAt(pos)
-    const lineText = line.text
-    if (lineText.startsWith(prefix)) {
-      view.dispatch({ changes: { from: line.from, to: line.from + prefix.length, insert: '' } })
-    } else {
-      view.dispatch({ changes: { from: line.from, insert: prefix } })
+    const { from, to } = view.state.selection.main
+    const doc = view.state.doc
+    const fromLine = doc.lineAt(from)
+    let toLine = doc.lineAt(to)
+    if (from !== to && to === toLine.from) toLine = doc.line(Math.max(1, toLine.number - 1))
+    const addLines: number[] = []
+    const removeLines: number[] = []
+    for (let n = fromLine.number; n <= toLine.number; n++) {
+      if (doc.line(n).text.startsWith(prefix)) removeLines.push(n)
+      else addLines.push(n)
     }
+    const changes = [
+      ...removeLines.map(n => ({ from: doc.line(n).from, to: doc.line(n).from + prefix.length, insert: '' })),
+      ...addLines.map(n => ({ from: doc.line(n).from, insert: prefix })),
+    ]
+    if (changes.length === 0) return
+    view.dispatch({ changes })
   }, [])
 
   const handleHeading = useCallback((level: number) => {
