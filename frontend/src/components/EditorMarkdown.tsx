@@ -210,7 +210,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
     if (!view) return
     const { from, to } = view.state.selection.main
     const doc = view.state.doc
-    let fromLine = doc.lineAt(from)
+    const fromLine = doc.lineAt(from)
     let toLine = doc.lineAt(to)
     if (from !== to && to === toLine.from) toLine = doc.line(Math.max(1, toLine.number - 1))
     const addLines: number[] = []
