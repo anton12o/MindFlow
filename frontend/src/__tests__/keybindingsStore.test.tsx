@@ -86,6 +86,46 @@ describe('KeybindingsProvider', () => {
     expect(document.body.getAttribute('data-matched')).toBe('null')
   })
 
+  it('getLastConflict retorna ação em conflito imediatamente após rebind', () => {
+    function ConflictHarness() {
+      const { rebind, getLastConflict } = useKeybindings()
+      return (
+        <>
+          <button
+            onClick={() => {
+              rebind('palette-comando', { key: 'i', ctrl: true, shift: false, alt: false })
+              document.body.setAttribute('data-conflict-after-rebind', getLastConflict() ?? 'null')
+            }}
+          >
+            rebind-para-i
+          </button>
+        </>
+      )
+    }
+    render(<KeybindingsProvider><ConflictHarness /></KeybindingsProvider>)
+    act(() => { screen.getByText('rebind-para-i').click() })
+    expect(document.body.getAttribute('data-conflict-after-rebind')).toBe('toggle-inbox')
+  })
+
+  it('getLastConflict retorna null quando não há conflito', () => {
+    function NoConflictHarness() {
+      const { rebind, getLastConflict } = useKeybindings()
+      return (
+        <button
+          onClick={() => {
+            rebind('palette-comando', { key: 'z', ctrl: true, shift: false, alt: false })
+            document.body.setAttribute('data-conflict-none', getLastConflict() ?? 'null')
+          }}
+        >
+          rebind-z
+        </button>
+      )
+    }
+    render(<KeybindingsProvider><NoConflictHarness /></KeybindingsProvider>)
+    act(() => { screen.getByText('rebind-z').click() })
+    expect(document.body.getAttribute('data-conflict-none')).toBe('null')
+  })
+
   it('persiste bindings no localStorage após rebind', () => {
     renderKB()
     act(() => { screen.getByText('rebind').click() })

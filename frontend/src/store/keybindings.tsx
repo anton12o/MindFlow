@@ -58,16 +58,12 @@ export function KeybindingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => { saveBindings(bindings) }, [bindings])
 
   const rebind = useCallback((action: string, combo: KeyCombo) => {
-    conflictRef.current = null
-    setBindings(prev => {
-      for (const [a, c] of Object.entries(prev)) {
-        if (a !== action && c.ctrl === combo.ctrl && c.shift === combo.shift && c.alt === combo.alt && c.key.toLowerCase() === combo.key.toLowerCase()) {
-          conflictRef.current = a
-        }
-      }
-      return { ...prev, [action]: combo }
-    })
-  }, [])
+    const conflict = Object.entries(bindings).find(([a, c]) =>
+      a !== action && c.ctrl === combo.ctrl && c.shift === combo.shift && c.alt === combo.alt && c.key.toLowerCase() === combo.key.toLowerCase()
+    )
+    conflictRef.current = conflict ? conflict[0] : null
+    setBindings(prev => ({ ...prev, [action]: combo }))
+  }, [bindings])
 
   const reset = useCallback(() => {
     setBindings({ ...DEFAULT_BINDINGS })

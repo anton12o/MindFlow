@@ -62,6 +62,8 @@ export default function Matriz() {
     if (!tipo) return
     const handler = (e: KeyboardEvent) => {
       if (!e.ctrlKey && !e.metaKey) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
       if (e.key === '1') { e.preventDefault(); setTipo(ORDEM[0]) }
       else if (e.key === '2') { e.preventDefault(); setTipo(ORDEM[1]) }
     }
