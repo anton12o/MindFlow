@@ -212,8 +212,11 @@ export function PomodoroProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handler)
   }, [])
 
+  const prevScreenRef = useRef<typeof state.screen>(state.screen)
   useEffect(() => {
-    if (state.screen === 'running' || state.screen === 'livre') {
+    const prev = prevScreenRef.current
+    prevScreenRef.current = state.screen
+    if ((state.screen === 'running' || state.screen === 'livre') && prev !== 'pausado') {
       startTransition(() => dispatch({ type: 'RESET_DISTRACOES' }))
     }
   }, [state.screen])

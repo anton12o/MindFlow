@@ -190,6 +190,26 @@ describe('PomodoroTimer', () => {
     expect(screen.getByText('Salvar resumo')).toBeInTheDocument()
   })
 
+  it('snooze +5 min ajusta startedAtRef para deixar 5min restantes', () => {
+    resetContext({ screen: 'foco_end' })
+    renderTimer()
+    fireEvent.click(screen.getByText('+5 min'))
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'SET_TIMER', minutos: 5, segundos: 0 })
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'SET_SCREEN', screen: 'running' })
+    expect(mockContext.dispatch).toHaveBeenCalledWith({ type: 'SET_ATIVO', ativo: true })
+    const expected = Date.now() - (25 * 60 * 1000 - 5 * 60 * 1000)
+    expect(Math.abs(expected - (mockContext.startedAtRef as { current: number }).current)).toBeLessThan(1000)
+  })
+
+  it('snooze usa fase curta quando config.focoMin menor que 5min', () => {
+    resetContext({ screen: 'foco_end' })
+    mockContext.config = { ...defaultConfig, focoMin: 3 }
+    renderTimer()
+    fireEvent.click(screen.getByText('+5 min'))
+    const expected = Date.now() - Math.max(0, 3 * 60 * 1000 - 5 * 60 * 1000)
+    expect(Math.abs(expected - (mockContext.startedAtRef as { current: number }).current)).toBeLessThan(1000)
+  })
+
   it('restore banner aparece quando showRestore', async () => {
     localStorage.setItem('mindflow_pomodoro_heartbeat', JSON.stringify({
       screen: 'running', remainingMs: 600000, minutos: 10, segundos: 0,

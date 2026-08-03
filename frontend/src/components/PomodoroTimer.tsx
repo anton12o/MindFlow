@@ -237,10 +237,13 @@ const PomodoroTimer = memo(function PomodoroTimer({ contexto, onFinalizar }: Pro
   }
 
   function handleSnooze() {
+    const phaseMs = (fase === 'foco' ? config.focoMin : fase === 'pausa_curta' ? config.pausaCurtaMin : config.pausaLongaMin) * 60 * 1000
+    const snoozeMs = 5 * 60 * 1000
+    startedAtRef.current = Date.now() - Math.max(0, phaseMs - snoozeMs)
     dispatch({ type: 'SET_TIMER', minutos: 5, segundos: 0 })
     dispatch({ type: 'SET_SCREEN', screen: 'running' })
     dispatch({ type: 'SET_ATIVO', ativo: true })
-    startedAtRef.current = Date.now()
+    clearHeartbeat()
   }
 
   const display = `${String(minutos).padStart(2, '0')}:${String(segundos).padStart(2, '0')}`

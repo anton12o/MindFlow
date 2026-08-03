@@ -243,6 +243,15 @@ describe('PomodoroProvider', () => {
       act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
       expect(result.current.state.distracoes).toBe(0)
     })
+
+    it('NAO zera distracoes ao retomar de uma pausa', () => {
+      const { result } = renderHook(() => usePomodoroContext(), { wrapper: createWrapper() })
+      act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
+      act(() => { result.current.dispatch({ type: 'SET_DISTRACOES', distracoes: 3 }) })
+      act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'pausado' }) })
+      act(() => { result.current.dispatch({ type: 'SET_SCREEN', screen: 'running' }) })
+      expect(result.current.state.distracoes).toBe(3)
+    })
   })
 
   describe('screen transitions', () => {
