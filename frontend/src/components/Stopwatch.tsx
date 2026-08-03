@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
+import { ensureAudioCtx, playBeep } from '../utils/audio'
 
 function agora() { return Date.now() }
 
@@ -20,6 +21,7 @@ export default function Stopwatch() {
   const elapsedPreRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const lapElapsedRef = useRef(0)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
   useEffect(() => {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
@@ -31,6 +33,7 @@ export default function Stopwatch() {
 
   function iniciar() {
     if (ativo) return
+    ensureAudioCtx(audioCtxRef)
     const ts = agora()
     inicioRef.current = ts
     setAtivo(true)
@@ -66,6 +69,9 @@ export default function Stopwatch() {
 
   function registrarVolta() {
     if (!ativo) return
+    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+      playBeep(audioCtxRef.current)
+    }
     const now = totalElapsed()
     const split = now - lapElapsedRef.current
     setLaps(p => [...p, { index: p.length + 1, elapsed: now, split: Math.max(0, split) }])
