@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { screen } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { renderWithProviders } from './utils'
 import EditorMarkdown from '../components/EditorMarkdown'
 
@@ -8,6 +8,16 @@ describe('EditorMarkdown', () => {
     renderWithProviders(<EditorMarkdown value="" onChange={vi.fn()} />)
     expect(screen.getByLabelText('Desfazer')).toBeInTheDocument()
     expect(screen.getByLabelText('Refazer')).toBeInTheDocument()
+  })
+
+  it('abre dropdown de cabecalho ao clicar no botao H', async () => {
+    renderWithProviders(<EditorMarkdown value="" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByLabelText('Cabeçalho'))
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Texto' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'H1' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'H2' })).toBeInTheDocument()
+    })
   })
 
   it('renderiza placeholder', () => {

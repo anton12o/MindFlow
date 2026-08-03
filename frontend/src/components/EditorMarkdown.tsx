@@ -1,4 +1,5 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { EditorView, keymap, placeholder } from '@codemirror/view'
 import { EditorState, Transaction } from '@codemirror/state'
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown'
@@ -297,6 +298,7 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
   }, [])
 
   const [showHeading, setShowHeading] = useState(false)
+  const [headingPos, setHeadingPos] = useState<{ top: number; left: number; width: number } | null>(null)
   const headingRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -322,16 +324,22 @@ const EditorMarkdown = React.memo(function EditorMarkdown({ value, onChange, not
         <button onClick={handleMath} className={btn} title="Equação inline" aria-label="Equação"><Sigma size={14} /></button>
         {sep}
         <div className="relative" ref={headingRef}>
-          <button onClick={() => setShowHeading(p => !p)} className={`${btn} text-xs font-semibold w-6`} title="Cabeçalho" aria-label="Cabeçalho">H</button>
-          {showHeading && (
-            <div className="absolute left-0 top-full mt-1 bg-bg-secondary border border-border rounded-lg shadow-elevation-4 z-50 p-1 w-24 animate-fade-in">
+          <button onClick={() => {
+            const rect = headingRef.current?.getBoundingClientRect()
+            if (rect) setHeadingPos({ top: rect.bottom, left: rect.left, width: rect.width })
+            setShowHeading(p => !p)
+          }} className={`${btn} text-xs font-semibold w-6`} title="Cabeçalho" aria-label="Cabeçalho">H</button>
+          {showHeading && headingPos && createPortal(
+            <div className="fixed rounded-lg bg-bg-secondary border border-border shadow-elevation-4 z-50 p-1 w-24 animate-fade-in"
+              style={{ top: headingPos.top + 6, left: headingPos.left }}>
               {[['Texto', 0], ['H1', 1], ['H2', 2], ['H3', 3], ['H4', 4], ['H5', 5], ['H6', 6]].map(([label, level]) => (
                 <button key={String(level)} onClick={() => { handleHeading(level as number); setShowHeading(false) }}
                   className="w-full text-left px-2 py-1 text-sm rounded hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors">
                   {label}
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
         {sep}
