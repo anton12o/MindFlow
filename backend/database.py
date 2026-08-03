@@ -112,9 +112,9 @@ def _ensure_indexes():
     for table in SQLModel.metadata.sorted_tables:
         for index in table.indexes:
             try:
-                index.create(engine)
+                index.create(engine, checkfirst=True)
             except Exception as e:
-                logger.warning("Indice %s.%s ja existe: %s", table.name, index.name, e)
+                logger.warning("Indice %s.%s nao pode ser criado: %s", table.name, index.name, e)
 
 
 def _stamp_head():

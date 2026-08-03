@@ -22,7 +22,7 @@ function DraggableTaskCard({ tarefa, quadranteKey, onToggleStatus, onDelete, onL
   const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)`, zIndex: 50 } : undefined
   const score = getExternalScore(tarefa)
   const moveItems = QUADRANTES_EISENHOWER.filter(q => q.key !== quadranteKey).map(q => ({
-    label: <><span className="mr-1">{'\u2192'}</span>{q.titulo}</>,
+    label: <><span className="mr-1">{'→'}</span>{q.titulo}</>,
     onClick: () => onMoverQuadrante(tarefa.id, q.key),
   }))
   return (
@@ -112,8 +112,8 @@ export default function EisenhowerView({ tarefas, isLoading, dataInicio, dataFim
 
   const excluir = useMutation({
     mutationFn: (id: number) => apiDelete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] }); notify('Tarefa exclu\u00EDda') },
-    onError: (e) => { console.error('[Eisenhower] delete', e); notify('Erro ao excluir — verifique v\u00EDnculos') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] }); notify('Tarefa excluída') },
+    onError: (e) => { console.error('[Eisenhower] delete', e); notify('Erro ao excluir — verifique vínculos') },
   })
 
   const handleToggleStatus = useCallback((id: number) => {
@@ -184,7 +184,7 @@ export default function EisenhowerView({ tarefas, isLoading, dataInicio, dataFim
             className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus-visible:ring-1 focus-visible:ring-accent/20 transition-colors">
             <option value="all">Todas</option>
             <option value="avaliadas">Classificadas</option>
-            <option value="pendentes">N\u00E3o classificadas</option>
+            <option value="pendentes">Não classificadas</option>
           </select>
           <button onClick={() => onOffsetChange(offset - 1)} disabled={offset <= -52} title="Semana anterior" aria-label="Semana anterior"
             className="p-1 text-text-muted hover:text-text-primary disabled:opacity-disabled-heavy transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 rounded">
@@ -200,10 +200,10 @@ export default function EisenhowerView({ tarefas, isLoading, dataInicio, dataFim
           <button onClick={() => setOcultarConcluidas(v => !v)}
             className={`text-xs px-2 py-1 rounded transition-colors ${ocultarConcluidas ? 'bg-accent text-accent-foreground' : 'text-text-muted hover:text-text-primary'}`}
             title={ocultarConcluidas ? 'Mostrar concluídas' : 'Ocultar concluídas'} aria-label={ocultarConcluidas ? 'Mostrar concluídas' : 'Ocultar concluídas'}>
-            {ocultarConcluidas ? '\u2713' : '\u25CB'} {ocultarConcluidas ? 'Mostrando' : 'Ocultar'}
+            {ocultarConcluidas ? '✓' : '○'} {ocultarConcluidas ? 'Mostrando' : 'Ocultar'}
           </button>
           <KebabMenu items={[
-            { label: <>{'\u2191'} Score {sortDir === 'desc' ? '\u2193' : '\u2191'}</>, onClick: () => setSortDir(d => d === 'desc' ? 'asc' : 'desc') },
+            { label: <>{'↑'} Score {sortDir === 'desc' ? '↓' : '↑'}</>, onClick: () => setSortDir(d => d === 'desc' ? 'asc' : 'desc') },
           ]} />
         </div>
       </div>

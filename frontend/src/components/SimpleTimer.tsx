@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSessao, finalizarSessao } from '../api/pomodoro'
 import { useNotify } from '../store/notification'
+import { ensureAudioCtx, playAlarm } from '../utils/audio'
 
 function agora() { return Date.now() }
 
@@ -16,6 +17,7 @@ export default function SimpleTimer() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const fimRef = useRef<number>(0)
   const ativoRef = useRef(false)
+  const audioCtxRef = useRef<AudioContext | null>(null)
 
   useEffect(() => {
     ativoRef.current = ativo
@@ -31,6 +33,7 @@ export default function SimpleTimer() {
 
   function iniciar() {
     if (ativo) return
+    ensureAudioCtx(audioCtxRef)
     const segundos = sessaoId !== null ? tempo : minutos * 60
     setTempo(segundos)
     const ts = agora()
@@ -43,6 +46,9 @@ export default function SimpleTimer() {
       if (restante <= 0) {
         limparTimer()
         setAtivo(false)
+        if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+          playAlarm(audioCtxRef.current)
+        }
         notify('Timer finalizado!')
       }
     }, 100)

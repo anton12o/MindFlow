@@ -16,11 +16,11 @@ const PomodoroResumoForm = memo(function PomodoroResumoForm({ resumo, setResumo,
   return (
     <div className="w-full max-w-md mt-2">
       {distracoes > 0 && (
-        <p className="text-xs text-text-muted mb-2">👀 {distracoes} {distracoes === 1 ? 'distra\u00E7\u00E3o' : 'distra\u00E7\u00F5es'}</p>
+        <p className="text-xs text-text-muted mb-2">👀 {distracoes} {distracoes === 1 ? 'distração' : 'distrações'}</p>
       )}
       {interrupcoes.length > 0 && (
         <div className="mb-2 text-xs text-text-muted">
-          <p className="font-medium mb-0.5">Distra\u00E7\u00F5es registradas:</p>
+          <p className="font-medium mb-0.5">Distrações registradas:</p>
           <ul className="space-y-0.5">
             {interrupcoes.map((item, i) => (
               <li key={item + '-' + i} className="flex items-start gap-1">• {item}</li>
@@ -29,7 +29,7 @@ const PomodoroResumoForm = memo(function PomodoroResumoForm({ resumo, setResumo,
         </div>
       )}
       <textarea value={resumo} onChange={e => setResumo(e.target.value)}
-        placeholder="Registrar resumo da sess\u00E3o (opcional)..."
+        placeholder="Registrar resumo da sessão (opcional)..."
         className="w-full bg-bg-tertiary rounded-lg p-3 text-sm outline-none resize-none h-20 focus-visible:ring-2 focus-visible:ring-accent" />
       <div className="flex gap-2 mt-2">
         <button onClick={onPular} disabled={isPending}

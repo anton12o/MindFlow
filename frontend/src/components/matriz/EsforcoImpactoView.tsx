@@ -32,7 +32,7 @@ function EISlider({ label, value, onChange, onCommit }: { label: string; value: 
           <button onClick={(e) => { e.stopPropagation(); onChange(Math.max(1, value - 1)); onCommit?.() }}
             className="w-4 h-4 rounded flex items-center justify-center text-xs text-text-muted hover:text-text-primary hover:bg-bg-primary transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
             aria-label={label + ' diminuir'}>
-            {'\u2212'}
+            {'−'}
           </button>
           <span className="text-xs text-text-muted tabular-nums w-3 text-center">{value}</span>
           <button onClick={(e) => { e.stopPropagation(); onChange(Math.min(5, value + 1)); onCommit?.() }}
@@ -103,7 +103,7 @@ function QuadranteEI({ quadrante, tarefas, allExpanded, onSave, onToggleStatus, 
         <span className="text-xs text-text-muted ml-auto truncate min-w-0">{quadrante.desc}</span>
       </div>
       <div className="text-[10px] text-text-muted/60 mb-2 font-mono">
-        {(() => { const s = SCORE_POR_QUADRANTE[quadrante.key]; return s ? `E:${s.esforco} \u00B7 I:${s.impacto}` : '' })()}
+        {(() => { const s = SCORE_POR_QUADRANTE[quadrante.key]; return s ? `E:${s.esforco} · I:${s.impacto}` : '' })()}
       </div>
       <div className="flex-1 space-y-2 overflow-y-auto max-h-96 scrollbar-gutter-stable">
         {tarefas.length === 0 ? (
@@ -140,7 +140,7 @@ function EICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimpa
     setImpacto(existing?.impacto ?? 1)
   }, [existing?.esforco, existing?.impacto])
 
-  const label = existing ? (QUADRANTES.find(q => q.key === classificar(esforco, impacto))?.titulo ?? '—') : 'N\u00E3o classificado'
+  const label = existing ? (QUADRANTES.find(q => q.key === classificar(esforco, impacto))?.titulo ?? '—') : 'Não classificado'
 
   const debouncedSave = useDebouncedCallback((e: number, i: number) => {
     onSave(tarefa.id, { esforco: e, impacto: i }, tarefa.propriedades)
@@ -158,13 +158,13 @@ function EICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimpa
     <div className="space-y-1 group/card">
       <TaskCard tarefa={tarefa} onToggleStatus={onToggleStatus} onDelete={onDelete} onLimparQuadrante={onLimparQuadrante ? () => onLimparQuadrante(tarefa.id, tarefa.propriedades) : undefined} extraKebabItems={extraKebabItems}>
         <button onClick={handleToggle} className="w-full flex items-center justify-between text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20 rounded">
-          <span className="text-xs font-normal text-text-muted">{label || 'Sem classifica\u00E7\u00E3o'}</span>
+          <span className="text-xs font-normal text-text-muted">{label || 'Sem classificação'}</span>
           {!expanded && !existing && (
-            <span className="text-xs text-text-muted italic">{'\u25CB'} Clique para classificar</span>
+            <span className="text-xs text-text-muted italic">{'○'} Clique para classificar</span>
           )}
         </button>
         <div className={`overflow-hidden transition-all duration-200 ${expanded ? 'max-h-40 opacity-100 mt-1' : 'max-h-0 opacity-0'}`}>
-          <EISlider label="Esfor\u00E7o" value={esforco} onChange={setEsforco} onCommit={handleSliderChange} />
+          <EISlider label="Esforço" value={esforco} onChange={setEsforco} onCommit={handleSliderChange} />
           <EISlider label="Impacto" value={impacto} onChange={setImpacto} onCommit={handleSliderChange} />
           {(() => {
             const q = QUADRANTES.find(q => q.key === classificar(esforco, impacto))
@@ -173,7 +173,7 @@ function EICard({ tarefa, onSave, allExpanded, onToggleStatus, onDelete, onLimpa
               <div className="flex items-center gap-2 pt-1">
                 <span className={`text-xs font-semibold ${q.labelCor}`}>{q.acao.icone} {q.titulo}</span>
                 <span className="text-xs text-text-muted">{q.desc}</span>
-                {saved && <span className="text-xs text-success ml-auto animate-fade-in">{'\u2713'} salvo</span>}
+                {saved && <span className="text-xs text-success ml-auto animate-fade-in">{'✓'} salvo</span>}
               </div>
             )
           })()}
@@ -214,8 +214,8 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
 
   const excluir = useMutation({
     mutationFn: (id: number) => apiDelete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] }); notify('Tarefa exclu\u00EDda') },
-    onError: (e) => { console.error('[EIView] delete', e); notify('Erro ao excluir — verifique v\u00EDnculos') },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tarefas-matriz'] }); notify('Tarefa excluída') },
+    onError: (e) => { console.error('[EIView] delete', e); notify('Erro ao excluir — verifique vínculos') },
   })
 
   const handleToggleStatus = useCallback((id: number) => {
@@ -303,7 +303,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
             className="text-xs bg-bg-secondary border border-border/50 rounded px-3 py-1 text-text-muted outline-none focus:border-accent focus-visible:ring-1 focus-visible:ring-accent/20 transition-colors">
             <option value="all">Todas</option>
             <option value="avaliadas">Classificadas</option>
-            <option value="pendentes">N\u00E3o classificadas</option>
+            <option value="pendentes">Não classificadas</option>
           </select>
         </div>
         <div className="flex items-center gap-2">
@@ -317,8 +317,8 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
             <ChevronRight size={14} />
           </button>
           <KebabMenu items={[
-            { label: <>{allExpanded ? '\u2191' : '\u2193'} {allExpanded ? 'Colapsar' : 'Expandir'} todos</>, onClick: () => setAllExpanded(v => !v) },
-            { label: <>{'\u2191'} Score {sortDir === 'desc' ? '\u2193' : '\u2191'}</>, onClick: () => setSortDir(d => d === 'desc' ? 'asc' : 'desc') },
+            { label: <>{allExpanded ? '↑' : '↓'} {allExpanded ? 'Colapsar' : 'Expandir'} todos</>, onClick: () => setAllExpanded(v => !v) },
+            { label: <>{'↑'} Score {sortDir === 'desc' ? '↓' : '↑'}</>, onClick: () => setSortDir(d => d === 'desc' ? 'asc' : 'desc') },
           ]} />
         </div>
       </div>
@@ -354,7 +354,7 @@ export default function EsforcoImpactoView({ tarefas, isLoading, dataInicio, dat
           {agrupadas?.semClassificacao && agrupadas.semClassificacao.length > 0 && (
             <div className="rounded-xl border-2 border-dashed border-border bg-bg-secondary/30 p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sem classifica\u00E7\u00E3o</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Sem classificação</span>
                 <span className="text-xs font-bold px-2 py-1 rounded-full min-w-4 text-center leading-none bg-bg-tertiary text-text-muted">
                   {agrupadas.semClassificacao.length}
                 </span>

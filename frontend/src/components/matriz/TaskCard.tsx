@@ -69,28 +69,28 @@ const TaskCard = memo(function TaskCard({ tarefa, externalScore, onScoreClick, c
             <button onClick={(e) => { e.stopPropagation(); onIniciarPomodoro() }}
               className="shrink-0 text-xs px-2 py-1 rounded bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
               title="Iniciar Pomodoro" aria-label="Iniciar Pomodoro">
-              {'\u25B6'} Pomodoro
+              {'▶'} Pomodoro
             </button>
           )}
           {quadrante === 'fazer' && onCriarNota && (
             <button onClick={(e) => { e.stopPropagation(); onCriarNota() }}
               className="shrink-0 text-xs px-2 py-1 rounded bg-quadrant-2/10 text-quadrant-2 hover:bg-quadrant-2/20 transition-colors"
               title="Criar nota" aria-label="Criar nota">
-              {'\uD83D\uDCDD'} Nota
+              {'📝'} Nota
             </button>
           )}
           {quadrante === 'agendar' && onCriarNota && (
             <button onClick={(e) => { e.stopPropagation(); onCriarNota() }}
               className="shrink-0 text-xs px-2 py-1 rounded bg-quadrant-2/10 text-quadrant-2 hover:bg-quadrant-2/20 transition-colors"
               title="Criar nota de lembrete" aria-label="Criar nota de lembrete">
-              {'\uD83D\uDCCC'} Nota
+              {'📌'} Nota
             </button>
           )}
           {quadrante === 'eliminar' && onDelete && (
             <button onClick={(e) => { e.stopPropagation(); onDelete(tarefa.id) }}
               className="shrink-0 text-xs px-2 py-1 rounded bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
               title="Excluir tarefa" aria-label="Excluir tarefa">
-              {'\u2715'} Excluir
+              {'✕'} Excluir
             </button>
           )}
           {onToggleStatus && onDelete && (
