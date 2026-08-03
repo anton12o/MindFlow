@@ -330,7 +330,7 @@ const TableEditorModal = React.memo(function TableEditorModal({ isOpen, onClose,
                   {rows.map((r, ri) => (
                     <tr key={ri}>
                       {r.map((c, ci) => (
-                        <td key={ci} className="border border-border px-2 py-1 text-xs text-text-primary">{c || '\u00A0'}</td>
+                        <td key={ci} className="border border-border px-2 py-1 text-xs text-text-primary">{c || ' '}</td>
                       ))}
                     </tr>
                   ))}

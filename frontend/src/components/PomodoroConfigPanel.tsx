@@ -45,15 +45,15 @@ const PomodoroConfigPanel = memo(function PomodoroConfigPanel({ config, setConfi
             <Campo label="Foco (min)" value={config.focoMin} onChange={v => setCfg(c => ({ ...c, focoMin: v }))} ativo={ativo} />
             <Campo label="Pausa curta (min)" value={config.pausaCurtaMin} onChange={v => setCfg(c => ({ ...c, pausaCurtaMin: v }))} ativo={ativo} />
             <Campo label="Pausa longa (min)" value={config.pausaLongaMin} onChange={v => setCfg(c => ({ ...c, pausaLongaMin: v }))} ativo={ativo} max={120} />
-            <Campo label="Ciclos at\u00E9 pausa longa" value={config.ciclosAtePausaLonga} onChange={v => setCfg(c => ({ ...c, ciclosAtePausaLonga: v }))} ativo={ativo} max={20} />
-            <Campo label="Meta di\u00E1ria (min)" value={config.dailyFocusMin} onChange={v => setCfg(c => ({ ...c, dailyFocusMin: v }))} ativo={ativo} max={480} />
+            <Campo label="Ciclos até pausa longa" value={config.ciclosAtePausaLonga} onChange={v => setCfg(c => ({ ...c, ciclosAtePausaLonga: v }))} ativo={ativo} max={20} />
+            <Campo label="Meta diária (min)" value={config.dailyFocusMin} onChange={v => setCfg(c => ({ ...c, dailyFocusMin: v }))} ativo={ativo} max={480} />
             <Campo label="Descanso (min)" value={config.descansoMin} onChange={v => setCfg(c => ({ ...c, descansoMin: v }))} ativo={ativo} max={60} />
           </div>
-          <Toggle label="Auto-iniciar pr\u00F3ximo ciclo" value={config.autoStart} onChange={() => setCfg(c => ({ ...c, autoStart: !c.autoStart }))} ativo={ativo} />
-          <Toggle label="N\u00E3o perturbe (suprime notifica\u00E7\u00F5es)" value={config.dnd} onChange={() => setCfg(c => ({ ...c, dnd: !c.dnd }))} ativo={ativo} />
+          <Toggle label="Auto-iniciar próximo ciclo" value={config.autoStart} onChange={() => setCfg(c => ({ ...c, autoStart: !c.autoStart }))} ativo={ativo} />
+          <Toggle label="Não perturbe (suprime notificações)" value={config.dnd} onChange={() => setCfg(c => ({ ...c, dnd: !c.dnd }))} ativo={ativo} />
           <button onClick={() => setCfg(() => ({ focoMin: 25, pausaCurtaMin: 5, pausaLongaMin: 15, ciclosAtePausaLonga: 4, dailyFocusMin: 120, autoStart: false, dnd: false, descansoMin: 5 }))}
             className="text-sm text-accent hover:underline self-start" disabled={ativo}>
-            Restaurar padr\u00E3o
+            Restaurar padrão
           </button>
         </div>
       )}

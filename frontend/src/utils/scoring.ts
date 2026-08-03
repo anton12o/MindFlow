@@ -14,28 +14,28 @@ export interface QuadranteEisenhower {
 
 export const QUADRANTES: QuadranteEI[] = [
   {
-    key: 'quickwin', titulo: 'Quick Win', desc: 'Baixo esfor\u00e7o, alto impacto',
+    key: 'quickwin', titulo: 'Quick Win', desc: 'Baixo esforço, alto impacto',
     cor: 'border-accent/60', bg: 'bg-accent/12',
     badge: 'bg-accent', badgeText: 'text-accent-foreground', labelCor: 'text-accent',
-    acao: { label: 'Fa\u00e7a agora!', icone: '\u26A1', cor: 'text-accent bg-accent/12' },
+    acao: { label: 'Faça agora!', icone: '⚡', cor: 'text-accent bg-accent/12' },
   },
   {
-    key: 'grandeprojeto', titulo: 'Grande Projeto', desc: 'Alto esfor\u00e7o, alto impacto',
+    key: 'grandeprojeto', titulo: 'Grande Projeto', desc: 'Alto esforço, alto impacto',
     cor: 'border-quadrant-2/50', bg: 'bg-quadrant-2/10',
     badge: 'bg-quadrant-2', badgeText: 'text-accent-foreground', labelCor: 'text-quadrant-2',
-    acao: { label: 'Planeje', icone: '\uD83D\uDCD0', cor: 'text-quadrant-2 bg-quadrant-2/10' },
+    acao: { label: 'Planeje', icone: '📐', cor: 'text-quadrant-2 bg-quadrant-2/10' },
   },
   {
-    key: 'preenchimento', titulo: 'Preenchimento', desc: 'Baixo esfor\u00e7o, baixo impacto',
+    key: 'preenchimento', titulo: 'Preenchimento', desc: 'Baixo esforço, baixo impacto',
     cor: 'border-border', bg: 'bg-bg-secondary',
     badge: 'bg-bg-tertiary', badgeText: 'text-text-muted', labelCor: 'text-text-muted',
-    acao: { label: 'Delegue', icone: '\u2197', cor: 'text-text-muted bg-bg-secondary' },
+    acao: { label: 'Delegue', icone: '↗', cor: 'text-text-muted bg-bg-secondary' },
   },
   {
-    key: 'ingrata', titulo: 'Ingrata', desc: 'Alto esfor\u00e7o, baixo impacto',
+    key: 'ingrata', titulo: 'Ingrata', desc: 'Alto esforço, baixo impacto',
     cor: 'border-quadrant-4/50 border-dashed', bg: 'bg-quadrant-4/8',
     badge: 'bg-quadrant-4', badgeText: 'text-accent-foreground', labelCor: 'text-quadrant-4',
-    acao: { label: 'Evite', icone: '\u2715', cor: 'text-quadrant-4 bg-quadrant-4/8' },
+    acao: { label: 'Evite', icone: '✕', cor: 'text-quadrant-4 bg-quadrant-4/8' },
   },
 ]
 
@@ -69,10 +69,10 @@ export function getExternalScore(tarefa: Tarefa): { value: number | string; labe
   if (!ei) return undefined
   const key = classificar(ei.esforco, ei.impacto)
   const map: Record<string, { value: string; label: string; color: string }> = {
-    quickwin: { value: '\u26A1', label: 'Quick Win', color: 'bg-accent' },
-    grandeprojeto: { value: '\uD83D\uDCD0', label: 'Grande Projeto', color: 'bg-quadrant-2' },
-    preenchimento: { value: '\u2197', label: 'Preenchimento', color: 'bg-text-muted' },
-    ingrata: { value: '\u2715', label: 'Ingrata', color: 'bg-quadrant-4' },
+    quickwin: { value: '⚡', label: 'Quick Win', color: 'bg-accent' },
+    grandeprojeto: { value: '📐', label: 'Grande Projeto', color: 'bg-quadrant-2' },
+    preenchimento: { value: '↗', label: 'Preenchimento', color: 'bg-text-muted' },
+    ingrata: { value: '✕', label: 'Ingrata', color: 'bg-quadrant-4' },
   }
   return map[key]
 }
