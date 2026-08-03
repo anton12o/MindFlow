@@ -1,4 +1,4 @@
-# MindFlow 🧠 v1.6.6
+# MindFlow 🧠 v1.7.0
 
 [![CI](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/anton12o/MindFlow/actions/workflows/ci.yml)
 
